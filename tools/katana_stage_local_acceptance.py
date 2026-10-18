@@ -25,8 +25,6 @@ def main():
     parser.add_argument('--stock-only', action='store_true', help='Require an unpatched upstream binary and run only stock-mode acceptance')
     args = parser.parse_args()
     binary = args.binary.resolve(strict=True)
-    if args.stock_only and _katana_completion_supported(str(binary)):
-        parser.error('--stock-only requires a binary without the custom completion contract')
     reports = []
     servers, threads = [], []
 
@@ -84,6 +82,8 @@ def main():
                 try:
                     capability = patch('stages._katana_completion_supported', return_value=False) if scenario == 'stock_healthy' and not args.stock_only else contextlib.nullcontext()
                     with patch.dict(os.environ,env), patch('stages.tool_path',side_effect=lambda t:str(binary) if t=='katana' else None), patch('stages._probe_live_origins',return_value=(origins, [])), capability:
+                        if args.stock_only and _katana_completion_supported(ctx):
+                            parser.error('--stock-only requires a binary without the custom completion contract')
                         for phase in ('initial','resume') if scenario=='mixed_error' else ('initial',):
                             if phase=='resume': servers[1].fail=False
                             metrics=stage_urls(ctx)

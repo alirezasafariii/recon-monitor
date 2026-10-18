@@ -78,7 +78,7 @@ def _probe_ctx():
             url_in_scope=lambda url: str(url).startswith("https://example.test"),
             limits=SimpleNamespace(http_workers=8),
         ),
-        budget=_Budget(),
+        db=SimpleNamespace(all=lambda *_args: []), run_id="offline", budget=_Budget(),
     )
 
 
@@ -328,7 +328,7 @@ class ReconFinalTransportHardeningTests(unittest.TestCase):
                 url_in_scope=lambda _url: True,
                 limits=SimpleNamespace(http_workers=8),
             ),
-            budget=_Budget(),
+            db=SimpleNamespace(all=lambda *_args: []), run_id="offline", budget=_Budget(),
         )
         seen: list[dict[str, str]] = []
 

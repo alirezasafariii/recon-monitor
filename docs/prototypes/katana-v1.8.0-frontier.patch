@@ -357,10 +357,10 @@ index b6da330..1e5ec78 100644
  	wg.Wait()
 diff --git a/pkg/engine/common/recon_checkpoint.go b/pkg/engine/common/recon_checkpoint.go
 new file mode 100644
-index 0000000..d72bcdf
+index 0000000..29aa262
 --- /dev/null
 +++ b/pkg/engine/common/recon_checkpoint.go
-@@ -0,0 +1,399 @@
+@@ -0,0 +1,400 @@
 +package common
 +
 +// Experimental standard-engine checkpoint. Work is admitted durably before
@@ -406,6 +406,7 @@ index 0000000..d72bcdf
 +type reconCheckpoint struct {
 +	sync.Mutex
 +	path, lock string
++	lockFile   *os.File
 +	doc        frontierDocument
 +	items      map[string]frontierItem
 +	fault      error
@@ -480,15 +481,11 @@ index 0000000..d72bcdf
 +	h := sha256.Sum256([]byte(origin))
 +	path := filepath.Join(dir, hex.EncodeToString(h[:])+".json")
 +	lock := path + ".lock"
-+	f, err := os.OpenFile(lock, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
++	lockFile, err := acquireCheckpointLock(lock)
 +	if err != nil {
 +		return nil, fmt.Errorf("checkpoint is locked: %w", err)
 +	}
-+	if err = f.Close(); err != nil {
-+		os.Remove(lock)
-+		return nil, err
-+	}
-+	c := &reconCheckpoint{path: path, lock: lock, doc: frontierDocument{Contract: checkpointContract, Origin: origin, Binding: binding}, items: map[string]frontierItem{}}
++	c := &reconCheckpoint{path: path, lock: lock, lockFile: lockFile, doc: frontierDocument{Contract: checkpointContract, Origin: origin, Binding: binding}, items: map[string]frontierItem{}}
 +	success := false
 +	defer func() {
 +		if !success {
@@ -715,7 +712,11 @@ index 0000000..d72bcdf
 +	return out
 +}
 +func (c *reconCheckpoint) err() error { c.Lock(); defer c.Unlock(); return c.fault }
-+func (c *reconCheckpoint) close()     { os.Remove(c.lock) }
++func (c *reconCheckpoint) close() {
++	if c.lockFile != nil {
++		c.lockFile.Close()
++	}
++}
 +
 +// Missing depth must not silently become zero on restore.
 +func requireCheckpointFields(data []byte) error {
@@ -759,6 +760,228 @@ index 0000000..d72bcdf
 +	c.items[key] = frontierItem{URL: origin, Depth: 0}
 +	c.fault = c.saveLocked()
 +	return c.fault
++}
+diff --git a/pkg/engine/common/recon_checkpoint_lock.go b/pkg/engine/common/recon_checkpoint_lock.go
+new file mode 100644
+index 0000000..f7f1290
+--- /dev/null
++++ b/pkg/engine/common/recon_checkpoint_lock.go
+@@ -0,0 +1,78 @@
++package common
++
++import (
++	"errors"
++	"io"
++	"os"
++	"path/filepath"
++)
++
++const checkpointLockMarker = "recon.katana.checkpoint-lock.v2\n"
++
++// Keep the inode after release. Removing a file lock can allow a new process
++// to lock another inode while an earlier waiter still holds the old one.
++// The kernel releases ownership on normal close, SIGTERM, SIGKILL or crash.
++func acquireCheckpointLock(path string) (*os.File, error) {
++	// Publish a fully initialized marker atomically. A process dying before
++	// publication leaves no existence lock; dying afterwards leaves a known
++	// protocol marker whose kernel ownership can safely be reacquired.
++	if _, err := os.Lstat(path); os.IsNotExist(err) {
++		temporary, err := os.CreateTemp(filepath.Dir(path), ".recon-checkpoint-lock-*")
++		if err != nil {
++			return nil, err
++		}
++		defer os.Remove(temporary.Name())
++		if _, err = temporary.WriteString(checkpointLockMarker); err != nil {
++			temporary.Close()
++			return nil, err
++		}
++		if err = temporary.Sync(); err != nil {
++			temporary.Close()
++			return nil, err
++		}
++		if err = temporary.Close(); err != nil {
++			return nil, err
++		}
++		if err = os.Link(temporary.Name(), path); err != nil && !os.IsExist(err) {
++			return nil, err
++		}
++	} else if err != nil {
++		return nil, err
++	}
++	file, err := os.OpenFile(path, os.O_RDWR, 0600)
++	if err != nil {
++		return nil, err
++	}
++	success := false
++	defer func() {
++		if !success {
++			file.Close()
++		}
++	}()
++	before, err := file.Stat()
++	if err != nil {
++		return nil, err
++	}
++	current, err := os.Lstat(path)
++	if err != nil {
++		return nil, err
++	}
++	if !current.Mode().IsRegular() || current.Mode().Perm()&0077 != 0 || !os.SameFile(before, current) {
++		return nil, errors.New("unsafe checkpoint lock file")
++	}
++	if err := nativeCheckpointLock(file); err != nil {
++		return nil, err
++	}
++	marker, err := io.ReadAll(io.LimitReader(file, int64(len(checkpointLockMarker)+1)))
++	if err != nil {
++		return nil, err
++	}
++	// An old empty existence lock has no verifiable owner. Never steal it:
++	// an operator must first verify no legacy producer is still using it.
++	if string(marker) != checkpointLockMarker {
++		return nil, errors.New("unverifiable legacy checkpoint lock; verify no legacy producer is active before removing it")
++	}
++
++	success = true
++	return file, nil
++}
+diff --git a/pkg/engine/common/recon_checkpoint_lock_test.go b/pkg/engine/common/recon_checkpoint_lock_test.go
+new file mode 100644
+index 0000000..35237a0
+--- /dev/null
++++ b/pkg/engine/common/recon_checkpoint_lock_test.go
+@@ -0,0 +1,78 @@
++package common
++
++import (
++	"bufio"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++	"time"
++
++	"github.com/projectdiscovery/katana/pkg/navigation"
++)
++
++func TestReconCheckpointLockReleasedAfterKilledProcess(t *testing.T) {
++	if dir := os.Getenv("RECON_CHECKPOINT_LOCK_CHILD"); dir != "" {
++		c := checkpointOpen(t, dir)
++		if err := c.admit(&navigation.Request{Method: "GET", URL: "http://example.test/proof"}); err != nil {
++			t.Fatal(err)
++		}
++		fmt.Println("locked")
++		for {
++			time.Sleep(time.Hour)
++		}
++	}
++	dir := t.TempDir()
++	command := exec.Command(os.Args[0], "-test.run=^TestReconCheckpointLockReleasedAfterKilledProcess$")
++	command.Env = append(os.Environ(), "RECON_CHECKPOINT_LOCK_CHILD="+dir)
++	output, err := command.StdoutPipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	command.Stderr = os.Stderr
++	if err = command.Start(); err != nil {
++		t.Fatal(err)
++	}
++	defer func() { command.Process.Kill(); command.Wait() }()
++	if text, err := bufio.NewReader(output).ReadString('\n'); err != nil || text != "locked\n" {
++		t.Fatalf("child startup: %q %v", text, err)
++	}
++	if c, err := openCheckpoint(dir, "http://example.test/", "binding", 3, func(string) bool { return true }); err == nil {
++		c.close()
++		t.Fatal("live writer lock was bypassed")
++	}
++	command.Process.Kill()
++	command.Wait()
++	c := checkpointOpen(t, dir)
++	defer c.close()
++	if len(c.snapshot()) != 1 || c.snapshot()[0].Done {
++		t.Fatal("unfinished frontier was lost")
++	}
++}
++
++func TestReconCheckpointLockRejectsLegacyAndSymlink(t *testing.T) {
++	dir := t.TempDir()
++	c := checkpointOpen(t, dir)
++	c.close()
++	lock := c.path + ".lock"
++	os.WriteFile(lock, nil, 0600)
++	if c, err := openCheckpoint(dir, "http://example.test/", "binding", 3, func(string) bool { return true }); err == nil {
++		c.close()
++		t.Fatal("unverifiable legacy lock accepted")
++	}
++	os.Remove(lock)
++	outside := filepath.Join(t.TempDir(), "outside")
++	os.WriteFile(outside, []byte("unchanged"), 0600)
++	if err := os.Symlink(outside, lock); err != nil {
++		t.Skip(err)
++	}
++	if c, err := openCheckpoint(dir, "http://example.test/", "binding", 3, func(string) bool { return true }); err == nil {
++		c.close()
++		t.Fatal("symlink lock accepted")
++	}
++	data, _ := os.ReadFile(outside)
++	if string(data) != "unchanged" {
++		t.Fatal("outside file changed")
++	}
++}
+diff --git a/pkg/engine/common/recon_checkpoint_lock_unix.go b/pkg/engine/common/recon_checkpoint_lock_unix.go
+new file mode 100644
+index 0000000..cf7ff48
+--- /dev/null
++++ b/pkg/engine/common/recon_checkpoint_lock_unix.go
+@@ -0,0 +1,12 @@
++//go:build linux || darwin || freebsd || openbsd || netbsd || dragonfly
++
++package common
++
++import (
++	"golang.org/x/sys/unix"
++	"os"
++)
++
++func nativeCheckpointLock(file *os.File) error {
++	return unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB)
++}
+diff --git a/pkg/engine/common/recon_checkpoint_lock_unsupported.go b/pkg/engine/common/recon_checkpoint_lock_unsupported.go
+new file mode 100644
+index 0000000..bc29189
+--- /dev/null
++++ b/pkg/engine/common/recon_checkpoint_lock_unsupported.go
+@@ -0,0 +1,12 @@
++//go:build !linux && !darwin && !freebsd && !openbsd && !netbsd && !dragonfly && !windows
++
++package common
++
++import (
++	"errors"
++	"os"
++)
++
++func nativeCheckpointLock(file *os.File) error {
++	return errors.New("checkpoint locking is unavailable on this platform")
++}
+diff --git a/pkg/engine/common/recon_checkpoint_lock_windows.go b/pkg/engine/common/recon_checkpoint_lock_windows.go
+new file mode 100644
+index 0000000..6f384dd
+--- /dev/null
++++ b/pkg/engine/common/recon_checkpoint_lock_windows.go
+@@ -0,0 +1,12 @@
++//go:build windows
++
++package common
++
++import (
++	"golang.org/x/sys/windows"
++	"os"
++)
++
++func nativeCheckpointLock(file *os.File) error {
++	return windows.LockFileEx(windows.Handle(file.Fd()), windows.LOCKFILE_EXCLUSIVE_LOCK|windows.LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0, &windows.Overlapped{})
 +}
 diff --git a/pkg/engine/common/recon_checkpoint_test.go b/pkg/engine/common/recon_checkpoint_test.go
 new file mode 100644

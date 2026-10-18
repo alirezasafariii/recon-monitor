@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -455,13 +456,10 @@ class BackupManager:
         ).reconcile_reference_counts()
 
         snapshot = self.paths.backups / f".{backup_id}.db"
-        source = sqlite3.connect(self.paths.db)
-        destination = sqlite3.connect(snapshot)
-        try:
+        with contextlib.ExitStack() as connections:
+            source = connections.enter_context(contextlib.closing(sqlite3.connect(self.paths.db)))
+            destination = connections.enter_context(contextlib.closing(sqlite3.connect(snapshot)))
             source.backup(destination)
-        finally:
-            source.close()
-            destination.close()
 
         try:
             references = self._materialize_reference_manifest(

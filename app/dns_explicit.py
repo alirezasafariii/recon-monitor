@@ -10,6 +10,7 @@ from core import normalize_host, tool_path, valid_domain, json_dumps, safe_json_
 from execution import BudgetExceeded, WorkQueue
 
 RESOLVER = "8.8.8.8"
+RESOLVER_PORT = 53
 MAX_QUERIES = 128
 
 
@@ -25,7 +26,7 @@ def parse_response(text: str, host: str, rrtype: str):
     if (len(headers) != 1 or len(flags) != 1 or 'qr' not in flags[0].split()
             or 'tc' in flags[0].split() or len(questions) != 1
             or normalize_host(questions[0][0]) != host or questions[0][1] != rrtype
-            or server != [RESOLVER + '#53(' + RESOLVER + ')']
+            or server != [RESOLVER + '#' + str(RESOLVER_PORT) + '(' + RESOLVER + ')']
             or headers[0] not in {'NOERROR', 'NXDOMAIN'}
             or len(counts) != 1 or counts[0][0] != '1'):
         return None
@@ -104,7 +105,7 @@ def parse_response(text: str, host: str, rrtype: str):
 
 
 def _identity(ctx, host, rrtype):
-    return {'host': host, 'rrtype': rrtype, 'resolver': RESOLVER,
+    return {'host': host, 'rrtype': rrtype, 'resolver': RESOLVER, 'resolver_port': RESOLVER_PORT,
             'policy_hash': ctx.policy.policy_hash()}
 
 
@@ -175,7 +176,7 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state, *, resumab
         output = ctx.current / (f'dns-explicit-{uuid.uuid4().hex}.txt' if resumable else
                                 f'dns-explicit-{index}-{repeat}-{rrtype.lower()}-{state["used"]}.txt')
         result = ctx.runner.run(
-            [dig, '@' + RESOLVER, host, rrtype, '+tries=1', '+timeout=2',
+            [dig, '@' + RESOLVER, host, rrtype, '-p', str(RESOLVER_PORT), '+tries=1', '+timeout=2',
              '+ignore', '+noall', '+comments', '+question', '+answer', '+authority', '+stats'],
             timeout=min(5, ctx.policy.limits.timeout_seconds), output_path=output,
             # BIND/Apple dig reads ~/.digrc only when HOME is present. Remove

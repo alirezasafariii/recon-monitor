@@ -21,6 +21,8 @@ from katana_reliability import (
     frontier_reduction_observed,
     katana_host,
     load_throttle_state,
+    load_shared_throttle_state,
+    persist_shared_throttle_state,
     register_throttling,
 )
 
@@ -791,11 +793,26 @@ def _katana_crawl_plan(
     }
 
 
+def _http_host_cooling_down(ctx, url: str) -> bool:
+    return bool(load_shared_throttle_state(ctx.db, host=katana_host(url)))
+
+
+def _record_http_throttle(ctx, url: str, status: int, retry_after: str = "") -> None:
+    if status == 429:
+        state = {}
+        register_throttling(state, [katana_host(url)], now=time.time(), retry_after=retry_after)
+        persist_shared_throttle_state(ctx.db, state, ctx.run_id)
+
+
 def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
+    if _http_host_cooling_down(ctx, url):
+        return {"url": url, "live": False, "status_code": 0,
+                "error": "rate_limit_cooldown", "transport_status": "stopped_for_safety"}
     if ctx.budget:
         ctx.budget.consume("http_requests", 1)
 
     def observation(method: str, observed_url: str, status: int, headers: Any, _body: bytes, error: str = "") -> dict[str, Any]:
+        _record_http_throttle(ctx, observed_url, status, str(headers.get('Retry-After', '') if headers else ''))
         content_type = ""
         location = ""
         if headers:
@@ -949,6 +966,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     # throttled host while its cooldown is active.
     throttle_path = ctx.current / "katana-throttle-state.json"
     throttle_state = load_throttle_state(throttle_path)
+    persist_shared_throttle_state(ctx.db, throttle_state, ctx.run_id)
+    for host, saved in load_shared_throttle_state(ctx.db).items():
+        if saved['retry_not_before'] > throttle_state.get(host, {}).get('retry_not_before', 0):
+            throttle_state[host] = saved
     throttled_hosts = set(throttle_state)
     deferred_origins = [
         url for url in sorted(candidate_base_urls) if katana_host(url) in throttled_hosts
@@ -971,6 +992,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     } - {""}
     if probe_throttled_hosts:
         register_throttling(throttle_state, sorted(probe_throttled_hosts), now=time.time())
+        persist_shared_throttle_state(ctx.db, throttle_state, ctx.run_id)
         throttled_hosts.update(probe_throttled_hosts)
         atomic_write_text(throttle_path, json_dumps({
             "version": 1, "hosts": throttle_state,
@@ -1225,7 +1247,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 batch_origins = katana_origins[batch_offset:batch_offset + batch_width]
                 # A prior batch can throttle another scheme of the same host.
                 # Skip it without charging another reservation or launching Katana.
+                newly_throttled = set(load_shared_throttle_state(ctx.db))
+                throttled_hosts.update(newly_throttled)
                 if any(katana_host(origin) in throttled_hosts for origin in batch_origins):
+                    deferred_origins = sorted(set(deferred_origins) | {
+                        origin for origin in batch_origins if katana_host(origin) in throttled_hosts})
                     continue
                 if not uncapped_katana:
                     remaining_seconds = (
@@ -1378,6 +1404,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     register_throttling(
                         throttle_state, errors_summary["throttled_hosts"], now=time.time(),
                     )
+                    persist_shared_throttle_state(ctx.db, throttle_state, ctx.run_id)
                     atomic_write_text(throttle_path, json_dumps({
                         "version": 1, "hosts": throttle_state,
                     }))
@@ -1724,6 +1751,8 @@ def _download_url(
     started = time.monotonic()
 
     def before_request(_candidate: str) -> None:
+        if _http_host_cooling_down(ctx, _candidate):
+            raise StageError("HTTP host is in rate_limit_cooldown", retryable=True)
         gate = getattr(ctx, "request_gate", None)
         if callable(gate):
             gate(_candidate)
@@ -1750,6 +1779,8 @@ def _download_url(
         if isinstance(result.get("headers"), Mapping)
         else {}
     )
+    _record_http_throttle(ctx, str(result.get("final_url") or url), status_code,
+                          str(response_headers.get('Retry-After', '') or response_headers.get('retry-after', '')))
     error = str(result.get("error") or "")
 
     if error == "response_budget_exceeded":
@@ -2094,6 +2125,9 @@ def _select_javascript_urls(urls: Iterable[str], max_files: int) -> tuple[list[s
     return selected, unselected
 
 
+HTTP_ABSENCE_PROOF_VERSION = 2
+
+
 def _verified_not_found(ctx: StageContext, url: str, result: Mapping[str, Any]) -> bool:
     """Accept absence only after a complete, in-scope HTTP observation."""
     return (type(result.get("status_code")) is int and result["status_code"] in {404, 410}
@@ -2106,7 +2140,8 @@ def _verified_not_found(ctx: StageContext, url: str, result: Mapping[str, Any]) 
 
 def _javascript_work_processed(ctx: StageContext, store: ContentAddressedStore, url: str, result: Mapping[str, Any]) -> bool:
     if result.get("status") == "not_found":
-        if (result.get("url") != url or result.get("policy_hash") != ctx.policy.policy_hash()
+        if (result.get("absence_proof_version") != HTTP_ABSENCE_PROOF_VERSION
+                or result.get("url") != url or result.get("policy_hash") != ctx.policy.policy_hash()
                 or not _verified_not_found(ctx, url, result)):
             return False
         row = ctx.db.one("SELECT state,status_code FROM js_availability_history WHERE run_id=? AND target=? AND url=?", (ctx.run_id, ctx.policy.name, url))
@@ -2151,6 +2186,7 @@ def _source_map_work(
     if row["status"] == "completed":
         try:
             if (saved.get("status") == "not_found"
+                    and saved.get("absence_proof_version") == HTTP_ABSENCE_PROOF_VERSION
                     and all(saved.get(key) == value for key, value in identity.items())
                     and saved.get("policy_hash") == ctx.policy.policy_hash()
                     and type(saved.get("status_code")) is int and saved["status_code"] in {404, 410}
@@ -2192,7 +2228,8 @@ def _source_map_work(
                 and result["status_code"] in {404, 410} and result.get("transport_status") == "ok"
                 and not any(result.get(key) for key in ("error", "operator_next", "truncated", "redirect_outside_scope"))
                 and ctx.policy.url_in_scope(str(result.get("final_url") or source_map_url))):
-            absent = {**identity, "policy_hash": ctx.policy.policy_hash(), "status": "not_found",
+            absent = {**identity, "absence_proof_version": HTTP_ABSENCE_PROOF_VERSION,
+                      "policy_hash": ctx.policy.policy_hash(), "status": "not_found",
                       "status_code": result["status_code"], "transport_status": "ok",
                       "final_url": str(result.get("final_url") or source_map_url)}
             queue.finish(work_id, absent)
@@ -2657,6 +2694,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                         work_ids[url],
                         {
                             "status": "not_found",
+                            "absence_proof_version": HTTP_ABSENCE_PROOF_VERSION,
                             "url": url,
                             "final_url": str(result.get("final_url") or result.get("url") or url),
                             "policy_hash": ctx.policy.policy_hash(),
@@ -3316,10 +3354,14 @@ def _safe_validate_endpoint(ctx: StageContext, endpoint: str, sources: Iterable[
     for url, resolution_method, resolution_source in candidates[:3]:
         if callable(getattr(ctx, "next_requested", None)) and ctx.next_requested():
             return {"endpoint": endpoint, "skipped": "operator_next"}
+        if _http_host_cooling_down(ctx, url):
+            return {"endpoint": endpoint, "resolved_url": url, "reachable": False,
+                    "error": "rate_limit_cooldown", "transport_status": "stopped_for_safety"}
         if ctx.budget:
             ctx.budget.consume("http_requests", 1)
 
         def observation(method: str, observed_url: str, status: int, headers: Any, _body: bytes, error: str = "") -> dict[str, Any]:
+            _record_http_throttle(ctx, observed_url, status, str(headers.get('Retry-After', '') if headers else ''))
             content_type = ""
             if headers:
                 with contextlib.suppress(Exception):
@@ -3630,6 +3672,17 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
     base_path = ctx.current / "base-urls.txt"
     if not base_path.exists():
         return {"probed": 0, "live": 0, "new": 0, "changed": 0}
+    base_urls = [url for url in base_path.read_text(encoding="utf-8", errors="replace").splitlines() if url.strip()]
+    cooling = set(load_shared_throttle_state(ctx.db))
+    deferred = [url for url in base_urls if katana_host(url) in cooling]
+    if deferred:
+        base_urls = [url for url in base_urls if katana_host(url) not in cooling]
+        base_path = ctx.current / "httpx-cooldown-filtered-input.txt"
+        atomic_write_text(base_path, "".join(url + "\n" for url in base_urls))
+        if not base_urls:
+            return {"probed": 0, "live": 0, "new": 0, "changed": 0,
+                    "collection_status": "partial", "collection_reasons": ["http_rate_limit_cooldown"],
+                    "cooldown_deferred": len(deferred)}
     if not tool_path("httpx"):
         ctx.logger.warn("ProjectDiscovery httpx missing; fingerprint stage skipped", target=ctx.policy.name)
         return {"probed": 0, "live": 0, "new": 0, "changed": 0, "skipped": "httpx missing"}
@@ -3686,6 +3739,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
         url, record = _httpx_record(row)
         if not url or not ctx.policy.url_in_scope(url):
             continue
+        _record_http_throttle(ctx, url, record.get("status_code", 0))
         live += 1
         if ctx.policy.raw.get("fingerprint", {}).get("collect_tls", True):
             record.update(_tls_certificate_info(ctx, url))
@@ -3728,7 +3782,8 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
 
     atomic_write_text(ctx.changes / "new-live-http.txt", "".join(f"{x}\n" for x in new_live))
     atomic_write_text(ctx.changes / "changed-fingerprints.txt", "".join(f"{x}\n" for x in changed))
-    return {"probed": result.lines, "live": live, "new": len(new_live), "changed": len(changed), "screenshots": bool(ctx.policy.modules.get("screenshots"))}
+    return {"probed": result.lines, "live": live, "new": len(new_live), "changed": len(changed), "screenshots": bool(ctx.policy.modules.get("screenshots")),
+            **({"collection_status": "partial", "collection_reasons": ["http_rate_limit_cooldown"], "cooldown_deferred": len(deferred)} if deferred else {})}
 
 
 _HTTP_WEB_PORTS = {80, 3000, 5000, 8000, 8008, 8080, 8888}
@@ -3815,8 +3870,12 @@ def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
         if path.exists():
             candidates.update(line.strip() for line in path.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip())
     candidates = {url for url in candidates if ctx.policy.url_in_scope(url)}
+    cooling = set(load_shared_throttle_state(ctx.db))
+    deferred = {url for url in candidates if katana_host(url) in cooling}
+    candidates -= deferred
     if not candidates:
-        return {"skipped": "no new or changed live URLs"}
+        return ({"collection_status": "partial", "collection_reasons": ["http_rate_limit_cooldown"], "cooldown_deferred": len(deferred)}
+                if deferred else {"skipped": "no new or changed live URLs"})
     input_path = ctx.current / "nuclei-input.txt"
     atomic_write_text(input_path, "".join(f"{url}\n" for url in sorted(candidates)))
     out = ctx.current / "nuclei.jsonl"
@@ -3850,7 +3909,8 @@ def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
         if ctx.db.upsert_finding(ctx.policy.name, dedup, record, ctx.run_id):
             new_findings += 1
             emit_event(ctx, "nuclei_finding", f"{template_id}@{matched_at}", f"Nuclei finding: {name}", record)
-    return {"targets": len(candidates), "templates": len(template_ids), "findings": findings, "new": new_findings}
+    return {"targets": len(candidates), "templates": len(template_ids), "findings": findings, "new": new_findings,
+            **({"collection_status": "partial", "collection_reasons": ["http_rate_limit_cooldown"], "cooldown_deferred": len(deferred)} if deferred else {})}
 
 
 STAGE_FUNCTIONS: dict[str, Callable[[StageContext], dict[str, Any]]] = {

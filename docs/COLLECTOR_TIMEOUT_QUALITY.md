@@ -129,3 +129,82 @@ before applying the project's producer patch. Run the same unpatched acceptance
 with `python tools/katana_stage_local_acceptance.py --stock-only --binary PATH
 --output REPORT.json`. This mode rejects binaries advertising the custom
 completion contract and tests ordinary capability detection without a mock.
+
+## Shared HTTP cooldowns
+
+HTTP 429 observations are stored in `http_host_cooldowns` in the installation's
+SQLite database, keyed by hostname across schemes, ports, runs and overlapping
+targets. The migration revision advances independently of schema version 18.
+A new run or policy does not clear an active cooldown. Updates use an atomic
+maximum so a concurrent observation cannot shorten an existing deadline.
+`Retry-After` seconds and HTTP dates can extend the one-hour floor. Custom Katana
+error logs do not expose this header, so those observations use the floor.
+
+URL collection imports valid old per-run throttle files and merges shared state
+before probing and before launching each crawler batch. In-process origin probes,
+JavaScript/source-map requests (including redirect hops), and endpoint validation
+consult the same state. HTTP fingerprint and Nuclei inputs are filtered again at
+launch; deferred inputs keep their stage partial. External tools already running
+cannot have individual in-flight requests recalled by this admission gate.
+Installations using different databases do not share cooldowns.
+
+Run `python tools/http_cooldown_local_acceptance.py --output REPORT.json` for a
+real loopback 429, database reopen, independent run, zero-request cooldown, and
+post-expiry request check.
+
+## SQLite resource ownership
+
+Database initialization closes its connection if PRAGMA setup or migration fails.
+Backup, legacy import and dashboard snapshot setup use an ExitStack, so opening a
+second connection cannot leak the first. The stage-next regression also closes
+its database-writer thread explicitly.
+
+`python tools/check_sqlite_resources.py` runs the suite while tracking explicit
+SQLite close calls. It fails even when an open connection is kept alive by a
+background thread and never emits a ResourceWarning. The positive-control test
+proves detection. Use `--pattern test_sqlite_resource_lifecycle.py --tracemalloc`
+for allocation traces and injected setup/migration/backup failures. CI uses this
+check for Python 3.14. Passing it covers exercised paths, not every possible path.
+
+## Interrupted checkpoint ownership and scale acceptance
+
+The custom producer uses a nonblocking OS file lock whose ownership disappears
+on process death, including Operator Next and forced termination. The private
+marker inode stays in place to avoid replacement races. A complete versioned
+marker is published atomically before acquisition, so interruption during setup
+cannot publish an ambiguous empty lock. A live owner still excludes another
+producer; symlinks, unsafe permissions and invalid markers fail closed.
+
+Old empty existence-lock files cannot establish whether a legacy producer is
+still active. They require operator verification that the old producer has
+stopped before removing the `.json.lock` file; retain the `.json` checkpoint.
+The collector does not automatically steal these legacy locks.
+
+`python tools/collection_scale_local_acceptance.py --binary PATH --output REPORT.json`
+exercises 200 loopback origins with the real producer, CommandRunner, SQLite,
+Orchestrator and run lifecycle. An initial short deadline leaves unfinished
+frontiers; later attempts request Next through the database control API. The
+acceptance checks cumulative budget bounds, preserved URL evidence, decreasing
+backlog, no new requests to certified-completed origins, and unchanged comparison
+baseline until collection completes. Other collector stages and reporting are
+fixtures. This is a controlled URL-collection acceptance, not an Internet-target
+performance measurement. `--workdir EMPTY_PATH` retains diagnostic artifacts.
+
+## Real DNS fallback acceptance
+
+`python tools/dns_fallback_local_acceptance.py --dnsx PATH --dig PATH --output REPORT.json`
+runs both actual binaries against an authoritative loopback fixture. It covers
+A and root NS positives, SOA-backed NODATA/NXDOMAIN, the 128-query cap, database
+reopen, and reuse after completion. Resolver address and port are overridden only
+inside the test; production retains `8.8.8.8:53`. Proof identities include the
+resolver port. DNSx request admission is estimated, while the fixture separately
+counts real wire queries. CI verifies the pinned dnsx 1.3.1 archive checksum.
+
+Pinned HTTP transport also closes HTTPError responses on redirects, safety stops,
+and callback failures. Read failures and oversized HTTP error bodies retain an
+explicit transport error instead of becoming a verified JavaScript absence.
+The remote-worker scope regressions assert response-body closure and these
+failure classifications.
+Legacy parent/source-map absence receipts without the current proof version are
+revalidated once, so cached observations from before strict HTTP-body validation
+cannot bypass the improved transport checks after an upgrade.

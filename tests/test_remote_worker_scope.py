@@ -46,12 +46,15 @@ class RemoteWorkerScopeTests(unittest.TestCase):
     def _transport(self, payload, locations):
         """Exercise the real shared transport with fake DNS and pinned openers."""
         opened = []
+        redirect_bodies = []
 
         def open_request(request, **_kwargs):
             opened.append(request.full_url)
             index = len(opened) - 1
             if index < len(locations):
-                raise urllib.error.HTTPError(request.full_url, 302, "redirect", {"Location": locations[index]}, io.BytesIO())
+                body = io.BytesIO()
+                redirect_bodies.append(body)
+                raise urllib.error.HTTPError(request.full_url, 302, "redirect", {"Location": locations[index]}, body)
             response = MagicMock()
             response.status = 200
             response.headers = {"Content-Type": "application/javascript"}
@@ -63,7 +66,25 @@ class RemoteWorkerScopeTests(unittest.TestCase):
             "safe_transport.build_pinned_opener", return_value=SimpleNamespace(open=open_request),
         ):
             result = remote_worker.execute_task(payload)
+        self.assertTrue(all(body.closed for body in redirect_bodies), "Redirect HTTPError response was not closed")
         return result, opened, resolve.call_args_list
+
+    def test_http_error_body_failure_is_not_a_verified_absence(self):
+        for fault in ('read_failure', 'oversize'):
+            with self.subTest(fault=fault):
+                class Body(io.BytesIO):
+                    def read(self, amount=-1):
+                        if fault == 'read_failure':
+                            raise OSError('injected read failure')
+                        return super().read(amount)
+                body = Body(b'x' * 20)
+                error = urllib.error.HTTPError(self.START, 404, 'missing', {}, body)
+                with patch('safe_transport.resolve_public_addresses', return_value=(True, ['93.184.216.34'])), \
+                        patch('safe_transport.build_pinned_opener', return_value=SimpleNamespace(open=MagicMock(side_effect=error))):
+                    result = remote_worker.execute_task({**self._payload(), 'max_bytes': 10})
+                self.assertTrue(body.closed)
+                self.assertNotEqual(result['transport_status'], 'ok')
+                self.assertEqual(result['transport_error'], 'response_read_failed' if fault == 'read_failure' else 'response_budget_exceeded')
 
     def test_excluded_initial_url_is_rejected_before_transport(self):
         for kind in remote_worker.WORKER_CAPABILITIES:

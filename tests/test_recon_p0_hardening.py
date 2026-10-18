@@ -41,7 +41,7 @@ def _ctx():
             "include": [r"(^|\.)example\.com$"],
         }
     )
-    return SimpleNamespace(policy=policy, budget=_Budget())
+    return SimpleNamespace(db=SimpleNamespace(all=lambda *_args: []), run_id="offline", policy=policy, budget=_Budget())
 
 
 class ReconP0HardeningTests(unittest.TestCase):

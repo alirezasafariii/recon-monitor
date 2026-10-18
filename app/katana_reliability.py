@@ -7,6 +7,8 @@ the decision rules can be regression tested without network access.
 from __future__ import annotations
 
 import json
+import datetime as dt
+from email.utils import parsedate_to_datetime
 import math
 import re
 import time
@@ -102,7 +104,21 @@ def classify_katana_request_errors(path: Path, batch_origins: list[str]) -> dict
     return {"counts": dict(counts), "throttled_hosts": sorted(throttled)}
 
 
-def register_throttling(state: dict[str, dict], hosts: list[str], *, now: float) -> None:
+def register_throttling(state: dict[str, dict], hosts: list[str], *, now: float, retry_after: str = "") -> None:
+    until = now + THROTTLE_COOLDOWN_SECONDS
+    try:
+        value = str(retry_after).strip()[:200]
+        if value.isdecimal():
+            advised = now + int(value)
+        else:
+            parsed = parsedate_to_datetime(value)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=dt.timezone.utc)
+            advised = parsed.timestamp()
+        if math.isfinite(advised):
+            until = max(until, advised)
+    except (ValueError, TypeError, OverflowError):
+        pass
     for host in hosts:
         if not host:
             continue
@@ -111,9 +127,38 @@ def register_throttling(state: dict[str, dict], hosts: list[str], *, now: float)
             "reason": "http_429",
             "retry_not_before": max(
                 float(current.get("retry_not_before") or 0),
-                now + THROTTLE_COOLDOWN_SECONDS,
+                until,
             ),
         }
+
+
+def load_shared_throttle_state(db, *, now: float | None = None, host: str = "") -> dict[str, dict]:
+    """Host cooldowns shared by runs and overlapping targets in one installation."""
+    now = time.time() if now is None else now
+    query = "SELECT host,retry_not_before FROM http_host_cooldowns WHERE retry_not_before>?"
+    params = (now,)
+    if host:
+        query += " AND host=?"
+        params += (host,)
+    return {row['host']: {'retry_not_before': float(row['retry_not_before']), 'reason': 'http_429'}
+            for row in db.all(query, params)}
+
+
+def persist_shared_throttle_state(db, state: dict[str, dict], run_id: str) -> None:
+    # MAX is evaluated by SQLite: concurrent observers cannot shorten a longer
+    # cooldown. A successful response and a new policy/run never clear it.
+    for host, item in state.items():
+        until = float(item['retry_not_before'])
+        if katana_host('https://' + host) != host or not math.isfinite(until):
+            continue
+        db.execute(
+            "INSERT INTO http_host_cooldowns(host,retry_not_before,source_run_id) VALUES(?,?,?) "
+            "ON CONFLICT(host) DO UPDATE SET "
+            "retry_not_before=MAX(http_host_cooldowns.retry_not_before,excluded.retry_not_before), "
+            "source_run_id=CASE WHEN excluded.retry_not_before>http_host_cooldowns.retry_not_before "
+            "THEN excluded.source_run_id ELSE http_host_cooldowns.source_run_id END",
+            (host, until, run_id),
+        )
 
 
 def frontier_reduction_observed(old_outcomes: list[dict], new_outcomes: list[dict]) -> bool:

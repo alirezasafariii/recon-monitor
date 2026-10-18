@@ -362,6 +362,14 @@ class SourceMapResumeTests(unittest.TestCase):
         self.assertEqual(second["collection_status"], "completed")
         self.assertEqual(self.map_items(), [])
 
+    def test_legacy_absence_proof_is_revalidated_before_reuse(self):
+        self.first_failure({'url': self.MAP, 'status_code': 404, 'not_found': True, 'transport_status': 'ok'})
+        item = self.map_items()[0]
+        saved = json.loads(item['result_json'])
+        saved.pop('absence_proof_version')
+        self.db.execute('UPDATE work_items SET result_json=? WHERE id=?', (json.dumps(saved), item['id']))
+        self.assertEqual(self.resume_map()['source_maps'], 1)
+
     def test_map_subtask_identity_includes_parent_raw_hash_across_runs(self):
         self.complete()
         self.new_run()

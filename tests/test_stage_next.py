@@ -300,6 +300,7 @@ class StageNextTests(unittest.TestCase):
             self.paths, Config(self.paths), Logger(self.paths), self.db,
             progress=False, allow_active=False,
         )
+        self.addCleanup(orchestrator.db_writer.close)
         self.db.stage_begin(self.run_id, self.policy.name, "subdomains", 1)
         ctx = StageContext(
             self.paths, Config(self.paths), self.policy, self.db, Logger(self.paths),

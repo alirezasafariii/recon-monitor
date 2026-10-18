@@ -49,7 +49,7 @@ def _ctx():
             "limits": {"http_workers": 8},
         }
     )
-    return SimpleNamespace(policy=policy, budget=_Budget(), progress=_Progress())
+    return SimpleNamespace(db=SimpleNamespace(all=lambda *_args: []), run_id="offline", policy=policy, budget=_Budget(), progress=_Progress())
 
 
 class ReconP1CollectionTests(unittest.TestCase):

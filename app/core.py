@@ -593,7 +593,7 @@ class PolicySet:
 # Schema version 18 was reused across releases with different incremental columns.
 # This revision records completion of the migrations in this source revision;
 # the numeric version alone cannot prove that upgrades have run.
-MIGRATION_REVISION = "recon-reliability-20261018-1"
+MIGRATION_REVISION = "recon-reliability-20261018-2"
 
 
 class Database:
@@ -601,21 +601,25 @@ class Database:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
         self.conn = sqlite3.connect(path, timeout=30, isolation_level=None, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
-        # WAL mode is persisted in the database file. Re-setting it on every
-        # connection (particularly dashboard GET requests) can contend with
-        # active scan writers. Change the mode only on initial/legacy databases.
-        journal_mode = self.conn.execute("PRAGMA journal_mode").fetchone()
-        if not journal_mode or str(journal_mode[0]).lower() != "wal":
-            self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.execute("PRAGMA synchronous=NORMAL")
-        self.conn.execute("PRAGMA foreign_keys=ON")
-        self.conn.execute("PRAGMA busy_timeout=30000")
-        self.conn.execute("PRAGMA temp_store=MEMORY")
-        self._lock = threading.RLock()
-        self._managed_transaction_depth = 0
-        self._pending_audit_lines: list[str] = []
-        self.migrate()
+        try:
+            self.conn.row_factory = sqlite3.Row
+            # WAL mode is persisted in the database file. Re-setting it on every
+            # connection (particularly dashboard GET requests) can contend with
+            # active scan writers. Change the mode only on initial/legacy databases.
+            journal_mode = self.conn.execute("PRAGMA journal_mode").fetchone()
+            if not journal_mode or str(journal_mode[0]).lower() != "wal":
+                self.conn.execute("PRAGMA journal_mode=WAL")
+            self.conn.execute("PRAGMA synchronous=NORMAL")
+            self.conn.execute("PRAGMA foreign_keys=ON")
+            self.conn.execute("PRAGMA busy_timeout=30000")
+            self.conn.execute("PRAGMA temp_store=MEMORY")
+            self._lock = threading.RLock()
+            self._managed_transaction_depth = 0
+            self._pending_audit_lines: list[str] = []
+            self.migrate()
+        except BaseException:
+            self.conn.close()
+            raise
 
     def close(self) -> None:
         self.conn.close()
@@ -644,6 +648,13 @@ class Database:
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS http_host_cooldowns (
+              host TEXT PRIMARY KEY,
+              retry_not_before REAL NOT NULL,
+              source_run_id TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_http_host_cooldown_expiry
+              ON http_host_cooldowns(retry_not_before);
             CREATE TABLE IF NOT EXISTS runs (
               id TEXT PRIMARY KEY,
               version TEXT NOT NULL,

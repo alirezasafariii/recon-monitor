@@ -7,6 +7,7 @@ on:
       - 'tools/katana_frontier*'
       - 'tools/katana_filtered_frontier*'
       - 'tools/katana_stage_local_acceptance.py'
+      - 'tools/collection_scale_local_acceptance.py'
       - '.github/workflows/katana-frontier-prototype.yml'
 permissions:
   contents: read
@@ -55,3 +56,4 @@ jobs:
           python tools/katana_provenance_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/provenance.json
           python tools/katana_filtered_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/filtered-frontier.json
           python tools/katana_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/stage.json
+          python tools/collection_scale_local_acceptance.py --binary /tmp/katana-frontier --origins 200 --chunk 40 --output /tmp/scale-200.json

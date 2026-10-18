@@ -261,8 +261,9 @@ class CollectionResumeRepairs(unittest.TestCase):
         with patch('stages._download_url', return_value={'url': url, 'status_code': 404,
                 'not_found': True, 'transport_status': 'ok'}):
             stage_javascript(f.ctx)
-        f.ctx.db.execute("UPDATE work_items SET result_json=? WHERE stage='javascript-items'",
-                         (json.dumps({'status': 'not_found', 'status_code': 404}),))
+        old = json.loads(f.ctx.db.one("SELECT result_json FROM work_items WHERE stage='javascript-items'")[0])
+        old.pop('absence_proof_version')
+        f.ctx.db.execute("UPDATE work_items SET result_json=? WHERE stage='javascript-items'", (json.dumps(old),))
         with patch('stages._download_url', side_effect=self.javascript) as download:
             result = stage_javascript(f.ctx)
         download.assert_called_once()

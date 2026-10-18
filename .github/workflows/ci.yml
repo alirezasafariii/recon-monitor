@@ -60,7 +60,13 @@ jobs:
         run: python tools/dependency_range_coverage.py --require-full-ratio 0.9997
 
       - name: Unit tests
-        run: python -m unittest discover -s tests -p 'test_*.py' -q
+        run: |
+          if [ "${{ matrix.python-version }}" = "3.14" ]; then
+            python tools/check_sqlite_resources.py --pattern test_sqlite_resource_lifecycle.py --tracemalloc
+            python tools/check_sqlite_resources.py
+          else
+            python -m unittest discover -s tests -p 'test_*.py' -q
+          fi
 
       - name: Integration test
         run: python tests/integration_runner.py
@@ -133,3 +139,28 @@ jobs:
           path: ${{ runner.temp }}/dashboard-browser
           retention-days: 7
           if-no-files-found: warn
+
+  dns-real:
+    name: Real DNS fallback on Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Install dig and verify pinned dnsx
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y dnsutils
+          mkdir "$RUNNER_TEMP/dns-tools"
+          cd "$RUNNER_TEMP/dns-tools"
+          curl --fail --location --silent --show-error https://github.com/projectdiscovery/dnsx/releases/download/v1.3.1/dnsx_1.3.1_linux_amd64.zip --output dnsx_1.3.1_linux_amd64.zip
+          curl --fail --location --silent --show-error https://github.com/projectdiscovery/dnsx/releases/download/v1.3.1/dnsx_1.3.1_checksums.txt --output checksums.txt
+          rg ' dnsx_1.3.1_linux_amd64.zip$' checksums.txt | sha256sum --check
+          unzip -j dnsx_1.3.1_linux_amd64.zip dnsx
+          chmod +x dnsx
+      - name: Real DNS negative response and bounded resume
+        run: python tools/dns_fallback_local_acceptance.py --dnsx "$RUNNER_TEMP/dns-tools/dnsx" --dig /usr/bin/dig --output "$RUNNER_TEMP/dns-fallback.json"
+      - name: Real HTTP 429 across independent runs
+        run: python tools/http_cooldown_local_acceptance.py --output "$RUNNER_TEMP/http-cooldown.json"
