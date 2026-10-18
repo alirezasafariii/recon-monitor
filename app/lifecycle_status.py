@@ -137,9 +137,9 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                     # A resumed collector can add inputs after a partial run.
                     # Its dependents must refresh even if they previously
                     # succeeded while using the incomplete collection.
-                    if resume_id and self.db.stage_status(
+                    if resume_id and not self._stage_resume_complete(
                         run_id, policy.name, stage_name,
-                    ) != "success":
+                    ):
                         replay_downstream = True
                     status, metrics = self._run_stage(
                         ctx,

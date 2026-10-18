@@ -112,6 +112,7 @@ from service import (  # noqa: E402
     uninstall_service,
 )
 from stages import STAGE_FUNCTIONS, StageContext  # noqa: E402
+from collector_status import collection_incomplete, normalize_collection_metrics  # noqa: E402
 from setup_wizard import (  # noqa: E402
     add_targets,
     interactive_main_menu,
@@ -251,6 +252,16 @@ class Orchestrator:
             self.db.record_tool_version(run_id, tool, info.get("version", ""), info.get("path", ""))
         record_versions_snapshot(self.paths)
 
+    def _stage_resume_complete(self, run_id: str, target: str, stage: str) -> bool:
+        if stage == "report" or self.db.stage_status(run_id, target, stage) != "success":
+            return False
+        row = self.db.one(
+            "SELECT metrics_json FROM stage_runs WHERE run_id=? AND target=? AND stage=?",
+            (run_id, target, stage),
+        )
+        metrics = safe_json_loads(row["metrics_json"], {}, expected_type=dict) if row else {}
+        return not collection_incomplete(stage, metrics)
+
     def _run_stage(
         self,
         ctx: StageContext,
@@ -264,8 +275,7 @@ class Orchestrator:
         resume: bool,
     ) -> tuple[str, dict[str, Any]]:
         self.progress.configure(target_index, target_total, stage_index, stage_total, label)
-        prior = self.db.stage_status(ctx.run_id, ctx.policy.name, stage_name)
-        if resume and prior == "success" and stage_name != "report":
+        if resume and self._stage_resume_complete(ctx.run_id, ctx.policy.name, stage_name):
             metrics_row = self.db.one(
                 "SELECT metrics_json FROM stage_runs WHERE run_id=? AND target=? AND stage=?",
                 (ctx.run_id, ctx.policy.name, stage_name),
@@ -278,7 +288,7 @@ class Orchestrator:
         if stage_name in {"subdomains", "dns", "urls", "javascript", "endpoint_validation", "fingerprint", "ports", "nuclei"}:
             module_enabled = bool(ctx.policy.modules.get(stage_name, True))
         if not module_enabled:
-            metrics = {"skipped": "disabled by target policy"}
+            metrics = {"skipped": "disabled by target policy", "collection_status": "disabled"}
             self.db.stage_begin(ctx.run_id, ctx.policy.name, stage_name, 1)
             self.db.stage_finish(ctx.run_id, ctx.policy.name, stage_name, "success", metrics=metrics)
             self.progress.finish_stage("skip", metrics)
@@ -299,6 +309,7 @@ class Orchestrator:
                     metrics = stage_report(ctx, baseline)
                 else:
                     metrics = STAGE_FUNCTIONS[stage_name](ctx)
+                metrics = normalize_collection_metrics(stage_name, metrics)
                 duration = time.monotonic() - started
                 if self.db.stage_next_requested(
                     ctx.run_id, ctx.policy.name, stage_name, attempt,
@@ -450,9 +461,9 @@ class Orchestrator:
                     if target_failed and stage_name != "report":
                         # Persist explicit skipped state so resume can continue at the failed stage.
                         continue
-                    if resume_id and self.db.stage_status(
+                    if resume_id and not self._stage_resume_complete(
                         run_id, policy.name, stage_name,
-                    ) != "success":
+                    ):
                         replay_downstream = True
                     status, _metrics = self._run_stage(
                         ctx,
