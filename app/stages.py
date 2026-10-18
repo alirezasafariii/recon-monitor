@@ -453,7 +453,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             explicit_values: dict[str, tuple[str, ...]] = {host: () for host in observed}
             explicit, _ = fill_missing_dns_explicit(
                 ctx, expected_hosts - unknown, rrtype, explicit_values,
-                len(query_outcomes), 1, explicit_dns_state,
+                len(query_outcomes), 1, explicit_dns_state, resumable=True,
             )
             explicit_dns_outcomes.extend(explicit)
             verified = set(explicit_values) - observed
@@ -599,6 +599,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "dns_fallback_failures": fallback_failures,
         "dns_explicit_query_outcomes": explicit_dns_outcomes,
         "dns_explicit_queries": explicit_dns_state["used"],
+        "dns_explicit_reused_queries": sum(bool(row.get("reused")) for row in explicit_dns_outcomes),
     }
 
 
@@ -1299,8 +1300,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 # crawl-duration limit or an outer process wall clock. A manual
                 # interruption remains possible; an interactive Next action
                 # is a separate feature and is not implied by this mode.
-                if not uncapped_katana:
+                if not uncapped_katana and completion_supported:
                     args.extend(["-ct", f"{batch_crawl_seconds}s"])
+                elif not uncapped_katana:
+                    args.extend(["-ct", "0s"])
                 completion_path = ctx.current / f"katana-batch-{batch_number:03d}-completion.jsonl"
                 request_errors_path = ctx.current / f"katana-batch-{batch_number:03d}-request-errors.jsonl"
                 if completion_supported:
@@ -1342,11 +1345,15 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 katana_timed_out = katana_timed_out or batch_timed_out
                 operator_next = operator_next or bool(getattr(result, "operator_next", False)) or operator_next_requested()
                 katana_duration_seconds += float(getattr(result, "duration", 0.0) or 0.0)
-                # Zero exit can mean the internal crawl deadline expired. Duration
-                # is only a conservative uncertainty guard, not proof of timeout.
+                # Stock Katana has no completion event. Leave its internal
+                # crawl deadline disabled and enforce the reserved envelope
+                # with the outer process timeout instead. A natural zero exit
+                # then cannot hide a shorter per-origin internal deadline.
+                # A custom producer's event remains mandatory when supported.
                 batch_completion_unverified = (
                     not uncapped_katana and batch_exit == 0 and not batch_timed_out
-                    and float(getattr(result, "duration", 0.0) or 0.0) >= batch_crawl_seconds
+                    and batch_timeout is not None
+                    and float(getattr(result, "duration", 0.0) or 0.0) >= batch_timeout
                 )
                 origin_completion = {}
                 completed_origins = []
@@ -1393,6 +1400,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "finished_at": utc_now(),
                     "timeout_seconds": round(batch_timeout, 6) if batch_timeout is not None else None,
                     "crawl_seconds_per_origin": batch_crawl_seconds,
+                    "internal_crawl_deadline_enabled": bool(not uncapped_katana and completion_supported),
                     "reserved_requests": batch_reservation,
                     "rate_limit": katana_rate_limit,
                     "exit_code": batch_exit,
@@ -1753,6 +1761,8 @@ def _download_url(
             "final_url": str(result.get("final_url") or url),
             "status_code": status_code,
             "not_found": True,
+            "truncated": bool(result.get("truncated")),
+            "redirect_outside_scope": bool(result.get("redirect_outside_scope")),
             "duration": duration,
             "transport_status": str(result.get("transport_status") or ""),
             "transport_hops": list(result.get("transport_hops") or []),
@@ -2122,6 +2132,14 @@ def _source_map_work(
     saved = safe_json_loads(row["result_json"], {}, expected_type=dict)
     if row["status"] == "completed":
         try:
+            if (saved.get("status") == "not_found"
+                    and all(saved.get(key) == value for key, value in identity.items())
+                    and saved.get("policy_hash") == ctx.policy.policy_hash()
+                    and type(saved.get("status_code")) is int and saved["status_code"] in {404, 410}
+                    and saved.get("transport_status") == "ok"
+                    and not any(saved.get(key) for key in ("error", "operator_next", "truncated", "redirect_outside_scope"))
+                    and ctx.policy.url_in_scope(str(saved.get("final_url") or ""))):
+                return work_id, {**saved, "not_found": True, "reused": True, "work_status": "completed"}
             digest, size = saved.get("object_hash"), saved.get("size")
             if (any(saved.get(key) != value for key, value in identity.items())
                     or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
@@ -2152,6 +2170,16 @@ def _source_map_work(
     result: dict[str, Any] = {}
     try:
         result = _download_url(ctx, source_map_url, ctx.policy.limits.max_js_bytes)
+        if (result.get("not_found") and type(result.get("status_code")) is int
+                and result["status_code"] in {404, 410} and result.get("transport_status") == "ok"
+                and not any(result.get(key) for key in ("error", "operator_next", "truncated", "redirect_outside_scope"))
+                and ctx.policy.url_in_scope(str(result.get("final_url") or source_map_url))):
+            absent = {**identity, "policy_hash": ctx.policy.policy_hash(), "status": "not_found",
+                      "status_code": result["status_code"], "transport_status": "ok",
+                      "final_url": str(result.get("final_url") or source_map_url)}
+            queue.finish(work_id, absent)
+            return work_id, {**absent, "not_found": True, "attempted": True,
+                             "reused": False, "work_status": "completed"}
         if "data" not in result or result.get("error") or result.get("operator_next"):
             raise ValueError(str(result.get("error") or ("operator_next" if result.get("operator_next") else "Source Map download failed")))
         status = result.get("status_code")
@@ -2199,9 +2227,34 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     if urls_path.exists():
         urls = [line.strip() for line in urls_path.read_text(encoding="utf-8", errors="replace").splitlines()]
     classified_js_urls = sorted({url for url in urls if classify_url(url) == "javascript"})
-    js_urls, unselected_js_urls = _select_javascript_urls(
-        classified_js_urls, ctx.policy.limits.max_js_files,
+    work_queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", getattr(ctx, 'db_writer', None))
+    store = ContentAddressedStore(ctx.paths, ctx.db) if classified_js_urls else None
+    work_rows = {row["item_key"]: dict(row) for row in ctx.db.all(
+        "SELECT * FROM work_items WHERE run_id=? AND target=? AND stage='javascript-items'",
+        (ctx.run_id, ctx.policy.name),
+    )} if classified_js_urls else {}
+    verified_completed: set[str] = set()
+    repaired_completed = 0
+    for url in classified_js_urls:
+        row = work_rows.get(url)
+        if row and row["status"] == "completed":
+            if _javascript_work_processed(ctx, store, url, safe_json_loads(row["result_json"], {}, expected_type=dict)):
+                verified_completed.add(url)
+            elif work_queue.reopen(row["id"], "Completed JavaScript work has no verified processed artifact"):
+                repaired_completed += 1
+    # The per-attempt download quota applies to unfinished parents. Verified
+    # parents remain in the cumulative evidence but cannot starve the backlog.
+    new_selection, unselected_js_urls = _select_javascript_urls(
+        set(classified_js_urls) - verified_completed, ctx.policy.limits.max_js_files,
     )
+    js_urls = sorted(verified_completed | set(new_selection))
+    prior_changes = {}
+    for filename in ("new-js-files.txt", "changed-js-files.txt", "semantic-js-changes.txt",
+                     "semantic-js-unknown.txt", "new-js-indicators.tsv"):
+        path = ctx.changes / filename
+        prior_changes[filename] = path.read_text(encoding="utf-8").splitlines() if verified_completed and path.is_file() else []
+    prior_availability = [row for row in read_jsonl(ctx.current / "javascript-availability.jsonl")
+                          if row.get("url") in verified_completed] if verified_completed else []
     upstream_metrics: dict[str, Any] = {}
     try:
         upstream = json.loads((ctx.current / "url-collection.json").read_text(encoding="utf-8"))
@@ -2312,6 +2365,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             "source_map_sources": 0,
             "source_map_attempts": 0,
             "source_map_failures": 0,
+            "source_map_not_found": 0,
             "source_map_reused_work_items": 0,
             "source_map_pending_work_items": 0,
             "source_map_deferred_work_items": 0,
@@ -2324,18 +2378,6 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         }
 
     workers = min(50, max(1, ctx.policy.limits.js_workers))
-    work_queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", ctx.db_writer)
-    store = ContentAddressedStore(ctx.paths, ctx.db)
-    work_rows = {row["item_key"]: dict(row) for row in ctx.db.all(
-        "SELECT * FROM work_items WHERE run_id=? AND target=? AND stage='javascript-items'",
-        (ctx.run_id, ctx.policy.name),
-    )}
-    repaired_completed = 0
-    for url in js_urls:
-        row = work_rows.get(url)
-        if row and row["status"] == "completed" and not _javascript_work_processed(ctx, store, url, safe_json_loads(row["result_json"], {}, expected_type=dict)):
-            if work_queue.reopen(row["id"], "Completed JavaScript work has no verified processed artifact"):
-                repaired_completed += 1
     pending_urls = [url for url in js_urls if not work_queue.completed(url)]
     work_ids = {url: work_queue.enqueue(url, {"kind": "download_url", "url": url, "max_bytes": ctx.policy.limits.max_js_bytes, "scope_policy": worker_scope_snapshot(ctx.policy)}) for url in pending_urls}
     results: list[dict[str, Any]] = []
@@ -2433,6 +2475,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     embedded_source_indicators = 0
     source_map_attempts = 0
     source_map_failures = 0
+    source_map_not_found = 0
     source_map_reused = 0
     source_map_deferred = 0
     source_map_work_rows: list[dict[str, Any]] = []
@@ -3062,6 +3105,12 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                     })
                 source_map_reused += int(bool(map_result.get("reused")))
                 observation.update(work_status="completed", object_hash=map_hash, size=len(map_data))
+            elif map_result.get("not_found"):
+                source_map_not_found += 1
+                source_map_reused += int(bool(map_result.get("reused")))
+                store.drop_reference("source_map", js_owner_key)
+                store.sync_references("source_map_source", {}, owner_prefix=source_map_source_prefix)
+                observation.update(work_status="completed", not_found=True)
             elif map_result.get("deferred"):
                 source_map_deferred += 1
             else:
@@ -3071,11 +3120,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                                finished_at=state["finished_at"] or "")
             source_map_work_rows.append(observation)
 
-    atomic_write_text(ctx.changes / "new-js-files.txt", "".join(f"{x}\n" for x in new_files))
-    atomic_write_text(ctx.changes / "changed-js-files.txt", "".join(f"{x}\n" for x in changed_files))
-    atomic_write_text(ctx.changes / "semantic-js-changes.txt", "".join(f"{x}\n" for x in semantic_changes))
-    atomic_write_text(ctx.changes / "semantic-js-unknown.txt", "".join(f"{x}\n" for x in semantic_unknown))
-    atomic_write_text(ctx.changes / "new-js-indicators.tsv", "".join(f"{x}\n" for x in sorted(indicator_lines)))
+    for filename, lines in (("new-js-files.txt", new_files), ("changed-js-files.txt", changed_files),
+                            ("semantic-js-changes.txt", semantic_changes), ("semantic-js-unknown.txt", semantic_unknown),
+                            ("new-js-indicators.tsv", indicator_lines)):
+        atomic_write_text(ctx.changes / filename, "".join(f"{x}\n" for x in sorted(set(prior_changes[filename]) | set(lines))))
     write_jsonl(
         ctx.current / "javascript-errors.jsonl",
         errors,
@@ -3086,7 +3134,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     )
     write_jsonl(
         ctx.current / "javascript-availability.jsonl",
-        availability_rows,
+        list({row["url"]: row for row in prior_availability + availability_rows}.values()),
     )
     write_jsonl(
         ctx.current / "source-map-sources.jsonl",
@@ -3181,6 +3229,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "chunk_edges": len(chunk_edge_rows),
         "source_map_attempts": source_map_attempts,
         "source_map_failures": source_map_failures,
+        "source_map_not_found": source_map_not_found,
         "source_map_reused_work_items": source_map_reused,
         "source_map_pending_work_items": source_map_failures + source_map_deferred,
         "source_map_deferred_work_items": source_map_deferred,

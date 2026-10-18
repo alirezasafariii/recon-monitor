@@ -26,6 +26,44 @@ Resume can retry the archive while reusing a completed Katana crawl's evidence.
 A never-attempted unavailable Wayback tool remains optional; unavailability
 after a known incomplete archive attempt preserves that unresolved gap.
 
+## Continuing bounded collection
+
+DNS's explicit resolver fallback sends at most 128 additional queries per stage
+attempt. A verified positive or SOA-backed negative answer is retained as a
+completed `dns-explicit-observations` receipt in the existing work queue. Resume
+reuses it only for the same run, target, policy and resolver, after checking the
+immutable raw artifact's hash and parsing the matching response again. Missing
+or changed proof is queried again. A fresh contradictory/unknown dnsx response
+is not replaced by a cached negative. NS records are parsed as validated DNS
+names, including multiple nameservers. Failed lookups remain unknown.
+
+The cumulative DNS request budget still applies. Reusing a verified fallback
+answer does not charge another explicit query; the normal dnsx collection is
+still budgeted on each attempt. Exhausted budgets remain partial and require an
+explicit policy change or a fresh scan rather than silently resetting usage.
+
+`max_js_files` bounds unfinished JavaScript parents admitted in one attempt.
+Verified completed parents remain in the cumulative evidence without occupying
+the next attempt's quota. Resume advances through the remaining files, rechecks
+completed CAS receipts and retains earlier change/availability artifacts. The
+stage remains partial while unselected parents or download errors remain, so
+partial batches cannot establish a comparison baseline.
+
+A verified in-scope source-map 404/410 is a completed absence observation tied
+to the exact parent bytes, policy and run. It is recorded in source-map work
+metrics and is not downloaded again within that context. A fresh run or policy
+change checks it again. Safety stops, incomplete responses, 429, 5xx and other
+download failures remain retryable partial work. Confirmed absence releases the
+working map/source references and permits an observed removal comparison.
+
+For standard Katana without the completion contract, the internal crawl duration
+is explicitly disabled with `-ct 0s`. The existing outer batch timeout and shared
+rate/request reservation enforce the finite envelope for the entire process.
+A natural zero exit inside that envelope can complete a multi-origin batch;
+timeout, operator interruption, abnormal exit or a zero exit at/after the outer
+deadline remains incomplete. Custom completion/checkpoint producers retain
+their per-origin deadline and must provide validated completion events.
+
 ## Subprocess input and shutdown
 
 `CommandRunner` starts supervision before feeding stdin and multiplexes bounded,
@@ -72,6 +110,7 @@ dependency refresh, and target isolation:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_subdomain_collection_quality.py' -q
+PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_collection_resume_repairs.py' -q
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_wayback_collection_quality.py' -q
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_command_runner_stdin.py' -q
 ```

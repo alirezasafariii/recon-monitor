@@ -1,12 +1,13 @@
-"""Strict, bounded dig observations for optional wildcard enrichment only."""
+"""Strict, bounded dig observations for DNS collection and wildcard enrichment."""
 from __future__ import annotations
 
 import ipaddress
 import re
 import time
+import uuid
 
-from core import normalize_host, tool_path, valid_domain
-from execution import BudgetExceeded
+from core import normalize_host, tool_path, valid_domain, json_dumps, safe_json_loads, sha256_bytes, sha256_text
+from execution import BudgetExceeded, WorkQueue
 
 RESOLVER = "8.8.8.8"
 MAX_QUERIES = 128
@@ -14,7 +15,7 @@ MAX_QUERIES = 128
 
 def parse_response(text: str, host: str, rrtype: str):
     """Return an RRset only for a complete matching response; None is unknown."""
-    if len(text) > 65536:
+    if len(text) > 65536 or rrtype not in {'A', 'AAAA', 'CNAME', 'NS'}:
         return None
     headers = re.findall(r'^;; ->>HEADER<<- opcode: QUERY, status: ([A-Z]+), id: \d+\s*$', text, re.M)
     flags = re.findall(r'^;; flags: ([^;]+);', text, re.M)
@@ -81,6 +82,12 @@ def parse_response(text: str, host: str, rrtype: str):
             continue
         if len(raw) != 1:
             return None
+        if rrtype == 'NS':
+            value = normalize_host(raw[0])
+            if not valid_domain(value):
+                return None
+            values.append(value)
+            continue
         try:
             ip = ipaddress.ip_address(raw[0])
             if ip.version != (4 if rrtype == 'A' else 6):
@@ -96,18 +103,59 @@ def parse_response(text: str, host: str, rrtype: str):
     return None
 
 
-def fill_missing(ctx, expected, rrtype, values, index, repeat, state):
+def _identity(ctx, host, rrtype):
+    return {'host': host, 'rrtype': rrtype, 'resolver': RESOLVER,
+            'policy_hash': ctx.policy.policy_hash()}
+
+
+def _reuse_observation(ctx, identity):
+    row = ctx.db.one(
+        "SELECT result_json FROM work_items WHERE run_id=? AND target=? AND stage=? "
+        "AND item_key=? AND status='completed'",
+        (ctx.run_id, ctx.policy.name, 'dns-explicit-observations', sha256_text(json_dumps(identity))),
+    )
+    if row is None:
+        return None
+    saved = safe_json_loads(row['result_json'], {}, expected_type=dict)
+    if any(saved.get(key) != value for key, value in identity.items()):
+        return None
+    name = saved.get('raw_artifact')
+    if not isinstance(name, str) or not re.fullmatch(r'dns-explicit-[0-9a-f]{32}\.txt', name):
+        return None
+    path = ctx.current / name
+    try:
+        if path.resolve().parent != ctx.current.resolve() or path.stat().st_size > 65536:
+            return None
+        raw = path.read_bytes()
+        if sha256_bytes(raw) != saved.get('raw_sha256'):
+            return None
+        observation = parse_response(raw.decode('utf-8', 'replace'), identity['host'], identity['rrtype'])
+        if observation is None or list(observation) != saved.get('observation'):
+            return None
+        return {**saved, 'observation': observation, 'reused': True}
+    except OSError:
+        return None
+
+
+def fill_missing(ctx, expected, rrtype, values, index, repeat, state, *, resumable=False):
     outcomes = []
     dig = tool_path('dig')
-    if not dig:
+    if not dig and not resumable:
         return outcomes, 0
     used = 0
     for host in sorted(expected - values.keys()):
-        if state['used'] >= MAX_QUERIES or ctx.next_requested():
-            break
         if not ctx.policy.host_in_scope(host):
             continue
-        if not ctx.budget and state['reserved'] >= ctx.policy.limits.max_dns_queries:
+        identity = _identity(ctx, host, rrtype) if resumable else None
+        cached = _reuse_observation(ctx, identity) if resumable else None
+        if cached is not None:
+            values[host] = cached['observation']
+            outcomes.append(cached)
+            continue
+        if not dig or state['used'] >= MAX_QUERIES or ctx.next_requested():
+            continue
+        if (not ctx.budget and ctx.policy.limits.max_dns_queries
+                and state['reserved'] >= ctx.policy.limits.max_dns_queries):
             break
         try:
             if ctx.budget:
@@ -122,7 +170,10 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state):
         if delay > 0:
             time.sleep(delay)
         state['last'] = time.monotonic()
-        output = ctx.current / f'dns-explicit-{index}-{repeat}-{rrtype.lower()}-{state["used"]}.txt'
+        # Immutable artifacts prevent a later resume from overwriting proof
+        # referenced by an earlier completed observation.
+        output = ctx.current / (f'dns-explicit-{uuid.uuid4().hex}.txt' if resumable else
+                                f'dns-explicit-{index}-{repeat}-{rrtype.lower()}-{state["used"]}.txt')
         result = ctx.runner.run(
             [dig, '@' + RESOLVER, host, rrtype, '+tries=1', '+timeout=2',
              '+ignore', '+noall', '+comments', '+question', '+answer', '+authority', '+stats'],
@@ -138,10 +189,18 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state):
             observation = parse_response(output.read_text(errors='replace'), host, rrtype)
         if observation is not None:
             values[host] = observation
-        outcomes.append({'source': 'dig', 'host': host, 'rrtype': rrtype,
+        outcome = {'source': 'dig', 'host': host, 'rrtype': rrtype,
                          'round': repeat, 'resolver': RESOLVER, 'raw_artifact': output.name,
                          'exit_code': result.returncode,
                          'timed_out': bool(getattr(result, 'timed_out', False)),
                          'stop_reason': 'completed' if observation is not None else 'unknown',
-                         'observation': observation})
+                         'observation': observation, 'reused': False}
+        if resumable and observation is not None:
+            outcome.update(identity)
+            outcome['raw_sha256'] = sha256_bytes(output.read_bytes())
+            queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, 'dns-explicit-observations',
+                              getattr(ctx, 'db_writer', None))
+            work_id = queue.enqueue(sha256_text(json_dumps(identity)), {'kind': 'dns_observation', **identity})
+            queue.finish(work_id, outcome)
+        outcomes.append(outcome)
     return outcomes, used
