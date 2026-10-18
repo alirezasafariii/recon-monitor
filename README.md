@@ -8,6 +8,8 @@ Recon Monitor 8.8.18 can continue a durable Katana frontier across bounded resum
 
 The canonical application version is **8.8.18** and the core database schema is **18**. The core schema remains backward-compatible; newer replay, fingerprint, notification, and reporting contracts use additive independently versioned compatibility metadata. Legacy Analysis snapshots that predate immutable entity-tag capture must be regenerated before replay, and the httpx fingerprint path requires regex extraction support (`-er`). New local API instances stop through an instance-specific control request and acknowledge listener closure on Linux and macOS. Legacy instances require a validated Linux pidfd; stop never falls back to signalling a bare PID. See [API process identity](docs/API_PROCESS_LIFECYCLE.md).
 
+Comparison snapshot schema 3 protects JavaScript, indicators, ports, findings, and endpoints from failed-run contamination, including the CAS bytes needed for the next diff. Upgrades with an unrecoverable older comparison view require a fresh baseline scan. See [successful comparison snapshots](docs/SUCCESSFUL_COMPARISON_SNAPSHOT.md).
+
 See `CHANGELOG.md`, `MIGRATION-v8.8.18.md`, `docs/RELEASE_NOTES_v8.8.18.md`, and `docs/ARCHITECTURE.md` for the current contracts and migration details.
 
 ## Invisible Analysis & Audit-Grade Evidence Dossiers in 8.4.0

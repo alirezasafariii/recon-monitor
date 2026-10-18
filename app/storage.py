@@ -14,6 +14,37 @@ CAS_REFERENCE_SCHEMA_VERSION = 1
 _CAS_LOCK = threading.RLock()
 
 
+@contextmanager
+def cas_transaction(db: Database) -> Iterator[None]:
+    """Serialize an atomic reference handoff with retention (CAS lock first)."""
+    with _CAS_LOCK, db.transaction():
+        yield
+
+
+def ensure_cas_reference_schema(db: Database) -> None:
+    with db._lock:
+        db.conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS cas_references (
+              owner_kind TEXT NOT NULL,
+              owner_key TEXT NOT NULL,
+              sha256 TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              PRIMARY KEY(owner_kind,owner_key),
+              FOREIGN KEY(sha256) REFERENCES object_store(sha256) ON DELETE RESTRICT
+            );
+            CREATE INDEX IF NOT EXISTS idx_cas_references_sha256
+              ON cas_references(sha256);
+            """
+        )
+        db.conn.execute(
+            "INSERT INTO schema_meta(key,value) VALUES('cas_reference_schema_version',?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (str(CAS_REFERENCE_SCHEMA_VERSION),),
+        )
+
+
 class ContentAddressedStore:
     """Content-addressed object storage with explicit owner references.
 
@@ -29,32 +60,12 @@ class ContentAddressedStore:
         self._ensure_reference_schema()
 
     def _ensure_reference_schema(self) -> None:
-        with self.db._lock:
-            self.db.conn.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS cas_references (
-                  owner_kind TEXT NOT NULL,
-                  owner_key TEXT NOT NULL,
-                  sha256 TEXT NOT NULL,
-                  created_at TEXT NOT NULL,
-                  updated_at TEXT NOT NULL,
-                  PRIMARY KEY(owner_kind,owner_key),
-                  FOREIGN KEY(sha256) REFERENCES object_store(sha256) ON DELETE RESTRICT
-                );
-                CREATE INDEX IF NOT EXISTS idx_cas_references_sha256
-                  ON cas_references(sha256);
-                """
-            )
-            self.db.conn.execute(
-                "INSERT INTO schema_meta(key,value) VALUES('cas_reference_schema_version',?) "
-                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                (str(CAS_REFERENCE_SCHEMA_VERSION),),
-            )
+        ensure_cas_reference_schema(self.db)
 
     @contextmanager
     def transaction(self) -> Iterator[None]:
         """Keep CAS retention and other writers outside an atomic handoff."""
-        with _CAS_LOCK, self.db.transaction():
+        with cas_transaction(self.db):
             yield
 
     def _path(self, digest: str) -> Path:

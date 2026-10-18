@@ -192,6 +192,9 @@ class SourceMapResumeTests(unittest.TestCase):
 
     def test_invalid_json_stays_pending_and_does_not_retire_previous_source_references(self):
         self.complete()
+        # Cross-run references come from committed collection, while partial
+        # source-map work is retained only when resuming that same run.
+        self.db.finish_run_target(self.run_id, self.policy.name, "success")
         refs = [tuple(row) for row in self.db.all("SELECT owner_kind,owner_key,sha256 FROM cas_references WHERE owner_kind LIKE 'source_map%' ORDER BY owner_kind,owner_key")]
         self.new_run()
         result = self.complete(js=self.JS + b"const build = 2;", source_map=b"<html>not a source map</html>")

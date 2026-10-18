@@ -2290,32 +2290,9 @@ class Database:
         )
         return row is None
 
-    def record_js_availability(
-        self,
-        run_id: str,
-        target: str,
-        url: str,
-        state: str,
-        *,
-        status_code: int = 0,
-        content_type: str = "",
-        error: str = "",
-        raw_hash: str = "",
-        semantic_hash: str = "",
-    ) -> dict[str, Any]:
-        allowed_states = {
-            "live",
-            "not_found",
-            "error",
-            "unexpected_content_type",
-        }
-
-        if state not in allowed_states:
-            raise ReconError(
-                f"Invalid JS availability state: {state}"
-            )
-
-        previous_row = self.one(
+    def _previous_js_availability(self, run_id: str, target: str, url: str) -> Any:
+        """Legacy fallback; snapshot-aware runtimes override the trust boundary."""
+        return self.one(
             """
             SELECT
               h.run_id,
@@ -2343,6 +2320,33 @@ class Database:
                 run_id,
             ),
         )
+
+    def record_js_availability(
+        self,
+        run_id: str,
+        target: str,
+        url: str,
+        state: str,
+        *,
+        status_code: int = 0,
+        content_type: str = "",
+        error: str = "",
+        raw_hash: str = "",
+        semantic_hash: str = "",
+    ) -> dict[str, Any]:
+        allowed_states = {
+            "live",
+            "not_found",
+            "error",
+            "unexpected_content_type",
+        }
+
+        if state not in allowed_states:
+            raise ReconError(
+                f"Invalid JS availability state: {state}"
+            )
+
+        previous_row = self._previous_js_availability(run_id, target, url)
 
         previous = (
             dict(previous_row)
