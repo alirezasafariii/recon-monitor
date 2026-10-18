@@ -40,11 +40,18 @@ class SQLiteResourceLifecycleTests(unittest.TestCase):
                 legacy = paths.root / 'recon.db'
                 legacy.touch()
                 destination = Path(temp) / 'review'
+                if operation == 'review':
+                    alias = Path(temp) / 'alias'
+                    try:
+                        alias.symlink_to(Path(temp), target_is_directory=True)
+                        destination = alias / 'review'
+                    except OSError:
+                        pass
                 with SQLiteResourceGuard() as guard:
                     connect = sqlite3.connect
                     def fail_second(path, *args, **kwargs):
                         if (operation == 'legacy' and Path(path) == legacy
-                                or operation == 'review' and str(path).startswith(str(destination))):
+                                or operation == 'review' and Path(path).resolve().is_relative_to(destination.resolve())):
                             raise sqlite3.OperationalError('injected second connection failure')
                         return connect(path, *args, **kwargs)
                     with patch('sqlite3.connect', side_effect=fail_second):
