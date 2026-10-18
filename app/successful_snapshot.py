@@ -15,9 +15,10 @@ decisions:
 * an unsafe legacy database is re-baselined instead of guessing through state
   that may already have been overwritten by a failed run.
 
-The mutable comparison view still checkpoints the four core tables that
-directly participate in baseline comparisons: assets, DNS records, URLs, and
-HTTP fingerprints. Derived Recon sets that should not be restored into mutable
+The mutable comparison view checkpoints every inventory used for "new" or
+"changed" decisions, including JavaScript, indicators, endpoints, ports and
+findings. Committed CAS owners retain the bytes needed by the next comparison.
+Derived Recon sets that should not be restored into mutable
 core tables (for example source-map sources and JavaScript chunk references)
 use a separate prepare/promote boundary in the same successful-run contract.
 """
@@ -27,7 +28,15 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from core import Database as BaseDatabase
-from core import TargetPolicy, json_dumps, safe_json_loads, sha256_text, utc_now
+from core import ReconError, TargetPolicy, json_dumps, safe_json_loads, sha256_text, utc_now
+from recon_snapshot_artifacts import (
+    commit_artifact_snapshot,
+    discard_artifact_snapshot,
+    ensure_artifact_snapshot_schema,
+    restore_artifact_owners,
+    seed_committed_availability,
+)
+from storage import cas_transaction
 from finding_notifications import (
     ensure_finding_notification_schema,
     install_finding_notification_pipeline,
@@ -49,9 +58,12 @@ from stable_confirmation import (
 )
 
 
-SNAPSHOT_SCHEMA_VERSION = 2
+SNAPSHOT_SCHEMA_VERSION = 3
 BOOTSTRAP_META_KEY = "successful_snapshot_bootstrap_v1"
-TRACKED_TABLES = ("assets", "dns_records", "urls", "fingerprints")
+TRACKED_TABLES = (
+    "assets", "dns_records", "urls", "fingerprints",
+    "js_files", "js_indicators", "ports", "findings", "endpoint_intelligence",
+)
 
 
 class SuccessfulSnapshotDatabase(BaseDatabase):
@@ -59,9 +71,11 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
 
     def __init__(self, path: Path):
         super().__init__(path)
+        ensure_artifact_snapshot_schema(self)
         self._migrate_successful_snapshot_schema()
         ensure_lifecycle_schema(self)
         ensure_stable_confirmation_schema(self)
+        self._migrate_comparison_coverage()
         ensure_finding_notification_schema(self)
 
     def _migrate_successful_snapshot_schema(self) -> None:
@@ -165,7 +179,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             run_id = str(latest["run_id"])
             if not self._run_is_snapshot_safe(run_id, target, allow_missing_report=True):
                 continue
-            with self.transaction():
+            with cas_transaction(self):
                 self._replace_successful_snapshot_no_tx(
                     target,
                     run_id,
@@ -187,7 +201,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
     ) -> bool:
         failed_stage = self.one(
             "SELECT 1 FROM stage_runs WHERE run_id=? AND target=? "
-            "AND status IN ('failed','interrupted') LIMIT 1",
+            "AND status IN ('failed','interrupted','partial','running') LIMIT 1",
             (run_id, target),
         )
         if failed_stage is not None:
@@ -202,6 +216,55 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         # aggregate run_targets status. The baseline registry is initialized
         # from previously trusted successful_recon_commits during migration.
         return has_established_baseline(self, target)
+
+    def _migrate_comparison_coverage(self) -> None:
+        """Upgrade v1/v2 only from an untouched trusted comparison view.
+
+        Old snapshots did not retain JS/port/finding versions. Once any later
+        target run has started, the mutable view cannot recover those versions
+        reliably. Preserve historical evidence but require a silent rebaseline
+        instead of guessing from rows overwritten by failed collection.
+        """
+        for commit in self.all("SELECT target,run_id,table_count,bootstrap FROM successful_recon_commits"):
+            if int(commit["table_count"]) >= len(TRACKED_TABLES):
+                if bool(commit["bootstrap"]):
+                    with self.transaction():
+                        seed_committed_availability(self, str(commit["target"]), str(commit["run_id"]))
+                continue
+            target, run_id = str(commit["target"]), str(commit["run_id"])
+            latest = self.one(
+                "SELECT run_id,status FROM run_targets WHERE target=? "
+                "ORDER BY started_at DESC,rowid DESC LIMIT 1", (target,),
+            )
+            eligible = baseline_commit_eligible(self, run_id, target)
+            trusted = bool(latest and latest["run_id"] == run_id and (
+                eligible is True or (eligible is None and latest["status"] == "success"
+                                    and self._run_is_snapshot_safe(run_id, target, allow_missing_report=True))
+            ))
+            with cas_transaction(self):
+                if trusted:
+                    seed_committed_availability(self, target, run_id)
+                    self._replace_successful_snapshot_no_tx(target, run_id, bootstrap=True)
+                else:
+                    for table in (
+                        "successful_recon_state", "successful_recon_commits",
+                        "successful_recon_derived_sets", "successful_recon_derived_state",
+                        "target_baselines", "stable_change_state", "stable_change_run_state",
+                    ):
+                        self.execute(f"DELETE FROM {table} WHERE target=?", (target,))
+                    discard_artifact_snapshot(self, target)
+                self.audit(
+                    "recon_snapshot_coverage_migrated", target=target,
+                    details={"schema_version": SNAPSHOT_SCHEMA_VERSION, "previous_run_id": run_id,
+                             "action": "expanded" if trusted else "rebaseline_required"},
+                )
+
+    def _previous_js_availability(self, run_id: str, target: str, url: str) -> Any:
+        return self.one(
+            "SELECT run_id,state,status_code,content_type,error,raw_hash,semantic_hash,observed_at "
+            "FROM successful_recon_js_availability WHERE target=? AND url=? AND run_id<>?",
+            (target, url, run_id),
+        )
 
     def _table_columns(self, table_name: str) -> list[str]:
         if table_name not in TRACKED_TABLES:
@@ -266,6 +329,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
                 total_rows,
             ),
         )
+        commit_artifact_snapshot(self, target, run_id)
         return {"tables": len(TRACKED_TABLES), "rows": total_rows}
 
     def _restore_successful_snapshot_no_tx(self, target: str) -> dict[str, int]:
@@ -308,6 +372,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
                     [payload[column] for column in columns],
                 )
                 restored_rows += 1
+        restore_artifact_owners(self, target)
         return {
             "tables": len(TRACKED_TABLES),
             "rows": restored_rows,
@@ -525,15 +590,23 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         baseline: bool,
     ) -> None:
         existing = self.one(
-            "SELECT 1 FROM run_targets WHERE run_id=? AND target=?",
+            "SELECT baseline FROM run_targets WHERE run_id=? AND target=?",
             (run_id, policy.name),
         )
         if existing is not None:
+            if not bool(existing["baseline"]) and not self.target_has_history(policy.name):
+                raise ReconError("Comparison history requires a fresh baseline; start a fresh scan instead of resuming this legacy run")
+            latest = self.one(
+                "SELECT run_id FROM run_targets WHERE target=? "
+                "ORDER BY started_at DESC,rowid DESC LIMIT 1", (policy.name,),
+            )
+            if latest and str(latest["run_id"]) != run_id:
+                raise ReconError("Cannot resume a target after a newer run replaced its working state; start a fresh scan")
             # Resume/re-entry of the same run keeps completed-stage working
             # state. A restore here would erase progress from that same run.
             begin_target_lifecycle(self, run_id, policy.name)
             return super().create_run_target(run_id, policy, run_dir, baseline)
-        with self.transaction():
+        with cas_transaction(self):
             discard_stale_stable_change_runs(self, policy.name, run_id)
             self.execute(
                 "DELETE FROM working_recon_derived_state WHERE target=?",
@@ -574,7 +647,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         reason = str((lifecycle or {}).get("baseline_reason") or "collection_complete")
         confirmation_status = "success" if commit_ready else "failed"
 
-        with self.transaction():
+        with cas_transaction(self):
             # Stable change confirmation tracks trusted Recon observations, so
             # it follows collection/baseline eligibility rather than report or
             # notification side effects.
