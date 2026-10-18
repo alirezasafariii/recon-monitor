@@ -54,6 +54,7 @@ from core import (
     write_jsonl,
 )
 from dns_wildcard import detect as detect_dns_wildcards
+from dns_explicit import fill_missing as fill_missing_dns_explicit
 from intelligence import build_js_diff, classify_endpoint, technology_confidence
 from execution import BudgetManager, WorkQueue, BudgetExceeded, DatabaseWriter
 from storage import ContentAddressedStore
@@ -335,6 +336,9 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     query_outcomes: list[dict[str, Any]] = []
     wildcard_outcomes: list[dict[str, Any]] = []
     fallback_failures: list[dict[str, Any]] = []
+    explicit_dns_outcomes: list[dict[str, Any]] = []
+    # dnsx may silently omit NXDOMAIN/NODATA. Use a shared, bounded fallback
+    # budget; omission by itself must never retire a previously observed record.
     resolved_hosts: set[str] = set()
     wildcard_candidates: set[str] = set()
     wildcard_classification_complete = False
@@ -361,6 +365,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             collection_reasons.add("dns_budget_uncovered_hosts")
             if hosts:
                 ctx.budget.consume("dns_queries", len(hosts) * 4)
+    explicit_dns_state: dict[str, Any] = {"used": 0, "reserved": len(hosts) * 4, "last": 0}
     atomic_write_text(input_path, "".join(f"{host}\n" for host in hosts))
     atomic_write_text(
         ctx.current / "dns-budget-pending-hosts.txt",
@@ -382,7 +387,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             rr_input = root_query_input if rrtype == "NS" else query_input
             result = ctx.runner.run(
                 [
-                    "dnsx", "-l", str(rr_input), "-silent", "-json", "-omit-raw", flag, "-resp", "-duc",
+                    "dnsx", "-l", str(rr_input), "-silent", "-json", "-omit-raw", flag, "-resp",
+                    "-rcode", "noerror,nxdomain", "-duc",
                     "-t", str(min(200, ctx.policy.limits.dns_rate)),
                     "-rl", str(ctx.policy.limits.dns_rate),
                 ],
@@ -440,6 +446,22 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 else:
                     unknown.add(host)
             observed -= unknown
+            # dnsx v1.2.3 can exit 0 while omitting genuine negative answers.
+            # Only an independently verified dig response (SOA-backed
+            # NXDOMAIN/NODATA or validated positive RRset) may close that gap.
+            # Malformed/contradictory dnsx rows remain unknown, not deletions.
+            explicit_values: dict[str, tuple[str, ...]] = {host: () for host in observed}
+            explicit, _ = fill_missing_dns_explicit(
+                ctx, expected_hosts - unknown, rrtype, explicit_values,
+                len(query_outcomes), 1, explicit_dns_state,
+            )
+            explicit_dns_outcomes.extend(explicit)
+            verified = set(explicit_values) - observed
+            for host in verified:
+                observed.add(host)
+                for value in explicit_values[host]:
+                    positive.add((host, rrtype, value))
+            outcome["explicit_verified_hosts"] = len(verified)
             observed_pairs.update((host, rrtype) for host in observed)
             missing = expected_hosts - observed
             outcome.update(valid_json_rows=valid_json_rows, observed_hosts=len(observed), unobserved_hosts=len(missing), collector_warnings=warnings)
@@ -575,6 +597,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "wildcard_probe_queries": wildcard_probe_queries,
         "wildcard_unknown_hosts": sum(row["state"] == "unknown" for row in wildcard_reports),
         "dns_fallback_failures": fallback_failures,
+        "dns_explicit_query_outcomes": explicit_dns_outcomes,
+        "dns_explicit_queries": explicit_dns_state["used"],
     }
 
 

@@ -109,6 +109,88 @@ class DNSCollectionQualityTests(unittest.TestCase):
         with patch("stages.tool_path", return_value="dnsx"):
             return stage_dns(self._context(self._tool(**kwargs)))
 
+    def test_dnsx_silent_nxdomain_uses_verified_dig_fallback(self) -> None:
+        """dnsx exit=0 with zero rows must not hide an SOA-backed NXDOMAIN."""
+        self._seed()
+        calls = []
+        dnsx_runner = self._tool()
+
+        def run(args, **kwargs):
+            if args[0] == "/usr/bin/dig":
+                calls.append(args)
+                rrtype = args[3]
+                raw = (
+                    ";; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 12345\n"
+                    ";; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n"
+                    "\n;; QUESTION SECTION:\n"
+                    f";{self.TARGET}. IN {rrtype}\n"
+                    "\n;; AUTHORITY SECTION:\n"
+                    "example.test. 300 IN SOA ns.example.test. hostmaster.example.test. "
+                    "1 3600 600 604800 300\n"
+                    "\n;; SERVER: 8.8.8.8#53(8.8.8.8)\n"
+                )
+                Path(kwargs["output_path"]).write_text(raw, encoding="utf-8")
+                return SimpleNamespace(
+                    returncode=0, timed_out=False, operator_next=False,
+                    duration=0.1, lines=8,
+                )
+            return dnsx_runner(args, **kwargs)
+
+        with patch("stages.tool_path", return_value="dnsx"), patch(
+            "dns_explicit.tool_path", return_value="/usr/bin/dig"
+        ), patch("dns_explicit.time.sleep", return_value=None):
+            metrics = stage_dns(self._context(run))
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(metrics["dns_explicit_queries"], 4)
+        self.assertEqual(metrics["observed_pairs"], 4)
+        self.assertEqual(metrics["collection_status"], "completed")
+        self.assertEqual(self._current_records(), set())
+        self.assertEqual(metrics["removed_records"], 4)
+
+    def test_dnsx_silent_and_dig_timeout_preserve_old_dns(self) -> None:
+        """Network failure must remain unknown, never a negative observation."""
+        self._seed()
+        dnsx_runner = self._tool()
+
+        def run(args, **kwargs):
+            if args[0] == "/usr/bin/dig":
+                return SimpleNamespace(
+                    returncode=124, timed_out=True, operator_next=False,
+                    duration=0.1, lines=0,
+                )
+            return dnsx_runner(args, **kwargs)
+
+        with patch("stages.tool_path", return_value="dnsx"), patch(
+            "dns_explicit.tool_path", return_value="/usr/bin/dig"
+        ), patch("dns_explicit.time.sleep", return_value=None):
+            metrics = stage_dns(self._context(run))
+        self.assertEqual(metrics["collection_status"], "partial")
+        self.assertEqual(metrics["observed_pairs"], 0)
+        self.assertEqual(metrics["removed_records"], 0)
+        self.assertEqual(self._current_records(), self.RECORDS)
+
+    def test_dnsx_requests_explicit_negative_responses(self) -> None:
+        self._seed()
+        response = json.dumps({"host": self.TARGET, "status_code": "NXDOMAIN"}) + "\n"
+        base_run = self._tool()
+
+        def run(args, **kwargs):
+            result = base_run(args, **kwargs)
+            rrtype = next((value for flag, value in self.FLAGS.items() if flag in args), None)
+            if rrtype is not None:
+                self.assertIn("-rcode", args)
+                requested = args[args.index("-rcode") + 1].lower().split(",")
+                self.assertIn("noerror", requested)
+                self.assertIn("nxdomain", requested)
+                Path(kwargs["output_path"]).write_text(response, encoding="utf-8")
+            return result
+
+        with patch("stages.tool_path", return_value="dnsx"):
+            metrics = stage_dns(self._context(run))
+        self.assertEqual(self._current_records(), set())
+        self.assertEqual(metrics["successful_rrtypes"], ["A", "AAAA", "CNAME", "NS"])
+        self.assertEqual(metrics["collection_status"], "completed")
+
     def test_explicit_empty_rrtypes_preserve_previous_records(self) -> None:
         for rrtypes in ([], set(), iter(())):
             with self.subTest(rrtypes=type(rrtypes).__name__):
