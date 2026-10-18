@@ -360,7 +360,10 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             ):
                 metrics = stage_urls(ctx)
             self.assertEqual(len(seen), 12)
-            self.assertEqual(seen[0], (14, 75.0))
+            # Adaptive pacing may lower -rl and extend per-origin crawl
+            # time without increasing the global request reservation.
+            self.assertGreaterEqual(seen[0][0], 14)
+            self.assertLessEqual(seen[0][1], 120.0)
             self.assertFalse(metrics["katana_timed_out"])
             self.assertEqual(metrics["katana_pending_origins"], 60)
             self.assertEqual(metrics["collection_status"], "partial")

@@ -60,6 +60,9 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
     def __init__(self, path: Path):
         super().__init__(path)
         self._migrate_successful_snapshot_schema()
+        # Database-backed stable confirmation must work outside the CLI orchestrator.
+        # The installer is idempotent and wraps DNS/fingerprint hooks exactly once.
+        install_stable_confirmation()
         ensure_lifecycle_schema(self)
         ensure_stable_confirmation_schema(self)
         ensure_finding_notification_schema(self)

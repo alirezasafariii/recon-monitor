@@ -467,7 +467,11 @@ class Orchestrator:
                     )
                     if stage_name == "report":
                         report_ran = True
-                    if status != "success" and stage_name != "report":
+                    if status != "success":
+                        # Report delivery failures must not look like an
+                        # entirely successful target, even though collection
+                        # eligibility for baseline promotion is evaluated
+                        # independently by the lifecycle guard.
                         target_failed = True
                     if _metrics.get("collection_status") == "partial":
                         target_partial = True

@@ -596,7 +596,12 @@ class Database:
         self.path = path
         self.conn = sqlite3.connect(path, timeout=30, isolation_level=None, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA journal_mode=WAL")
+        # WAL mode is persisted in the database file. Re-setting it on every
+        # connection (particularly dashboard GET requests) can contend with
+        # active scan writers. Change the mode only on initial/legacy databases.
+        journal_mode = self.conn.execute("PRAGMA journal_mode").fetchone()
+        if not journal_mode or str(journal_mode[0]).lower() != "wal":
+            self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
         self.conn.execute("PRAGMA busy_timeout=30000")
@@ -610,6 +615,19 @@ class Database:
         self.conn.close()
 
     def migrate(self) -> None:
+        # New dashboard connections must not re-run the full migration on
+        # every HTTP request. That migration includes unconditional UPDATEs
+        # and DDL and can compete for SQLite's single writer slot.
+        try:
+            row = self.conn.execute(
+                "SELECT value FROM schema_meta WHERE key='schema_version'"
+            ).fetchone()
+        except sqlite3.OperationalError as exc:
+            if "no such table: schema_meta" not in str(exc).lower():
+                raise
+            row = None
+        if row is not None and str(row[0]) == str(SCHEMA_VERSION):
+            return
         self.conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS schema_meta (
@@ -1872,8 +1890,14 @@ class Database:
                 return amount, 0, True
             used = int(row["used"]) + amount
             limit_value = int(row["limit_value"])
-            self.execute("UPDATE run_budgets SET used=?,updated_at=? WHERE run_id=? AND target=? AND metric=?", (used,utc_now(),run_id,target,metric))
-        return used, limit_value, limit_value == 0 or used <= limit_value
+            # A rejected reservation must never poison a retry or a resumed run.
+            # Return the attempted total for BudgetExceeded diagnostics, but
+            # only persist usage when the reservation is actually admitted.
+            if limit_value and used > limit_value:
+                return used, limit_value, False
+            if amount:
+                self.execute("UPDATE run_budgets SET used=?,updated_at=? WHERE run_id=? AND target=? AND metric=?", (used, utc_now(), run_id, target, metric))
+        return used, limit_value, True
 
     def enqueue_work(self, run_id: str, target: str, stage: str, item_key: str, payload: Mapping[str, Any] | None = None) -> int:
         now = utc_now()

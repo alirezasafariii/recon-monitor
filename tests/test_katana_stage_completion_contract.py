@@ -136,9 +136,11 @@ class KatanaStageCompletionTests(unittest.TestCase):
     def test_resume_plans_time_for_backlog_before_allocating_budget(self):
         metrics, pending, completed = self.exercise('mixed', resume=True, origin_count=600)
         self.assertEqual(self.last_input_batches[-1], ['https://b.example.test'])
-        self.assertEqual(self.last_crawl_limits[0], 2)
-        self.assertEqual(self.last_crawl_limits[-1], 30)
-        self.assertEqual(metrics['katana_crawl_seconds_per_origin'], 30)
+        # Adaptive allocation gives the initial backlog more crawl time while
+        # retaining the existing bounded request envelope.
+        self.assertEqual(self.last_crawl_limits[0], 8)
+        self.assertEqual(self.last_crawl_limits[-1], 60)
+        self.assertEqual(metrics['katana_crawl_seconds_per_origin'], 60)
         self.assertLessEqual(metrics['katana_reserved_requests'], metrics['katana_request_envelope'])
         self.assertEqual(pending, [])
         self.assertEqual(len(completed), 600)
