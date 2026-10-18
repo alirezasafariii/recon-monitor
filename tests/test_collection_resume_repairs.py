@@ -174,6 +174,102 @@ class CollectionResumeRepairs(unittest.TestCase):
         self.assertEqual(set((f.ctx.changes / 'new-js-files.txt').read_text().splitlines()), set(urls))
         self.assertEqual(len((f.ctx.current / 'javascript-availability.jsonl').read_text().splitlines()), 201)
 
+    def test_javascript_unverified_absence_retries_without_disappearance(self):
+        for status in (404, 410):
+            for extra in ({'transport_status': 'error'}, {'transport_status': 'stopped_for_safety'},
+                          {'transport_status': ''}, {'truncated': True}, {'redirect_outside_scope': True},
+                          {'final_url': 'https://outside.invalid/app.js'}, {'error': 'read_failed'},
+                          {'transport_error': 'read_failed'}, {'operator_next': True}):
+                with self.subTest(status=status, extra=extra):
+                    f = self.fixture(js_fixture.JavascriptExecutionQualityTests)
+                    url = 'https://example.test/app.js'
+                    f.inputs([url])
+                    with patch('stages._download_url', side_effect=self.javascript):
+                        stage_javascript(f.ctx)
+                    # A fresh run has a known available asset to compare against.
+                    f.ctx.run_id = f.ctx.db.create_run(f.ctx.policy.name, 1, 'offline')
+                    f.ctx.run_dir = f.ctx.paths.output / f.ctx.run_id
+                    f.ctx.db.create_run_target(f.ctx.run_id, f.ctx.policy, f.ctx.run_dir, False)
+                    f.inputs([url])
+                    absent = {'url': url, 'final_url': url, 'status_code': status,
+                              'not_found': True, 'transport_status': 'ok', **extra}
+                    with patch('stages._download_url', return_value=absent):
+                        result = stage_javascript(f.ctx)
+                    self.assertEqual(result['collection_status'], 'partial')
+                    self.assertEqual(result['not_found'], 0)
+                    self.assertEqual(result['disappeared'], 0)
+                    self.assertEqual(f.ctx.db.work_status(f.ctx.run_id, f.ctx.policy.name, 'javascript-items', url), 'retry_pending')
+                    self.assertEqual((f.ctx.changes / 'not-found-js-files.txt').read_text(), '')
+                    with patch('stages._download_url', side_effect=self.javascript):
+                        self.assertEqual(stage_javascript(f.ctx)['collection_status'], 'completed')
+
+    def test_download_rejects_incomplete_404_and_410_before_stage_processing(self):
+        from stages import _download_url
+        f = self.fixture(js_fixture.JavascriptExecutionQualityTests)
+        url = 'https://example.test/app.js'
+        for status in (404, 410):
+            for extra in ({'truncated': True}, {'redirect_outside_scope': True},
+                          {'transport_status': 'error'}, {'error': 'read_failed'},
+                          {'final_url': 'https://outside.invalid/app.js'}):
+                with self.subTest(status=status, extra=extra), patch('stages.perform_pinned_download',
+                        return_value={'status_code': status, 'transport_status': 'ok', 'error': 'http_error', **extra}):
+                    result = _download_url(f.ctx, url, 100000)
+                    self.assertFalse(result.get('not_found'))
+                    self.assertIn('error', result)
+                    self.assertNotIn('data', result)
+
+    def test_javascript_absence_survives_201_file_resume_and_database_reopen(self):
+        for status in (404, 410):
+            with self.subTest(status=status):
+                f = self.fixture(js_fixture.JavascriptExecutionQualityTests)
+                urls = [f'https://example.test/asset{i:03}.js' for i in range(201)]
+                absent = urls[0]
+                f.inputs(urls)
+                def download(ctx, url, limit):
+                    return ({'url': url, 'final_url': url, 'status_code': status,
+                             'not_found': True, 'transport_status': 'ok'} if url == absent
+                            else self.javascript(ctx, url, limit))
+                with patch('stages._download_url', side_effect=download) as requests:
+                    first = stage_javascript(f.ctx)
+                    self.assertEqual(first['collection_status'], 'partial')
+                    f.ctx.db.close()
+                    f.ctx.db = runtime.Database(f.ctx.paths.db)
+                    f.addCleanup(f.ctx.db.close)
+                    # Output files are disposable: reconstruct from the queue receipt.
+                    (f.ctx.current / 'javascript-not-found.jsonl').unlink()
+                    (f.ctx.changes / 'not-found-js-files.txt').write_text('https://outside.invalid/fake.js\n')
+                    second = stage_javascript(f.ctx)
+                    third = stage_javascript(f.ctx)
+                self.assertEqual(requests.call_count, 201)
+                self.assertEqual([second['collection_status'], third['collection_status']], ['completed', 'completed'])
+                self.assertEqual([second['not_found'], third['not_found']], [1, 1])
+                self.assertEqual((f.ctx.changes / 'not-found-js-files.txt').read_text().splitlines(), [absent])
+                self.assertEqual([json.loads(line) for line in (f.ctx.current / 'javascript-not-found.jsonl').read_text().splitlines()],
+                                 [{'url': absent, 'status_code': status}])
+                # Invalidate the policy-bound receipt: this URL must be checked again.
+                f.ctx.policy.raw['receipt_test_revision'] = 2
+                with patch('stages._download_url', side_effect=self.javascript) as request:
+                    recovered = stage_javascript(f.ctx)
+                request.assert_called_once()
+                self.assertEqual(recovered['not_found'], 0)
+                self.assertEqual((f.ctx.changes / 'not-found-js-files.txt').read_text(), '')
+
+    def test_legacy_javascript_absence_receipt_is_rechecked(self):
+        f = self.fixture(js_fixture.JavascriptExecutionQualityTests)
+        url = 'https://example.test/old.js'
+        f.inputs([url])
+        with patch('stages._download_url', return_value={'url': url, 'status_code': 404,
+                'not_found': True, 'transport_status': 'ok'}):
+            stage_javascript(f.ctx)
+        f.ctx.db.execute("UPDATE work_items SET result_json=? WHERE stage='javascript-items'",
+                         (json.dumps({'status': 'not_found', 'status_code': 404}),))
+        with patch('stages._download_url', side_effect=self.javascript) as download:
+            result = stage_javascript(f.ctx)
+        download.assert_called_once()
+        self.assertEqual(result['repaired_completed_work_items'], 1)
+        self.assertEqual(result['not_found'], 0)
+        self.assertEqual((f.ctx.changes / 'not-found-js-files.txt').read_text(), '')
+
     def test_corrupt_completed_javascript_cannot_spend_a_verified_slot(self):
         f = self.fixture(js_fixture.JavascriptExecutionQualityTests)
         f.ctx.policy.limits.max_js_files = 1

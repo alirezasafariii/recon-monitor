@@ -354,7 +354,7 @@ class SourceMapResumeTests(unittest.TestCase):
         self.assertEqual(self.map_items(), [])
 
     def test_not_found_parent_has_no_map_subtask_and_resumes_without_requests(self):
-        with patch("stages._download_url", return_value={"url": self.URL, "status_code": 404, "not_found": True}):
+        with patch("stages._download_url", return_value={"url": self.URL, "status_code": 404, "not_found": True, "transport_status": "ok"}):
             first = stage_javascript(self.ctx)
         self.assertEqual(first["collection_status"], "completed")
         with patch("stages._download_url", side_effect=AssertionError("not-found parent requested")):

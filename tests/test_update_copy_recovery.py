@@ -4,6 +4,7 @@ import errno
 import io
 import os
 import shutil
+import contextlib
 import sqlite3
 import subprocess
 import sys
@@ -313,7 +314,7 @@ class UpdateCopyRecoveryTests(unittest.TestCase):
         snapshots = list(self.paths.state.glob(".recon-update-db-*"))
         self.assertEqual(len(snapshots), 1)
         self.assertIn(str(snapshots[0]), str(failure.exception))
-        with sqlite3.connect(snapshots[0]) as database:
+        with contextlib.closing(sqlite3.connect(snapshots[0])) as database, database:
             self.assertEqual(database.execute("SELECT value FROM schema_meta WHERE key='update-fixture'").fetchone()[0], "before")
 
     def test_each_validation_failure_restores_exact_program_and_database(self):
@@ -332,7 +333,7 @@ class UpdateCopyRecoveryTests(unittest.TestCase):
                     with self.assertRaisesRegex(ReconError, "rolled back.*Post-update validation failed"):
                         self.manager.install(self.package)
                 self._assert_original_program()
-                with sqlite3.connect(self.paths.db) as database:
+                with contextlib.closing(sqlite3.connect(self.paths.db)) as database, database:
                     self.assertEqual(database.execute("SELECT value FROM schema_meta WHERE key='update-fixture'").fetchone()[0], "before")
                     self.assertEqual(database.execute("PRAGMA integrity_check").fetchone()[0], "ok")
                 self._assert_no_transaction()

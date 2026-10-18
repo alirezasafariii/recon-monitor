@@ -49,6 +49,15 @@ completed CAS receipts and retains earlier change/availability artifacts. The
 stage remains partial while unselected parents or download errors remain, so
 partial batches cannot establish a comparison baseline.
 
+A parent JavaScript 404/410 is conclusive only with a completed transport,
+no transport failure or truncation, and an in-scope final URL. Unverified
+absence remains retryable and cannot emit a disappearance observation. Its
+completed receipt records the URL, final URL, status and policy hash; resume
+checks this receipt against same-run availability history. Legacy receipts
+without this proof are rechecked. Both JavaScript not-found outputs are rebuilt
+from validated receipts plus new observations, even if earlier output files
+were deleted. A policy change invalidates absence receipts.
+
 A verified in-scope source-map 404/410 is a completed absence observation tied
 to the exact parent bytes, policy and run. It is recorded in source-map work
 metrics and is not downloaded again within that context. A fresh run or policy
@@ -114,3 +123,9 @@ PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_collecti
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_wayback_collection_quality.py' -q
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_command_runner_stdin.py' -q
 ```
+
+The Katana frontier workflow builds and exercises the pinned upstream commit
+before applying the project's producer patch. Run the same unpatched acceptance
+with `python tools/katana_stage_local_acceptance.py --stock-only --binary PATH
+--output REPORT.json`. This mode rejects binaries advertising the custom
+completion contract and tests ordinary capability detection without a mock.

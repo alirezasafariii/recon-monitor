@@ -1756,11 +1756,16 @@ def _download_url(
         raise StageError(f"Content exceeded limit: {url}", retryable=False)
 
     if status_code in {404, 410}:
+        # safe_transport uses http_error for a fully received HTTP error status;
+        # other errors describe an unverified observation and must survive.
+        observation = {**result, "error": "" if error == "http_error" else error}
+        verified = _verified_not_found(ctx, url, observation)
         return {
+            **({} if verified else {"error": error or "unverified_not_found"}),
             "url": url,
             "final_url": str(result.get("final_url") or url),
             "status_code": status_code,
-            "not_found": True,
+            "not_found": verified,
             "truncated": bool(result.get("truncated")),
             "redirect_outside_scope": bool(result.get("redirect_outside_scope")),
             "duration": duration,
@@ -2089,8 +2094,21 @@ def _select_javascript_urls(urls: Iterable[str], max_files: int) -> tuple[list[s
     return selected, unselected
 
 
+def _verified_not_found(ctx: StageContext, url: str, result: Mapping[str, Any]) -> bool:
+    """Accept absence only after a complete, in-scope HTTP observation."""
+    return (type(result.get("status_code")) is int and result["status_code"] in {404, 410}
+            and result.get("transport_status") == "ok"
+            and not any(result.get(key) for key in ("error", "operator_next", "truncated", "redirect_outside_scope"))
+            and result.get("transport_error", "") in {"", "http_error"}
+            and ctx.policy.url_in_scope(url)
+            and ctx.policy.url_in_scope(str(result.get("final_url") or result.get("url") or url)))
+
+
 def _javascript_work_processed(ctx: StageContext, store: ContentAddressedStore, url: str, result: Mapping[str, Any]) -> bool:
-    if result.get("status") == "not_found" and type(result.get("status_code")) is int and result["status_code"] in {404, 410}:
+    if result.get("status") == "not_found":
+        if (result.get("url") != url or result.get("policy_hash") != ctx.policy.policy_hash()
+                or not _verified_not_found(ctx, url, result)):
+            return False
         row = ctx.db.one("SELECT state,status_code FROM js_availability_history WHERE run_id=? AND target=? AND url=?", (ctx.run_id, ctx.policy.name, url))
         return bool(row and row["state"] == "not_found" and row["status_code"] == result["status_code"])
     digest = result.get("object_hash")
@@ -2390,12 +2408,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         stored_result = safe_json_loads(row["result_json"], {}, expected_type=dict) if row else {}
         if row and row["status"] == "failed":
             status = stored_result.get("status_code")
-            if (type(status) is int and status in {404, 410} and stored_result.get("transport_status") == "ok"
-                    and not stored_result.get("truncated") and not stored_result.get("redirect_outside_scope")
-                    and ctx.policy.url_in_scope(str(stored_result.get("url") or ""))):
+            if _verified_not_found(ctx, url, stored_result):
                 work_queue.reopen(work_id, "Processing remote not-found observation")
                 if work_queue.start(work_id, "local-js"):
-                    results.append({"url": url, "status_code": status, "not_found": True})
+                    results.append({**stored_result, "url": url, "final_url": stored_result.get("final_url") or stored_result["url"], "not_found": True})
                 else:
                     deferred_urls.append(url)
             else:
@@ -2467,7 +2483,13 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     diff_count = 0
     classified_endpoints = 0
     errors: list[dict[str, str]] = []
-    not_found: list[dict[str, Any]] = []
+    # Rebuild cumulative absence evidence from verified queue receipts, not the
+    # output files: these may be missing, tampered with, or from another attempt.
+    not_found: list[dict[str, Any]] = [
+        {"url": url, "status_code": saved["status_code"]}
+        for url in sorted(verified_completed)
+        if (saved := safe_json_loads(work_rows[url]["result_json"], {}, expected_type=dict)).get("status") == "not_found"
+    ]
     source_map_rows: list[dict[str, Any]] = []
     chunk_edge_rows: list[dict[str, str]] = []
     source_map_sources = 0
@@ -2612,7 +2634,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     for result in sorted(results, key=lambda x: x["url"]):
         url = result["url"]
         if "data" not in result:
-            if result.get("not_found"):
+            if result.get("not_found") and _verified_not_found(ctx, url, result):
                 status_code = int(
                     result.get("status_code") or 0
                 )
@@ -2635,6 +2657,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                         work_ids[url],
                         {
                             "status": "not_found",
+                            "url": url,
+                            "final_url": str(result.get("final_url") or result.get("url") or url),
+                            "policy_hash": ctx.policy.policy_hash(),
+                            "transport_status": "ok",
                             "status_code": status_code,
                         },
                     )

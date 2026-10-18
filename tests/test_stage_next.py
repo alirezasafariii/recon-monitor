@@ -225,7 +225,7 @@ class StageNextTests(unittest.TestCase):
                     "url": url, "status_code": 400,
                     "error": "http_error", "final_url": url,
                 }
-            return {"url": url, "status_code": 404, "not_found": True}
+            return {"url": url, "status_code": 404, "not_found": True, "transport_status": "ok"}
 
         with patch("stages._download_url", side_effect=fake_download) as download:
             metrics = stage_javascript(ctx)

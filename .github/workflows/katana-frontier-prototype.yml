@@ -6,6 +6,7 @@ on:
       - 'docs/prototypes/katana-v1.8.0-frontier.patch'
       - 'tools/katana_frontier*'
       - 'tools/katana_filtered_frontier*'
+      - 'tools/katana_stage_local_acceptance.py'
       - '.github/workflows/katana-frontier-prototype.yml'
 permissions:
   contents: read
@@ -27,6 +28,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
+      - name: Unpatched upstream Katana stage acceptance
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          test -z "$(git -C katana-source status --porcelain)"
+          (cd katana-source && go build -buildvcs=false -o /tmp/katana-upstream ./cmd/katana)
+          python tools/katana_stage_local_acceptance.py --stock-only --binary /tmp/katana-upstream --output /tmp/upstream-stage.json
       - name: Apply pinned producer patch
         run: |
           git -C katana-source apply --check ../docs/prototypes/katana-v1.8.0-frontier.patch

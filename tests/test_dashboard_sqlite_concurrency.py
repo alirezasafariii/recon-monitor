@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import sqlite3
 import sys
 import tempfile
@@ -57,7 +58,7 @@ class DashboardSQLiteConcurrencyTests(unittest.TestCase):
             path = Path(temp) / "state.db"
             initialized = Database(path)
             initialized.close()
-            with sqlite3.connect(path) as connection:
+            with contextlib.closing(sqlite3.connect(path)) as connection, connection:
                 connection.execute(
                     "DELETE FROM schema_meta WHERE key='migration_revision'"
                 )
