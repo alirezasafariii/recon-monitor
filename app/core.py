@@ -590,6 +590,12 @@ class PolicySet:
         return matches
 
 
+# Schema version 18 was reused across releases with different incremental columns.
+# This revision records completion of the migrations in this source revision;
+# the numeric version alone cannot prove that upgrades have run.
+MIGRATION_REVISION = "recon-reliability-20261018-1"
+
+
 class Database:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -627,7 +633,11 @@ class Database:
                 raise
             row = None
         if row is not None and str(row[0]) == str(SCHEMA_VERSION):
-            return
+            revision = self.conn.execute(
+                "SELECT value FROM schema_meta WHERE key='migration_revision'"
+            ).fetchone()
+            if revision is not None and str(revision[0]) == MIGRATION_REVISION:
+                return
         self.conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS schema_meta (
@@ -1751,6 +1761,13 @@ class Database:
         self.conn.execute(
             "INSERT INTO schema_meta(key,value) VALUES('schema_version',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (str(SCHEMA_VERSION),),
+        )
+        # Set the revision marker last. A database built by an older release
+        # may already report schema_version=18 but lack incremental columns.
+        self.conn.execute(
+            "INSERT INTO schema_meta(key,value) VALUES('migration_revision',?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (MIGRATION_REVISION,),
         )
 
     @contextlib.contextmanager

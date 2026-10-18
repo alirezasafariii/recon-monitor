@@ -937,9 +937,31 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     else:
         base_urls = probe_candidates
         origin_results = [{"url": url, "live": True, "transport_status": "probe_disabled"} for url in base_urls]
+    # Probe responses are part of the throttle evidence. Without this,
+    # a HEAD 429 is never logged by Katana, so --resume probes the host again.
+    probe_throttled_hosts = {
+        katana_host(str(row.get("url") or ""))
+        for row in origin_results
+        if str(row.get("status_code") or "") == "429"
+    } - {""}
+    if probe_throttled_hosts:
+        register_throttling(throttle_state, sorted(probe_throttled_hosts), now=time.time())
+        throttled_hosts.update(probe_throttled_hosts)
+        atomic_write_text(throttle_path, json_dumps({
+            "version": 1, "hosts": throttle_state,
+        }))
+        # A 429 on either scheme defers the entire host, including an HTTP(S)
+        # sibling that probed successfully in the same stage invocation.
+        deferred_origins = sorted(set(deferred_origins) | {
+            url for url in candidate_base_urls
+            if katana_host(url) in probe_throttled_hosts
+        })
+        base_urls = [
+            url for url in base_urls if katana_host(url) not in probe_throttled_hosts
+        ]
     origin_results.extend({
         "url": url, "live": False, "transport_status": "rate_limit_cooldown",
-    } for url in deferred_origins)
+    } for url in deferred_origins if url not in probe_candidates)
     base_path = ctx.current / "base-urls.txt"
     atomic_write_text(base_path, "".join(f"{url}\n" for url in base_urls))
     write_jsonl(ctx.current / "origin-probe.jsonl", origin_results)

@@ -50,6 +50,37 @@ class DashboardSQLiteConcurrencyTests(unittest.TestCase):
                 writer.execute("ROLLBACK")
                 writer.close()
 
+    def test_schema_version_18_without_revision_upgrades_missing_fingerprint_column(self):
+        # Older 8.8.x databases can report schema_version=18 before the later
+        # incremental fingerprint columns were added.
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "state.db"
+            initialized = Database(path)
+            initialized.close()
+            with sqlite3.connect(path) as connection:
+                connection.execute(
+                    "DELETE FROM schema_meta WHERE key='migration_revision'"
+                )
+                connection.execute(
+                    "ALTER TABLE fingerprints DROP COLUMN response_headers_json"
+                )
+                self.assertEqual(
+                    connection.execute(
+                        "SELECT value FROM schema_meta WHERE key='schema_version'"
+                    ).fetchone()[0], str(SCHEMA_VERSION)
+                )
+            upgraded = Database(path)
+            try:
+                columns = {row[1] for row in upgraded.conn.execute(
+                    "PRAGMA table_info(fingerprints)"
+                )}
+                self.assertIn("response_headers_json", columns)
+                upgraded.conn.execute(
+                    "SELECT response_headers_json FROM fingerprints LIMIT 1"
+                )
+            finally:
+                upgraded.close()
+
     def test_old_schema_version_still_migrates(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "state.db"

@@ -80,6 +80,55 @@ class KatanaRetryPolicyTests(unittest.TestCase):
         self.assertFalse(frontier_reduction_observed(snapshot(4), snapshot(4)))
         self.assertFalse(frontier_reduction_observed(snapshot(4), snapshot(8)))
 
+    def test_origin_probe_429_stops_host_and_records_resume_cooldown(self):
+        # Katana cannot log a 429 if the origin HEAD probe encountered it first.
+        from core import TargetPolicy
+        from stages import stage_urls
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current, changes = root / "current", root / "changes"
+            current.mkdir()
+            changes.mkdir()
+            (current / "resolved-hosts.txt").write_text("example.test\\n")
+            policy = TargetPolicy.from_dict({
+                "name": "example.test",
+                "roots": ["example.test"],
+                "include": [r"(^|\\.)example\\.test$"],
+                "limits": {"timeout_seconds": 600, "request_rate": 3},
+            })
+            db = MagicMock()
+            db.one.return_value = None
+            db.all.return_value = []
+            db.upsert_url.return_value = False
+            ctx = SimpleNamespace(
+                current=current, changes=changes, policy=policy,
+                db=db, runner=MagicMock(), budget=None,
+                run_id="probe-429", logger=MagicMock(), progress=MagicMock(),
+            )
+            probes = []
+            def probe(_ctx, urls):
+                probes.append(list(urls))
+                if len(probes) == 1:
+                    return [], [{
+                        "url": "https://example.test",
+                        "status_code": 429,
+                        "live": True,
+                        "transport_status": "stopped_for_safety",
+                    }]
+                return [], []
+            with patch("stages.tool_path", side_effect=lambda name: "katana" if name == "katana" else None), \
+                 patch("stages._probe_live_origins", side_effect=probe):
+                first = stage_urls(ctx)
+                self.assertIn("example.test", load_throttle_state(
+                    current / "katana-throttle-state.json"
+                ))
+                second = stage_urls(ctx)
+            self.assertEqual(len(probes), 2)
+            self.assertEqual(probes[1], [])
+            self.assertEqual(first["collection_status"], "partial")
+            self.assertEqual(second["collection_status"], "partial")
+            ctx.runner.run.assert_not_called()
+
     def test_429_blocks_resume_without_any_probe_or_crawl(self):
         # Simulate the real custom completion contract. No real networking.
         from core import TargetPolicy
