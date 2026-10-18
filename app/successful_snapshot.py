@@ -234,22 +234,34 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             self.execute(f"DELETE FROM {table} WHERE target=?", (target,))
         discard_artifact_snapshot(self, target)
 
+    def _incomplete_successful_stages(self, run_id: str, target: str) -> list[tuple[str, dict[str, Any]]]:
+        incomplete = []
+        for row in self.all(
+            "SELECT stage,metrics_json FROM stage_runs WHERE run_id=? AND target=? "
+            "AND status='success' AND stage<>'report' ORDER BY stage", (run_id, target),
+        ):
+            stage = str(row["stage"])
+            metrics = safe_json_loads(row["metrics_json"], {}, expected_type=dict)
+            if collection_incomplete(stage, metrics):
+                incomplete.append((stage, normalize_collection_metrics(stage, metrics)))
+        return incomplete
+
     def _repair_unavailable_collector_baselines(self) -> None:
         """Rebaseline only committed runs with explicit legacy collection gaps."""
         for commit in self.all("SELECT target,run_id FROM successful_recon_commits"):
             target, run_id = str(commit["target"]), str(commit["run_id"])
-            incomplete = []
-            for row in self.all(
-                "SELECT stage,metrics_json FROM stage_runs WHERE run_id=? AND target=? "
-                "AND status='success' AND stage<>'report'", (run_id, target),
-            ):
-                stage = str(row["stage"])
-                metrics = safe_json_loads(row["metrics_json"], {}, expected_type=dict)
-                if collection_incomplete(stage, metrics):
-                    incomplete.append((stage, normalize_collection_metrics(stage, metrics)))
+            incomplete = self._incomplete_successful_stages(run_id, target)
             if not incomplete:
                 continue
             with cas_transaction(self):
+                # Another process may complete a resume or commit a fresh
+                # baseline between the initial read and acquiring this lock.
+                current = self.one("SELECT run_id FROM successful_recon_commits WHERE target=?", (target,))
+                if current is None or str(current["run_id"]) != run_id:
+                    continue
+                incomplete = self._incomplete_successful_stages(run_id, target)
+                if not incomplete:
+                    continue
                 for stage, metrics in incomplete:
                     self.execute(
                         "UPDATE stage_runs SET status='partial',metrics_json=? WHERE run_id=? AND target=? AND stage=?",

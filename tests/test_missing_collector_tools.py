@@ -19,6 +19,7 @@ from collector_status import normalize_collection_metrics
 from reporting import _stage_metrics
 from run_lifecycle_state import derive_collection_status
 from stages import StageContext
+from storage import cas_transaction
 
 
 class MissingCollectorToolsTests(unittest.TestCase):
@@ -308,6 +309,34 @@ class MissingCollectorToolsTests(unittest.TestCase):
         self.db.close()
         self.db = runtime.Database(self.paths.db)
         self.assertEqual(self.db.successful_snapshot_status(self.TARGET)["run_id"], previous)
+
+    def test_baseline_repair_rechecks_commit_and_metrics_after_acquiring_lock(self):
+        for scenario in ("collector_completed", "newer_commit"):
+            with self.subTest(scenario=scenario):
+                self.assertEqual(self.execute("fingerprint", ("httpx",))[0], 0)
+                original = self.db.successful_snapshot_status(self.TARGET)["run_id"]
+                current = original
+                if scenario == "newer_commit":
+                    self.assertEqual(self.execute("fingerprint", ("httpx",))[0], 0)
+                    current = self.db.successful_snapshot_status(self.TARGET)["run_id"]
+                    self.db.execute("UPDATE successful_recon_commits SET run_id=? WHERE target=?", (original, self.TARGET))
+                self.db.execute("UPDATE stage_runs SET metrics_json=? WHERE run_id=? AND stage='fingerprint'",
+                                (json_dumps({"skipped": "httpx missing"}), original))
+
+                @contextlib.contextmanager
+                def interleaved_transaction(db):
+                    if scenario == "collector_completed":
+                        db.execute("UPDATE stage_runs SET metrics_json=? WHERE run_id=? AND stage='fingerprint'",
+                                   (json_dumps({"collection_status": "completed"}), original))
+                    else:
+                        db.execute("UPDATE successful_recon_commits SET run_id=? WHERE target=?", (current, self.TARGET))
+                    with cas_transaction(db):
+                        yield
+
+                with patch("successful_snapshot.cas_transaction", side_effect=interleaved_transaction):
+                    self.db._repair_unavailable_collector_baselines()
+                self.assertEqual(self.db.successful_snapshot_status(self.TARGET)["run_id"], current)
+                self.assertTrue(self.db.target_has_history(self.TARGET))
 
     def test_optional_missing_source_does_not_turn_completed_collection_partial(self):
         metrics = {"collection_status": "completed", "subdomain_tool_outcomes": [{"tool": "subfinder"}],

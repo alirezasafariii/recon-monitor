@@ -61,6 +61,9 @@ resume safeguards still reject an older run superseded by another scan or a
 legacy comparison run whose baseline has been invalidated; start a fresh scan
 in those cases.
 
+Baseline identity and collector metrics are checked again under the transaction
+lock, so a concurrent completion cannot invalidate a newer, healthy baseline.
+
 ## Subprocess input and shutdown
 
 `CommandRunner` starts supervision before feeding stdin and multiplexes bounded,
