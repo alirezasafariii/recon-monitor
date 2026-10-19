@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
+from katana_runtime_contract import completion_supported as completion_contract, checkpoint_supported as checkpoint_contract
 from katana_completion import read_completion, origin_key
 from katana_reliability import (
     classify_katana_request_errors,
@@ -921,8 +922,7 @@ def _katana_completion_supported(ctx) -> bool:
         if path.stat().st_size > 1024 * 1024:
             return False
         help_text = path.read_text(encoding="utf-8")
-        return ("-recon-completion-log" in help_text
-                and "EXPERIMENTAL v1 per-origin standard-engine completion JSONL" in help_text)
+        return completion_contract(help_text)
     except (OSError, UnicodeError, ValueError):
         return False
 
@@ -934,8 +934,7 @@ def _katana_checkpoint_supported(ctx) -> bool:
         if path.stat().st_size > 1024 * 1024:
             return False
         text = path.read_text(encoding="utf-8")
-        return ("-recon-checkpoint-dir" in text
-                and "EXPERIMENTAL v1 durable standard-engine GET frontier checkpoint" in text)
+        return checkpoint_contract(text)
     except (OSError, UnicodeError):
         return False
 

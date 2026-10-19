@@ -28,29 +28,15 @@ fi
 
 
 # BEGIN recon-monitor verified Katana run guard (PR 193)
-# Real recon runs must not silently fall back to stock Katana on PATH.
-# Keep doctor, init, and preview-only commands available on fresh checkouts.
+# Resolve target policies before enforcing the patched crawler contract.
+# DNS-only runs are allowed; URL-enabled runs fail closed.
 if [[ "${1:-}" == "run" ]]; then
-  _recon_preview=0
-  for _recon_arg in "$@"; do
-    case "$_recon_arg" in
-      --dry-run|--help|-h) _recon_preview=1 ;;
-    esac
-  done
-  if [[ "$_recon_preview" -eq 0 ]]; then
-    if [[ ! -f "$PROJECT_KATANA" || ! -x "$PROJECT_KATANA" ]]; then
-      printf '[ERROR] Patched project Katana is required for recon runs: %s\n' "$PROJECT_KATANA" >&2
-      printf '[ERROR] Install it with: ./install.sh --install-project-katana\n' >&2
-      exit 1
-    fi
-    _recon_katana_help="$("$PROJECT_KATANA" -h 2>&1 || true)"
-    if [[ "$_recon_katana_help" != *"recon-checkpoint-dir"* ||
-          "$_recon_katana_help" != *"recon-completion-log"* ]]; then
-      printf '[ERROR] Project Katana lacks the required checkpoint/completion capabilities.\n' >&2
-      printf '[ERROR] Reinstall it with: ./install.sh --install-project-katana\n' >&2
-      exit 1
-    fi
+  _recon_preflight_python="$(command -v python3 || true)"
+  if [[ -z "$_recon_preflight_python" ]]; then
+    printf '[ERROR] python3 is required to verify the Katana runtime.\n' >&2
+    exit 1
   fi
+  "$_recon_preflight_python" "$ROOT_DIR/app/katana_run_preflight.py" "$ROOT_DIR" "$@"
 fi
 # END recon-monitor verified Katana run guard (PR 193)
 
