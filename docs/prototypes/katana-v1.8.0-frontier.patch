@@ -223,6 +223,98 @@ index aca9e33..d3b8671 100644
  	return nil
  }
  
+diff --git a/internal/runner/recon_execution_test.go b/internal/runner/recon_execution_test.go
+new file mode 100644
+index 0000000..985c17d
+--- /dev/null
++++ b/internal/runner/recon_execution_test.go
+@@ -0,0 +1,86 @@
++package runner
++
++import (
++	"context"
++	"errors"
++	"fmt"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/projectdiscovery/katana/pkg/output"
++	"github.com/projectdiscovery/katana/pkg/types"
++	"github.com/projectdiscovery/networkpolicy"
++	mapsutil "github.com/projectdiscovery/utils/maps"
++)
++
++type reconExecutionEngine struct {
++	errors map[string]error
++	mu     sync.Mutex
++	closed bool
++}
++
++func (e *reconExecutionEngine) Crawl(input string) error { return e.errors[input] }
++func (e *reconExecutionEngine) Close() error {
++	e.mu.Lock()
++	defer e.mu.Unlock()
++	e.closed = true
++	return nil
++}
++
++func TestReconExecutionErrorsAndPlannedDeadlines(t *testing.T) {
++	for _, scenario := range []struct {
++		name                               string
++		duration                           time.Duration
++		checkpoint, completion             bool
++		cancelled, genuineError, wantError bool
++	}{
++		{name: "planned deadline", duration: time.Second, checkpoint: true, completion: true},
++		{name: "unbounded deadline", checkpoint: true, completion: true, wantError: true},
++		{name: "no checkpoint", duration: time.Second, completion: true, wantError: true},
++		{name: "no receipt", duration: time.Second, checkpoint: true, wantError: true},
++		{name: "global cancellation", duration: time.Second, checkpoint: true, completion: true, cancelled: true, wantError: true},
++		{name: "real checkpoint failure", duration: time.Second, checkpoint: true, completion: true, genuineError: true, wantError: true},
++	} {
++		t.Run(scenario.name, func(t *testing.T) {
++			ctx, cancel := context.WithCancel(context.Background())
++			defer cancel()
++			if scenario.cancelled {
++				cancel()
++			}
++			opts := &types.Options{URLs: []string{"https://pending.example", "https://complete.example"}, Parallelism: 2, Context: ctx, CrawlDuration: scenario.duration}
++			if scenario.checkpoint {
++				opts.ReconCheckpointDir = "fixture-checkpoint"
++			}
++			if scenario.completion {
++				opts.ReconCompletionLog = "fixture-completion"
++			}
++			cause := context.DeadlineExceeded
++			if scenario.genuineError {
++				cause = errors.New("checkpoint publication failed")
++			}
++			engine := &reconExecutionEngine{errors: map[string]error{"https://pending.example": fmt.Errorf("wrapped: %w", cause)}}
++			policy, err := networkpolicy.New(networkpolicy.Options{})
++			if err != nil {
++				t.Fatal(err)
++			}
++			r := &Runner{options: opts, crawler: engine, networkpolicy: policy,
++				state:          &RunnerState{InFlightUrls: mapsutil.NewSyncLockMap[string, struct{}]()},
++				crawlerOptions: &types.CrawlerOptions{OutputWriter: &output.StandardWriter{}}}
++			err = r.ExecuteCrawling()
++			if (err != nil) != scenario.wantError {
++				t.Fatalf("unexpected result: %v", err)
++			}
++			if scenario.wantError && !errors.Is(err, cause) {
++				t.Fatalf("lost error cause: %v", err)
++			}
++			remaining := r.state.InFlightUrls.GetAll()
++			if _, ok := remaining["https://pending.example"]; !ok || len(remaining) != 1 {
++				t.Fatalf("unfinished input lost or completed input retained: %#v", remaining)
++			}
++			if !engine.closed {
++				t.Fatal("crawler was not closed")
++			}
++		})
++	}
++}
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
 index b6da330..1e5ec78 100644
 --- a/pkg/engine/common/base.go
