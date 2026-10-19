@@ -74,6 +74,46 @@ response types are excluded. Missing bodies and limits are reported explicitly.
 Export is local: it does not replay HAR requests, import source bodies into the
 metadata tables, or promote a partial scan to a completed baseline.
 
+Import the ZIP against an existing stopped source run to analyze those bodies:
+
+```bash
+./recon-monitor.sh workspace javascript-import --target example.com --run RUN_ID --file state/browser-captures/javascript.zip
+./recon-monitor.sh workspace javascript-imports --target example.com
+./recon-monitor.sh workspace javascript-show --import-id IMPORT_ID
+```
+
+The **Browser JavaScript** dashboard view (`/browser-javascript`) lists imports
+and their source hashes, endpoint references, GraphQL declarations, source-map
+references and unconfirmed engine candidates. Each import runs the existing
+analysis engine in a private evidence workspace. Main scan assets, availability
+history, analysis rows, baseline and latest pointers remain unchanged. The
+installation database stores an import index and audit event; its existing
+Potential Findings view continues to describe recon analyses. Browser results
+are displayed separately in Browser JavaScript.
+
+Only the export format above is accepted. Every indexed body must be an
+in-scope GET/200 JavaScript source with a matching size and SHA-256. Archive
+paths, links, encrypted members, extra members, duplicate JSON keys and
+ambiguous versions of the same redacted URL are rejected before analysis.
+Current policy file/byte limits apply, with absolute limits of 500 source URLs,
+128 MiB compressed/expanded/processed, 50,000 extracted indicators and a 16 MiB
+report.
+Over-limit inputs fail explicitly rather than silently dropping source files.
+
+Imports are idempotent for the same archive, source run, policy and context.
+Reusing an import verifies its retained bodies and report. Context labels,
+including account or role names, always have authentication state `unknown`;
+the archive is local evidence, not proof of server authenticity or current
+availability. No requests, source-map fetches, live validations or delivery
+actions run. The captured subset remains `partial`, even when its offline
+analysis succeeds. Source/sink proximity is a static review lead, not proven
+data flow or confirmed execution. Source-map references alone do not prove
+exposure. GraphQL declarations are lexical findings; server schema and endpoint
+reachability require separate evidence. Query values are redacted in report URLs.
+The raw JavaScript evidence
+is private and can itself contain embedded identifiers or sensitive material;
+it is never rendered as executable source in the dashboard.
+
 ## Operator UX
 
 The v7 dashboard provides a Cockpit, Universal Search, Command Palette (`⌘K`), structured Error IDs, Diagnostics & Repair and Safety Center. Safe repair is preview-first and limited to stale execution state and expired local sessions; it does not delete evidence/cases/targets/output.

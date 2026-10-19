@@ -56,6 +56,7 @@ from dashboard_service import (  # noqa: E402
 )
 from analysis import compare_runs, format_comparison  # noqa: E402
 from analysis_engine import run_analysis, replay_analysis, analysis_quality, calibration_report, feedback_report  # noqa: E402
+from browser_javascript import import_browser_javascript, list_browser_javascript_imports, browser_javascript_report  # noqa: E402
 from bug_candidates import ANALYST_DECISIONS, FEEDBACK_REASON_CODES, get_bug_candidate, list_bug_candidates, set_bug_candidate_decision  # noqa: E402
 from candidate_intelligence import PROFILES, candidate_calibration, candidate_evaluation, set_gold_label  # noqa: E402
 from behavioral_intelligence import behavioral_summary  # noqa: E402
@@ -737,13 +738,14 @@ def build_parser() -> argparse.ArgumentParser:
     suite.add_argument("--template-id", default="")
 
     workspace = sub.add_parser("workspace", help="Manage the Recon Monitor 8.x unified security research workspace")
-    workspace.add_argument("action", choices=["sync","diagnostics","repair","errors","evidence-gap","autopilot","autopilot-queue","contexts","differential","coverage","graph","changes","memory","learning","plan","stage-value","report","capture-import","safety","cockpit","search"])
+    workspace.add_argument("action", choices=["sync","diagnostics","repair","errors","evidence-gap","autopilot","autopilot-queue","contexts","differential","coverage","graph","changes","memory","learning","plan","stage-value","report","capture-import","javascript-import","javascript-imports","javascript-show","safety","cockpit","search"])
     workspace.add_argument("--target", default="")
     workspace.add_argument("--run", dest="run_id", default="")
     workspace.add_argument("--analysis-id", default="")
     workspace.add_argument("--case-id", default="")
     workspace.add_argument("--file", default="")
     workspace.add_argument("--context", default="")
+    workspace.add_argument("--import-id", default="")
     workspace.add_argument("--query", default="")
     workspace.add_argument("--limit", type=int, default=100)
     workspace.add_argument("--apply", action="store_true", help="Apply the safe repair action after preview")
@@ -1206,6 +1208,16 @@ def main(argv: list[str] | None = None) -> int:
             elif args.action == "capture-import":
                 if not args.target or not args.file or not args.context: raise ReconError("workspace capture-import requires --target --file --context")
                 result = import_browser_capture(paths, db, target=args.target, file_path=args.file, context_label=args.context, actor="cli", limit=args.limit)
+            elif args.action == "javascript-import":
+                if not args.target or not args.file or not args.run_id:
+                    raise ReconError("workspace javascript-import requires --target --run --file")
+                result = import_browser_javascript(paths, db, target=args.target, run_id=args.run_id,
+                    file_path=args.file, context_label=args.context or "browser-observed")
+            elif args.action == "javascript-imports":
+                result = {"imports": list_browser_javascript_imports(db, target=args.target, limit=args.limit)}
+            elif args.action == "javascript-show":
+                if not args.import_id: raise ReconError("workspace javascript-show requires --import-id")
+                result = browser_javascript_report(db, args.import_id)
             elif args.action == "safety":
                 result = safety_center(paths, config, db)
             elif args.action == "cockpit":

@@ -44,6 +44,7 @@ from workspace_v7 import (
     target_memory, universal_search, workspace_v7_sync, record_error_event, import_browser_capture,
 )
 from core import APP_VERSION, SCHEMA_VERSION, AppPaths, Config, Database, Logger, ReconError, json_dumps, parse_int
+from browser_javascript import browser_javascript_report, list_browser_javascript_imports
 from dashboard_auth import verify_basic_header
 from session_auth import parse_session, create_session, destroy_session, verify_user, session_cookie, expired_cookie, ROLE_LEVEL
 from evidence import build_evidence_export
@@ -827,6 +828,7 @@ NAV_SECTIONS = [
         ("/attack-surface", "Attack surface", "AG"), ("/graph", "Asset graph", "GR"),
         ("/recon-coverage", "Recon coverage", "CV"), ("/target-memory", "Target memory", "TM"),
         ("/smart-recon", "Smart recon planner", "SP"), ("/browser-capture", "Browser capture", "BC"),
+        ("/browser-javascript", "Browser JavaScript", "BJ"),
         ("/lifecycle", "Lifecycle", "LC"),
     ]),
     ("analysis", "02 · Analysis", "02", "Understand what the evidence means", [
@@ -1411,6 +1413,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "/safety-center": self.safety_center_page,
                 "/diagnostics": self.diagnostics_page,
                 "/browser-capture": self.browser_capture_page,
+                "/browser-javascript": self.browser_javascript_page,
                 "/learning": self.false_positive_learning_page,
                 "/report-builder": self.report_builder_page,
                 "/rules": self.rules_page,
@@ -3525,7 +3528,7 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         tone='success' if data['status']=='SAFE TO RUN' else 'danger'
         scopes=''.join(f"<tr><td>{_esc(s['target'])}</td><td>{_esc(s['authorization_status'])}</td><td>{_esc(s['created_at'])}</td></tr>" for s in data.get('scopes',[]))
         header=_page_header('Safety center','One place for scope, authorization, active-module gates, local exposure, API posture and audit integrity.','',f'Recon Monitor {APP_VERSION} · Safety posture')
-        cards=f"<div class='metrics-grid'>{_metric_card('Status',data['status'],'Run gate summary',tone)}{_metric_card('Authorization','yes' if data['authorized'] else 'no','I_HAVE_AUTHORIZATION','success' if data['authorized'] else 'danger')}{_metric_card('Active modules','enabled' if data['active_modules_enabled'] else 'disabled','Global active gate','amber' if data['active_modules_enabled'] else 'success')}{_metric_card('Dashboard',data['dashboard_host'],'Auth '+('enabled' if data['dashboard_auth'] else 'disabled'),'info')}{_metric_card('Audit integrity','valid' if data['audit_integrity'].get('valid') else 'attention','Hash-chain verification','success' if data['audit_integrity'].get('valid') else 'danger')}</div>"
+        cards=f"<div class='metrics-grid'>{_metric_card('Status',data['status'],'Run gate summary',tone)}{_metric_card('Authorization','yes' if data['authorized'] else 'no','I_HAVE_AUTHORIZATION','success' if data['authorized'] else 'danger')}{_metric_card('Active modules','enabled' if data['active_modules_enabled'] else 'disabled','Global active gate','amber' if data['active_modules_enabled'] else 'success')}{_metric_card('Dashboard',data['dashboard_host'],'Auth '+('enabled' if data['dashboard_auth'] else 'disabled'),'info')}{_metric_card('Audit integrity','valid' if data['audit_integrity'].get('ok') else 'attention','Hash-chain verification','success' if data['audit_integrity'].get('ok') else 'danger')}</div>"
         self.send_html('Safety center',header+cards+f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Latest scope snapshots</h3></div><div class='table-wrap'><table><thead><tr><th>Target</th><th>Authorization</th><th>Snapshot</th></tr></thead><tbody>{scopes or '<tr><td colspan=3>No scope snapshot yet</td></tr>'}</tbody></table></div></section><div class='callout' style='margin-top:16px'><strong>Validation policy</strong><span>Automatic live validation remains disabled. Manual-only families stay manual-only.</span></div>")
 
     def diagnostics_page(self) -> None:
@@ -3556,6 +3559,47 @@ form.addEventListener('submit',e=>{e.preventDefault();load();});svg.addEventList
         importer=f"""<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Import metadata in Dashboard</h3></div><div class='panel-body'><form method='post' action='/workspace/capture-import'><label>Target<select name='target' required><option value=''>Choose target</option>{options}</select></label><label>Authorized context label<input name='context' required placeholder='Account A'></label><label>Capture JSON<textarea name='capture_json' rows='12' required placeholder='{_esc(sample)}'></textarea></label><button>Import redacted metadata</button></form><p class='muted'>Maximum Dashboard form size is intentionally bounded. Use the CLI importer for larger metadata exports. Raw cookies, Authorization values and response bodies are ignored.</p></div></section>"""
         self.send_html('Browser capture',header+f"<div class='callout'><strong>Metadata-only importer</strong><span>Expected fields: URL, method, status, content type, navigation type and an analyst-supplied context label.</span></div>{importer}<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Import from terminal</h3></div><div class='panel-body'><pre>{_esc(command)}</pre><button type='button' class='secondary' data-copy='{_esc(command)}'>Copy command</button></div></section><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Recent captures</h3></div><div class='table-wrap'><table><thead><tr><th>Target</th><th>Context</th><th>Method</th><th>URL</th><th>Status</th><th>Type</th><th>Imported</th></tr></thead><tbody>{body or '<tr><td colspan=7>No browser metadata imported</td></tr>'}</tbody></table></div></section>")
 
+
+    def browser_javascript_page(self) -> None:
+        query = self.query()
+        target = str((query.get('target') or [''])[0])
+        import_id = str((query.get('import_id') or [''])[0])
+        db = self.db()
+        try:
+            imports = list_browser_javascript_imports(db, target=target)
+            report = browser_javascript_report(db, import_id) if import_id else None
+        finally:
+            db.close()
+        header = _page_header('Browser JavaScript',
+            'Review captured sources with the offline analysis engine. Context labels do not establish authentication.',
+            "<a class='button secondary' href='/browser-capture'>Browser metadata</a>",
+            f'Recon Monitor {APP_VERSION} · Browser evidence')
+        command = './recon-monitor.sh workspace javascript-import --target example.com --run RUN-ID --file state/browser-captures/javascript.zip'
+        body = f"<div class='callout'><strong>Offline source evidence</strong><span>Imports have their own analysis and evidence store. The original scan status and baseline are preserved. Static review leads need validation; source-map references do not prove availability.</span></div><section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Import from terminal</h3></div><div class='panel-body'><pre>{_esc(command)}</pre></div></section>"
+        rows = ''.join(
+            f"<tr><td><a href='/browser-javascript?{_esc(urllib.parse.urlencode({'import_id': r['import_id']}))}'>{_esc(r['import_id'])}</a></td><td>{_esc(r['target'])}</td><td>{_esc(r['source_run_id'])}</td><td>{_esc(r['context_label'])}</td><td>{r['source_count']}</td><td>{_esc(r['created_at'])}</td></tr>"
+            for r in imports)
+        body += "<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>Browser imports</h3></div><div class='table-wrap'><table><thead><tr><th>Import</th><th>Target</th><th>Source run</th><th>Context</th><th>Sources</th><th>Imported</th></tr></thead><tbody>" + (rows or '<tr><td colspan=6>No browser JavaScript imported</td></tr>') + '</tbody></table></div></section>'
+        if report:
+            body += f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(report['import_id'])}</h3></div><div class='panel-body'><p>Target: <strong>{_esc(report['target'])}</strong> · Context: {_esc(report['context_label'])} · Authentication: <strong>unknown</strong></p><p>Source run: {_esc(report['source_run_id'])} · Source status at import: {_esc(report['source_run_status'])} · Captured coverage: <strong>partial</strong></p><p>Offline analysis: {_esc(report['analysis_id'])} · Status: {_esc(report['analysis_status'])} · Network requests: <strong>0</strong></p></div></section>"
+            body += "<div class='metrics-grid' style='margin-top:16px'>" + ''.join([
+                _metric_card('Sources', len(report['sources']), 'Verified archive bodies', 'info'),
+                _metric_card('Endpoints', len(report['endpoints']), 'Static references', 'info'),
+                _metric_card('GraphQL', report['graphql_operation_count'], 'Distinct declarations', 'purple'),
+                _metric_card('Review leads', report['candidate_count'], 'Unconfirmed engine candidates', 'amber'),
+            ]) + '</div>'
+            sections = [
+                ('Sources', ['URL', 'Bytes', 'SHA-256'], report['sources'], ['url', 'bytes', 'sha256']),
+                ('Endpoint references', ['Endpoint', 'Category'], report['endpoints'], ['endpoint', 'primary_category']),
+                ('GraphQL declarations', ['Declaration', 'Source'], report['graphql_operations'], ['declaration', 'source_url']),
+                ('Source-map references · not fetched', ['URL', 'Source'], report['source_map_references'], ['url', 'source_url']),
+                ('Static review leads · unconfirmed', ['Family', 'Title', 'State'], report['candidates'], ['bug_family', 'title', 'candidate_state']),
+                ('Source/sink proximity · not proven data flow', ['Source', 'Input pattern', 'Sink pattern'], report['dataflow_preview'], ['source_url', 'source_kind', 'sink_kind']),
+            ]
+            for title, headings, records, keys in sections:
+                content = ''.join('<tr>' + ''.join(f'<td>{_esc(r.get(k, ""))}</td>' for k in keys) + '</tr>' for r in records[:100])
+                body += f"<section class='panel' style='margin-top:16px'><div class='panel-head'><h3>{_esc(title)}</h3></div><div class='table-wrap'><table><thead><tr>" + ''.join(f'<th>{_esc(h)}</th>' for h in headings) + '</tr></thead><tbody>' + (content or f'<tr><td colspan={len(keys)}>None recorded</td></tr>') + f"</tbody></table></div><div class='panel-body'><p class='muted'>Showing up to 100 rows. Full report: workspace javascript-show --import-id {_esc(import_id)}</p></div></section>"
+        self.send_html('Browser JavaScript', header + body)
 
     def false_positive_learning_page(self) -> None:
         p=self.query(); target=str((p.get('target') or [''])[0])
