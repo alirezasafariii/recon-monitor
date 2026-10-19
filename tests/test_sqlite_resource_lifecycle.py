@@ -15,6 +15,20 @@ from sqlite_resource_guard import SQLiteResourceGuard
 
 
 class SQLiteResourceLifecycleTests(unittest.TestCase):
+    def test_snapshot_initialization_failures_close_base_connection(self):
+        import successful_snapshot
+        for hook in ("_migrate_successful_snapshot_schema", "ensure_lifecycle_schema",
+                     "ensure_stable_confirmation_schema", "ensure_finding_notification_schema"):
+            owner = (successful_snapshot.SuccessfulSnapshotDatabase
+                     if hook.startswith("_migrate") else successful_snapshot)
+            for error in (RuntimeError("snapshot setup failure"), KeyboardInterrupt()):
+                with self.subTest(hook=hook, error=type(error).__name__), tempfile.TemporaryDirectory() as temp:
+                    with SQLiteResourceGuard() as guard:
+                        with patch.object(owner, hook, side_effect=error):
+                            with self.assertRaises(type(error)):
+                                successful_snapshot.SuccessfulSnapshotDatabase(Path(temp) / "state.db")
+                        guard.assert_all_closed()
+
     def test_backup_destination_failure_closes_source(self):
         with tempfile.TemporaryDirectory() as temp:
             paths = AppPaths.from_root(Path(temp))

@@ -31,12 +31,7 @@ fi
 # Resolve target policies before enforcing the patched crawler contract.
 # DNS-only runs are allowed; URL-enabled runs fail closed.
 if [[ "${1:-}" == "run" ]]; then
-  _recon_preflight_python="$(command -v python3 || true)"
-  if [[ -z "$_recon_preflight_python" ]]; then
-    printf '[ERROR] python3 is required to verify the Katana runtime.\n' >&2
-    exit 1
-  fi
-  "$_recon_preflight_python" "$ROOT_DIR/app/katana_run_preflight.py" "$ROOT_DIR" "$@"
+  "$PYTHON_BIN" "$ROOT_DIR/app/katana_run_preflight.py" "$ROOT_DIR" "$@"
 fi
 # END recon-monitor verified Katana run guard (PR 193)
 

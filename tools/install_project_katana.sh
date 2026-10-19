@@ -63,7 +63,8 @@ for capability in recon-checkpoint-dir recon-completion-log; do
   fi
 done
 
-python3 "$ROOT_DIR/app/katana_runtime_contract.py" "$WORK/katana" >/dev/null\nprintf '[INFO] Running actual Stage acceptance against loopback servers\n'
+python3 "$ROOT_DIR/app/katana_runtime_contract.py" "$WORK/katana" >/dev/null
+printf '[INFO] Running actual Stage acceptance against loopback servers\n'
 if ! python3 "$ROOT_DIR/tools/katana_stage_local_acceptance.py" \
      --binary "$WORK/katana" --output "$WORK/katana-stage-acceptance.json" \
      >"$WORK/acceptance.log" 2>&1; then

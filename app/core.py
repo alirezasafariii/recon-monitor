@@ -3149,6 +3149,7 @@ class CommandRunner:
         self.logger = logger
         self.db = db
         self._active: subprocess.Popen[str] | None = None
+        self._active_termination_grace_seconds = 3.0
         self._stop = threading.Event()
         self.next_check: Callable[[], bool] | None = None
         self.next_raise = True
@@ -3175,12 +3176,21 @@ class CommandRunner:
         self._stop.set()
         proc = self._active
         if proc:
+            grace = self._active_termination_grace_seconds
+            started = time.monotonic()
             self._signal_process_group(proc, signal.SIGTERM)
             try:
-                proc.wait(timeout=3)
+                proc.wait(timeout=grace)
             except subprocess.TimeoutExpired:
                 pass
-            # Descendants can still hold a pipe after the parent has exited.
+            # Checkpoint-aware tools need the full shutdown window,
+            # even when the group leader exits before its descendants.
+            # Preserve the existing prompt cancellation for other tools.
+            if grace > 3.0:
+                remaining = started + grace - time.monotonic()
+                if remaining > 0:
+                    time.sleep(remaining)
+            # Sweep the whole group, not just its original leader.
             self._signal_process_group(proc, signal.SIGKILL)
 
     def run(
@@ -3191,6 +3201,7 @@ class CommandRunner:
         env: Mapping[str, str] | None = None,
         env_unset: Sequence[str] = (),
         timeout: float | None = 600,
+        termination_grace_seconds: float = 1.0,
         output_path: Path | None = None,
         line_callback: Callable[[str, int], None] | None = None,
         heartbeat: Callable[[], None] | None = None,
@@ -3198,6 +3209,8 @@ class CommandRunner:
     ) -> CommandResult:
         if not args:
             raise ValueError("Empty command")
+        if not 0.0 < termination_grace_seconds <= 15.0:
+            raise ValueError("Invalid termination grace period")
         started = time.monotonic()
         lines = 0
         timed_out = False
@@ -3257,7 +3270,10 @@ class CommandRunner:
                         self._signal_process_group(proc, signal.SIGTERM)
                         # Preserve output during shutdown, then kill the entire
                         # group even if only a descendant is still running.
-                        finished.wait(1)
+                        # The main process can exit before its descendants.
+                        # Give cleanup its full grace period, then sweep
+                        # the entire group even if output pipes have closed.
+                        time.sleep(termination_grace_seconds)
                         self._signal_process_group(proc, signal.SIGKILL)
                     except OSError as exc:
                         # Report a real signal failure to the calling thread;
@@ -3284,6 +3300,9 @@ class CommandRunner:
                 text=True,
                 bufsize=1,
                 start_new_session=True,
+            )
+            self._active_termination_grace_seconds = max(
+                3.0, termination_grace_seconds
             )
             self._active = proc
             watcher = threading.Thread(target=watchdog, name="command-watchdog", daemon=True)
@@ -3344,7 +3363,7 @@ class CommandRunner:
                 if interrupted.is_set():
                     if proc.stdin is not None and not proc.stdin.closed:
                         close_pipe(proc.stdin)
-                    if time.monotonic() - interrupted_at >= 1.25:
+                    if time.monotonic() - interrupted_at >= termination_grace_seconds + 0.25:
                         # A detached descendant may retain a pipe beyond the
                         # process group's lifetime. Do not wait for its EOF.
                         self._signal_process_group(proc, signal.SIGKILL)
@@ -3387,7 +3406,11 @@ class CommandRunner:
                         self._signal_process_group(proc, signal.SIGKILL)
                 finally:
                     if watcher is not None and watcher.ident is not None:
-                        watcher.join(timeout=1.25)
+                        # Do not return before the final group cleanup.
+                        watcher.join(
+                            timeout=termination_grace_seconds + 0.75
+                            if interrupted.is_set() else 1.25
+                        )
             finally:
                 try:
                     if selector is not None:
@@ -3406,6 +3429,7 @@ class CommandRunner:
                             output_handle.close()
                     finally:
                         self._active = None
+                        self._active_termination_grace_seconds = 3.0
                         self._stop.clear()
         if shutdown_error is not None:
             raise shutdown_error

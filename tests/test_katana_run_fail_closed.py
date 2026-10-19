@@ -135,6 +135,34 @@ class KatanaRunFailClosedTests(unittest.TestCase):
         self.assertEqual(accepted.returncode, 0, accepted.stderr)
         self.assertIn("APP_EXECUTED", accepted.stdout)
 
+    def test_preflight_uses_selected_python_interpreter(self):
+        wrapper = self.root / "recon-monitor.sh"
+        shutil.copy2(ROOT / "recon-monitor.sh", wrapper)
+        app = self.root / "app"
+        app.mkdir()
+        for name in ("core.py", "javascript_normalization.py",
+                     "katana_runtime_contract.py", "katana_run_preflight.py"):
+            shutil.copy2(ROOT / "app" / name, app / name)
+        (app / "recon_monitor.py").write_text('print("APP_EXECUTED")\n')
+        calls = self.root / "python-calls.jsonl"
+        interpreter = self.root / "selected-python"
+        interpreter.write_text(
+            f"#!{sys.executable}\n"
+            "import json, os, sys\n"
+            f"with open({str(calls)!r}, 'a') as stream: stream.write(json.dumps(sys.argv[1:]) + '\\n')\n"
+            f"os.execv({sys.executable!r}, [{sys.executable!r}, *sys.argv[1:]])\n"
+        )
+        interpreter.chmod(0o755)
+        result = subprocess.run(
+            ["bash", str(wrapper), "run", "--target", "dns-only"],
+            env={**os.environ, "RECON_PYTHON": str(interpreter)},
+            capture_output=True, text=True, timeout=15,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        invocations = [json.loads(line) for line in calls.read_text().splitlines()]
+        self.assertEqual([Path(args[0]).name for args in invocations],
+                         ["katana_run_preflight.py", "recon_monitor.py"])
+
 
 if __name__ == "__main__":
     unittest.main()

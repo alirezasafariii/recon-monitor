@@ -3,6 +3,12 @@ on:
   pull_request:
     paths:
       - 'app/stages.py'
+      - 'app/core.py'
+      - 'app/katana_runtime_contract.py'
+      - 'app/katana_run_preflight.py'
+      - 'recon-monitor.sh'
+      - 'install.sh'
+      - 'tools/install_project_katana.sh'
       - 'docs/prototypes/katana-v1.8.0-frontier.patch'
       - 'tools/katana_frontier*'
       - 'tools/katana_filtered_frontier*'
@@ -45,7 +51,7 @@ jobs:
           GOTOOLCHAIN: local
         run: |
           cd katana-source
-          go test -race -count=20 ./pkg/engine/common ./pkg/engine/standard ./pkg/utils/queue ./pkg/utils ./pkg/engine/parser -run 'Test(ReconCheckpoint|ParsingContent|OriginContent|Tracked|ReconCompletion|ReconDiagnostics|ReconProvenance|Script)'
+          go test -race -count=20 ./pkg/engine/common ./pkg/engine/standard ./pkg/utils/queue ./pkg/utils ./pkg/engine/parser ./internal/runner -run 'Test(ReconExecution|ReconCheckpoint|ParsingContent|OriginContent|Tracked|ReconCompletion|ReconDiagnostics|ReconProvenance|Script)'
           go build -buildvcs=false -o /tmp/katana-frontier ./cmd/katana
           cd ..
           python tools/katana_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier.json
