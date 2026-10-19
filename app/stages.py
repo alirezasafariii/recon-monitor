@@ -1351,6 +1351,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 result = ctx.runner.run(
                     args,
                     timeout=batch_timeout,
+                    termination_grace_seconds=6.0 if checkpoint_supported else 1.0,
                     output_path=batch_output,
                     heartbeat=lambda: ctx.db.stage_heartbeat(
                         ctx.run_id, ctx.policy.name, "urls",

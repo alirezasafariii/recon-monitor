@@ -1,8 +1,88 @@
 diff --git a/cmd/katana/main.go b/cmd/katana/main.go
-index 9b9226b..3cb44dc 100644
+index 9b9226b..825d5e0 100644
 --- a/cmd/katana/main.go
 +++ b/cmd/katana/main.go
-@@ -236,6 +236,8 @@ func readFlags() (*goflags.FlagSet, error) {
+@@ -1,6 +1,7 @@
+ package main
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"os"
+ 	"os/signal"
+@@ -31,6 +32,10 @@ var (
+ )
+ 
+ func main() {
++	os.Exit(runKatana())
++}
++
++func runKatana() int {
+ 	flagSet, err := readFlags()
+ 	handleError("Could not read flags", err)
+ 
+@@ -59,13 +64,19 @@ func main() {
+ 		os.Exit(0)
+ 	}
+ 
++	signalCtx, stopSignals := signal.NotifyContext(
++		context.Background(), os.Interrupt, syscall.SIGTERM,
++	)
++	defer stopSignals()
++	options.Context = signalCtx
++
+ 	katanaRunner, err := runner.New(options)
+ 	if err != nil || katanaRunner == nil {
+ 		if options.Version {
+-			return
++			return 0
+ 		}
+ 		gologger.Error().Msgf("could not create runner: %s\n", err)
+-		os.Exit(0)
++		return 1
+ 	}
+ 	defer func() {
+ 		if err := katanaRunner.Close(); err != nil {
+@@ -75,7 +86,6 @@ func main() {
+ 
+ 	// close handler
+ 	resumeFilename := defaultResumeFilename()
+-	setupCloseHandler(katanaRunner, resumeFilename)
+ 
+ 	var pprofServer *pprofutils.PprofServer
+ 	if options.PprofServer {
+@@ -88,8 +98,20 @@ func main() {
+ 		}
+ 	}()
+ 
+-	if err := katanaRunner.ExecuteCrawling(); err != nil {
+-		gologger.Fatal().Msgf("could not execute crawling: %s", err)
++	crawlErr := katanaRunner.ExecuteCrawling()
++	if signalCtx.Err() != nil {
++		gologger.Warning().Msg("Crawl interrupted; stopping gracefully")
++		if err := katanaRunner.SaveState(resumeFilename); err != nil {
++			gologger.Error().Msgf("Could not save resume state: %v", err)
++		}
++		if crawlErr != nil {
++			gologger.Warning().Msgf("Interrupted crawl: %v", crawlErr)
++		}
++		return 1
++	}
++	if crawlErr != nil {
++		gologger.Error().Msgf("could not execute crawling: %s", crawlErr)
++		return 1
+ 	}
+ 
+ 	// Deduplicate lines in each file in the store-field-dir
+@@ -102,6 +124,7 @@ func main() {
+ 			gologger.Warning().Msgf("Failed to remove resume file: %v", err)
+ 		}
+ 	}
++	return 0
+ }
+ 
+ const defaultBodyReadSize = 4 * 1024 * 1024
+@@ -236,6 +259,8 @@ func readFlags() (*goflags.FlagSet, error) {
  	// Output group
  	flagSet.CreateGroup("output", "Output",
  		flagSet.StringVarP(&options.OutputFile, "output", "o", "", "file to write output to"),
@@ -11,6 +91,34 @@ index 9b9226b..3cb44dc 100644
  		flagSet.StringVarP(&options.OutputTemplate, "output-template", "ot", "", "custom output template"),
  		flagSet.BoolVarP(&options.StoreResponse, "store-response", "sr", false, "store http requests/responses"),
  		flagSet.StringVarP(&options.StoreResponseDir, "store-response-dir", "srd", "", "store http requests/responses to custom directory"),
+@@ -281,27 +306,6 @@ func defaultResumeFilename() string {
+ 	return filepath.Join(configDir, fmt.Sprintf("resume-%s.cfg", xid.New().String()))
+ }
+ 
+-func setupCloseHandler(runner *runner.Runner, resumeFilename string) {
+-	go func() {
+-		c := make(chan os.Signal, 1)
+-		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+-		for range c {
+-			gologger.DefaultLogger.Info().Msg("- Ctrl+C pressed in Terminal")
+-			if err := runner.Close(); err != nil {
+-				gologger.Warning().Msgf("Failed to close runner on exit: %v", err)
+-			}
+-
+-			gologger.Info().Msgf("Creating resume file: %s\n", resumeFilename)
+-			err := runner.SaveState(resumeFilename)
+-			if err != nil {
+-				gologger.Error().Msgf("Couldn't create resume file: %s\n", err)
+-			}
+-
+-			os.Exit(0)
+-		}
+-	}()
+-}
+-
+ func cleanupOldResumeFiles() {
+ 	homedir, err := os.UserHomeDir()
+ 	handleError("could not get home directory", err)
 diff --git a/go.mod b/go.mod
 index 3ffb169..1498d3e 100644
 --- a/go.mod
@@ -53,6 +161,68 @@ index e981f5c..69fce9d 100644
  github.com/gobwas/httphead v0.1.0/go.mod h1:O/RXo79gxV8G+RqlR/otEwx4Q36zl9rqC5u12GKvMCM=
  github.com/gobwas/pool v0.2.1/go.mod h1:q8bcK0KcYlCgd9e7WYLm9LpyS+YeLd8JVDW6WezmKEw=
  github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/KY=
+diff --git a/internal/runner/executer.go b/internal/runner/executer.go
+index aca9e33..d3b8671 100644
+--- a/internal/runner/executer.go
++++ b/internal/runner/executer.go
+@@ -1,8 +1,11 @@
+ package runner
+ 
+ import (
++	"context"
++	"errors"
+ 	"fmt"
+ 	"strings"
++	"sync"
+ 	"time"
+ 
+ 	"github.com/projectdiscovery/gologger"
+@@ -34,6 +37,8 @@ func (r *Runner) ExecuteCrawling() error {
+ 		}
+ 	}()
+ 
++	var crawlErrors []error
++	var errorsMu sync.Mutex
+ 	wg := sizedwaitgroup.New(r.options.Parallelism)
+ 	for _, input := range inputs {
+ 		if !r.networkpolicy.Validate(input) {
+@@ -46,7 +51,23 @@ func (r *Runner) ExecuteCrawling() error {
+ 			defer wg.Done()
+ 
+ 			if err := r.crawler.Crawl(input); err != nil {
++				// A bounded checkpoint crawl may end at its per-origin
++				// deadline. The completion receipt, not process exit,
++				// determines whether the origin remains unfinished.
++				plannedDeadline := errors.Is(err, context.DeadlineExceeded) &&
++					r.options.CrawlDuration > 0 &&
++					r.options.ReconCheckpointDir != "" &&
++					r.options.ReconCompletionLog != "" &&
++					(r.options.Context == nil || r.options.Context.Err() == nil)
++				if plannedDeadline {
++					gologger.Info().Msgf("Bounded crawl deadline: %s", input)
++					return
++				}
+ 				gologger.Warning().Msgf("Could not crawl %s: %s", input, err)
++				errorsMu.Lock()
++				crawlErrors = append(crawlErrors, fmt.Errorf("crawl %s: %w", input, err))
++				errorsMu.Unlock()
++				return
+ 			}
+ 			r.state.InFlightUrls.Delete(input)
+ 		}(input)
+@@ -54,8 +75,11 @@ func (r *Runner) ExecuteCrawling() error {
+ 	wg.Wait()
+ 
+ 	// Show completion message with stats
+-	r.showCompletionStats(startTime)
++	if len(crawlErrors) > 0 {
++		return errors.Join(crawlErrors...)
++	}
+ 
++	r.showCompletionStats(startTime)
+ 	return nil
+ }
+ 
 diff --git a/pkg/engine/common/base.go b/pkg/engine/common/base.go
 index b6da330..1e5ec78 100644
 --- a/pkg/engine/common/base.go
