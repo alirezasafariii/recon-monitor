@@ -9,7 +9,7 @@ import tempfile
 import unittest
 import warnings
 import zipfile
-from contextlib import ExitStack, redirect_stdout
+from contextlib import ExitStack, closing, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -156,6 +156,28 @@ class BrowserJavascriptImportTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(root.stat().st_mode), 0o700)
         self.assertEqual(stat.S_IMODE((root / 'report.json').stat().st_mode), 0o600)
         self.assertEqual(stat.S_IMODE((root / 'state/recon-v2.db').stat().st_mode), 0o600)
+
+    def test_multiple_graphql_names_remain_hypotheses_without_promoting_exposure(self):
+        bodies = [
+            b'const q="query Account { account { id } }";',
+            b'const q="query CustomerIdentityToken { customerIdentityToken { token } }";',
+        ]
+        index, artifacts = self.records(bodies, [
+            'https://example.test/catalog.js', 'https://example.test/customer.js',
+        ])
+        self.write_archive(index, artifacts)
+        before = self.source_state()
+        result = self.import_archive()
+        report = browser.browser_javascript_report(self.db, result['import_id'])
+        self.assertEqual(result['graphql_operation_count'], 2)
+        self.assertFalse(any(c['bug_family'] == 'graphql_data_exposure' for c in report['candidates']))
+        root = self.paths.state / 'browser-javascript' / result['import_id']
+        with closing(Database(root / 'state/recon-v2.db')) as isolated:
+            hypotheses = isolated.all("SELECT admission_json FROM analysis_hypotheses WHERE bug_family='graphql_data_exposure'")
+            self.assertTrue(hypotheses)
+            self.assertTrue(all(not json.loads(r['admission_json'])['admitted'] for r in hypotheses))
+        self.assertEqual(self.source_state(), before)
+        self.assertEqual(self.latest.read_text(), 'existing-successful-baseline\n')
 
     def test_duplicate_import_reuses_analysis_without_new_source_or_audit_rows(self):
         self.write_archive()

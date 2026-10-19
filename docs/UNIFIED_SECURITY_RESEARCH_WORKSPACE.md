@@ -82,6 +82,16 @@ Import the ZIP against an existing stopped source run to analyze those bodies:
 ./recon-monitor.sh workspace javascript-show --import-id IMPORT_ID
 ```
 
+GraphQL operation names alone remain hypotheses, even when several operations
+or source files contribute to the same hypothesis. A data-exposure candidate
+also needs an independent documented field policy or controlled response
+evidence; confirmation still requires controlled evidence of the violation.
+
+Repeated imports with the same archive, source run, policy and context reuse the
+stored report. After updating analysis rules, use a new context label (for
+example `--context rules-20261020`) to create a fresh analysis while retaining
+the previous report. Context labels do not establish authentication.
+
 The **Browser JavaScript** dashboard view (`/browser-javascript`) lists imports
 and their source hashes, endpoint references, GraphQL declarations, source-map
 references and unconfirmed engine candidates. Each import runs the existing

@@ -11,8 +11,8 @@ catalog expressed.
 from typing import Any
 
 
-FINAL_ANALYZER_REASONING_VERSION = "1.4.0"
-FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.08.16.2"
+FINAL_ANALYZER_REASONING_VERSION = "1.4.1"
+FINAL_ANALYZER_REASONING_RULE_VERSION = "2026.10.20.1"
 
 
 def _groups(*values: set[str]) -> tuple[frozenset[str], ...]:
