@@ -1089,14 +1089,14 @@ def safety_center(paths: AppPaths, config: Config, db: Database) -> dict[str, An
     authorized = config.bool("I_HAVE_AUTHORIZATION", False)
     remote_host = config.get("DASHBOARD_HOST", "127.0.0.1")
     remote = remote_host not in {"127.0.0.1", "localhost", "::1", ""}
-    audit = {"valid": True}
+    audit = {"ok": False}
     try:
         from platform_v6 import verify_audit_chain
         audit = verify_audit_chain(db)
     except Exception as exc:
-        audit = {"valid": False, "error": str(exc)}
+        audit = {"ok": False, "error": str(exc)}
     scope_ready = bool(latest_scopes)
-    safe = bool(authorized and scope_ready and (not remote or config.bool("DASHBOARD_AUTH_ENABLED", False)) and audit.get("valid", False))
+    safe = bool(authorized and scope_ready and (not remote or config.bool("DASHBOARD_AUTH_ENABLED", False)) and audit.get("ok", False))
     return {
         "status": "SAFE TO RUN" if safe else "ACTION REQUIRED",
         "scope_ready": scope_ready,

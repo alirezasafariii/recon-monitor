@@ -55,9 +55,35 @@ profiles and coverage without reimporting the capture or changing scan status:
 ./recon-monitor.sh workspace coverage --target example.com
 ```
 
+### Offline JavaScript evidence from HAR
+
+The metadata importer does not include source bodies. To prepare JavaScript
+already observed in an authorized browser for offline analysis, export a HAR
+with response content and run:
+
+```bash
+python3 tools/export_har_javascript.py --har ~/Downloads/capture.har --target example.com --output state/browser-captures/javascript.zip
+```
+
+The exporter uses the selected project policy and its JavaScript size/file
+limits. It selects in-scope `GET` responses with status 200 and a JavaScript
+MIME type, including scripts whose URL has no `.js` suffix. The private ZIP
+contains hash-named JavaScript bodies and an `index.json` with redacted query
+values and exported-body SHA-256 hashes. Request headers, cookies and other
+response types are excluded. Missing bodies and limits are reported explicitly.
+Export is local: it does not replay HAR requests, import source bodies into the
+metadata tables, or promote a partial scan to a completed baseline.
+
 ## Operator UX
 
 The v7 dashboard provides a Cockpit, Universal Search, Command Palette (`⌘K`), structured Error IDs, Diagnostics & Repair and Safety Center. Safe repair is preview-first and limited to stale execution state and expired local sessions; it does not delete evidence/cases/targets/output.
+
+Safety Center checks the audit verifier's canonical `ok` result and requires a
+persisted scope snapshot. After initial setup, `./recon-monitor.sh platform sync`
+refreshes those snapshots from the current policy and refreshes the workspace.
+`./recon-monitor.sh workspace safety` then displays the resulting readiness.
+Missing scope snapshots, failed audit verification and verifier errors remain
+action-required states; refreshing metadata does not change scan completeness.
 
 ## CLI
 
