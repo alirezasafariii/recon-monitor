@@ -97,6 +97,37 @@ class BrowserJavascriptImportTests(unittest.TestCase):
         return {table: [dict(row) for row in self.db.all(f'SELECT * FROM {table}')]
                 for table in tables}
 
+    def test_missing_or_directory_archive_is_actionable_and_preserves_source_state(self):
+        before = self.source_state()
+        for directory in (False, True):
+            with self.subTest(directory=directory):
+                if directory:
+                    self.archive.mkdir()
+                with self.assertRaises(ReconError) as caught:
+                    self.import_archive()
+                message = str(caught.exception)
+                self.assertIn(str(self.archive), message)
+                self.assertIn('--file', message)
+                self.assertIn('Cannot read' if directory else 'not found', message)
+                if not directory:
+                    self.assertIn('tools/export_har_javascript.py', message)
+                self.assertEqual(self.source_state(), before)
+                self.assertFalse(browser._has_imports(self.db))
+                self.assertFalse((self.paths.state / 'browser-javascript').exists())
+                self.assertEqual(self.latest.read_text(), 'existing-successful-baseline\n')
+
+    def test_archive_read_failure_closes_input_and_preserves_source_state(self):
+        before = self.source_state()
+        with patch('browser_javascript.Path.open') as opened:
+            handle = opened.return_value.__enter__.return_value
+            handle.read.side_effect = OSError('archive read failed')
+            with self.assertRaisesRegex(ReconError, 'Cannot read.*archive read failed'):
+                browser._read_archive(self.archive, self.policy)
+            opened.return_value.__exit__.assert_called_once()
+        self.assertEqual(self.source_state(), before)
+        self.assertFalse(browser._has_imports(self.db))
+        self.assertFalse((self.paths.state / 'browser-javascript').exists())
+
     def test_real_engine_analyzes_browser_sources_without_changing_scan_or_baseline(self):
         self.write_archive()
         before = self.source_state()

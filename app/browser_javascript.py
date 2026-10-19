@@ -74,8 +74,17 @@ def _redacted_url(value: str) -> str:
 
 
 def _read_archive(file_path: str | Path, policy: TargetPolicy) -> dict[str, Any]:
-    with Path(file_path).expanduser().open('rb') as handle:
-        raw = handle.read(MAX_ARCHIVE_BYTES + 1)
+    source = Path(file_path).expanduser()
+    try:
+        with source.open('rb') as handle:
+            raw = handle.read(MAX_ARCHIVE_BYTES + 1)
+    except FileNotFoundError as exc:
+        raise ReconError(f'Browser JavaScript archive not found: {source}. '
+                         'Set --file to an existing ZIP, or create it with '
+                         'tools/export_har_javascript.py.') from exc
+    except OSError as exc:
+        raise ReconError(f'Cannot read browser JavaScript archive {source}: '
+                         f'{exc.strerror or exc}. Check the --file path and read permissions.') from exc
     if len(raw) > MAX_ARCHIVE_BYTES:
         raise ReconError('Browser JavaScript archive exceeds 128 MiB')
     try:
