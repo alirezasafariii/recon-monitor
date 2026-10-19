@@ -39,6 +39,12 @@
       "problem": "snapshot constructor leaks base connection on setup failure",
       "before": "eight injected ordinary/interrupt subcases leaked",
       "after": "all connections explicitly closed with allocation tracing"
+    },
+    {
+      "priority": "P2",
+      "problem": "remote worker claims and 429 outcomes bypass shared host cooldown",
+      "before": "fresh-run claim ignored active host state; valid 429 queue outcomes were published without a shared host deadline",
+      "after": "claim admission gates shared hosts across pagination; verified leased 429 records requested/final hosts atomically with queue outcome; longer Retry-After retained; invalid leases and unsafe responses cannot poison cooldown"
     }
   ],
   "producer_tests": {
@@ -1220,16 +1226,34 @@
     "requests_after_expiry": 1
   },
   "candidate_full_suite": {
-    "tests": 1817,
-    "closed_sqlite_connections": 3451,
+    "tests": 1820,
+    "closed_sqlite_connections": 3488,
     "resource_warnings": 0,
-    "seconds": 164.281,
+    "seconds": 170.246,
     "passed": true
   },
   "release_metadata_and_manifest": {
     "app": "8.8.18",
     "schema": 18,
     "entries": 703,
+    "passed": true
+  },
+  "remote_worker_regressions": {
+    "tests": 68,
+    "closed_sqlite_connections": 714,
+    "resource_warnings": 0,
+    "passed": true,
+    "scope": "offline real controller handlers, HEAD/download tasks, fresh runs, host independence, 52 blocked items across claim pages, expiry, redirect host, Retry-After, invalid lease and unsafe 429"
+  },
+  "ci_timing_fixture": {
+    "problem": "old inherited-stdout test allowed 1.8 seconds for a 0.7-second deadline plus a full 1-second shutdown grace; macOS took 1.823 seconds; the repeated cleanup-only Intel run took 1.862 seconds",
+    "repair": "allow 2.8 seconds, still below the fixture descendant natural 5-second exit; product deadline and grace unchanged"
+  },
+  "p3_repaired_full_suite": {
+    "tests": 1798,
+    "closed_sqlite_connections": 3488,
+    "resource_warnings": 0,
+    "seconds": 168.114,
     "passed": true
   }
 }
