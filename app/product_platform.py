@@ -761,7 +761,9 @@ def platform_sync(paths: AppPaths, db: Database, analysis_id: str | None = None)
     checkpoint=incremental_checkpoint(db,analysis_id) if analysis_id else {"analysis_id":""}
     latest_run=_latest_run(db)
     completeness=run_completeness(db,latest_run,persist=True) if latest_run else {"run_id":"","score":0}
-    scope=scope_center(paths,db)
+    # Explicit sync must persist policy snapshots before workspace readiness is
+    # computed, including first setup when no run or analysis exists yet.
+    scope=scope_center(paths,db,persist=True)
     storage=storage_health(paths,db,persist=True)
     from platform_v6 import platform_v6_sync
     suite_v6=platform_v6_sync(paths,db,run_id=latest_run or None,analysis_id=analysis_id or None)
