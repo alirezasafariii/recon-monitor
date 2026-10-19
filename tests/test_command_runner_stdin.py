@@ -304,7 +304,10 @@ class CommandRunnerStdinTests(unittest.TestCase):
         result = self._invoke_after_parent_exit(code, timeout=0.7)
         self.assertEqual(result.returncode, 124)
         self.assertTrue(result.timed_out)
-        self.assertLess(result.duration, 1.8)
+        # The deadline plus the full 1s shutdown grace is already 1.7s.
+        # Leave scheduling margin on macOS while remaining well below the
+        # descendant's natural 5s exit (which would hide missing cleanup).
+        self.assertLess(result.duration, 2.8)
         self.assertEqual(self.output.read_text(), "parent-exited\n")
         self._assert_clean()
 

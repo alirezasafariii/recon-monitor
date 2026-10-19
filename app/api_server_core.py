@@ -23,6 +23,7 @@ from core import APP_VERSION, AppPaths, Config, Database, Logger, ReconError, at
 from api_process_control import APIProcessControl, ControlledAPIHTTPServer, valid_control_instance
 from worker_scope import WORKER_CAPABILITIES, task_scope_policy, worker_supports_scope
 from worker_results import classify_worker_result, worker_failure, worker_retry_ready
+from katana_reliability import katana_host, load_shared_throttle_state, persist_shared_throttle_state, register_throttling
 from worker_artifacts import WorkerArtifactError, receive_work_artifact, without_artifact_body, worker_supports_artifacts
 from bug_candidates import set_bug_candidate_decision
 from candidate_intelligence import candidate_calibration, candidate_evaluation
@@ -419,6 +420,8 @@ class APIHandler(BaseHTTPRequestHandler):
                                 continue
                             if scope_policy.target != row['target'] or not scope_policy.url_in_scope(str(payload.get('url',''))):
                                 continue
+                            if load_shared_throttle_state(db, host=katana_host(str(payload.get('url','')))):
+                                continue
                             candidate_lease=secrets.token_urlsafe(32)
                             lease_hash=hashlib.sha256(candidate_lease.encode()).hexdigest()
                             lease_expires=(dt.datetime.now(dt.timezone.utc)+dt.timedelta(seconds=WORK_LEASE_SECONDS)).replace(microsecond=0).isoformat().replace("+00:00","Z")
@@ -445,7 +448,7 @@ class APIHandler(BaseHTTPRequestHandler):
                 if not lease_token:
                     self.send_json({"error":"lease token required"},400); return
                 lease_hash=hashlib.sha256(lease_token.encode()).hexdigest()
-                work=db.one("SELECT payload_json FROM work_items WHERE id=?",(work_id,))
+                work=db.one("SELECT payload_json,run_id FROM work_items WHERE id=?",(work_id,))
                 payload=safe_json_loads(work["payload_json"],{},expected_type=dict) if work else {}
                 result=data.get('result')
                 if data.get('ok') is True or (isinstance(result,dict) and result):
@@ -475,14 +478,23 @@ class APIHandler(BaseHTTPRequestHandler):
                         lease_token_hash=lease_hash,
                     )
                 else:
-                    accepted=db.work_fail(
-                        work_id,
-                        outcome.error,
-                        retry=outcome.retry,
-                        result=stored_result,
-                        worker_id=worker_id,
-                        lease_token_hash=lease_hash,
-                    )
+                    # A valid leased 429 must defer sibling work and new runs
+                    # atomically with its queue outcome. Invalid/stale leases
+                    # cannot publish a host cooldown.
+                    with db.transaction():
+                        accepted=db.work_fail(
+                            work_id,
+                            outcome.error,
+                            retry=outcome.retry,
+                            result=stored_result,
+                            worker_id=worker_id,
+                            lease_token_hash=lease_hash,
+                        )
+                        if accepted and outcome.reason == 'rate_limited':
+                            throttle_state={}
+                            hosts=sorted({katana_host(str(payload.get('url',''))), katana_host(result['url'])} - {''})
+                            register_throttling(throttle_state, hosts, now=time.time(), retry_after=str(result.get('retry_after') or ''))
+                            persist_shared_throttle_state(db, throttle_state, str(work['run_id']))
                 if not accepted:
                     self.send_json({"error":"work lease is invalid, expired, or not owned by this worker"},409); return
                 self.send_json({"ok":True}); return

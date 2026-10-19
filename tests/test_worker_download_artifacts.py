@@ -7,6 +7,7 @@ import json
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,6 +24,7 @@ from stages import StageContext, stage_javascript
 from storage import ContentAddressedStore
 from worker_artifacts import MAX_DOWNLOAD_BYTES, encode_artifact
 from worker_scope import worker_scope_snapshot
+from katana_reliability import load_shared_throttle_state, persist_shared_throttle_state, register_throttling
 
 
 class WorkerDownloadArtifactTests(unittest.TestCase):
@@ -110,6 +112,66 @@ class WorkerDownloadArtifactTests(unittest.TestCase):
     def object_path(self, digest):
         relative = self.db.one("SELECT relative_path FROM object_store WHERE sha256=?", (digest,))[0]
         return self.paths.state / relative
+
+    def test_shared_host_cooldown_gates_fresh_run_claims_without_starving_other_hosts(self):
+        state = {}
+        register_throttling(state, ["public.example.test"], now=time.time())
+        persist_shared_throttle_state(self.db, state, self.run_id)
+        fresh = self.db.create_run(self.policy.name, 1, "fresh-run")
+        pending = []
+        for index in range(52):
+            pending.append(self.db.enqueue_work(fresh, self.policy.name, "remote", str(index), {
+                "kind": "http_head" if index % 2 else "download_url", "url": self.URL,
+                "scope_policy": worker_scope_snapshot(self.policy),
+            }))
+        other = self.db.enqueue_work(fresh, self.policy.name, "remote", "unrelated", {
+            "kind": "http_head", "url": "https://other.example.test/", "scope_policy": worker_scope_snapshot(self.policy),
+        })
+        self.assertEqual(self.api("/api/v1/work/claim", {"worker_id": "worker"})["id"], other)
+        self.assertIsNone(self.api("/api/v1/work/claim", {"worker_id": "worker"})["work"])
+        self.assertEqual(self.db.one("SELECT count(*) FROM work_items WHERE run_id=? AND status='queued'", (fresh,))[0], 52)
+        self.db.execute("UPDATE http_host_cooldowns SET retry_not_before=?", (time.time() - 1,))
+        for work_id in pending[:2]:
+            self.assertEqual(self.api("/api/v1/work/claim", {"worker_id": "worker"})["id"], work_id)
+
+    def test_worker_429_atomically_persists_shared_cooldown_only_for_valid_lease(self):
+        for kind in ("http_head", "download_url"):
+            with self.subTest(kind=kind):
+                self.db.execute("DELETE FROM http_host_cooldowns")
+                self.db.execute("DELETE FROM work_items")
+                work = self.claim(key=kind, kind=kind)
+                result = self.result(status_code=429, transport_status="stopped_for_safety",
+                                     transport_error="http_error", retry_after="5400",
+                                     url="https://redirect.example.test/limited")
+                self.deliver(work, result, lease_token="wrong", expected=409)
+                self.assertEqual(load_shared_throttle_state(self.db), {})
+                # The queue outcome and host deadline must become visible in the
+                # same transaction so another claimant cannot race between them.
+                original_fail = Database.work_fail
+                transactions = []
+                def checked_fail(db, *args, **kwargs):
+                    transactions.append(db.conn.in_transaction)
+                    return original_fail(db, *args, **kwargs)
+                before = time.time()
+                with patch.object(Database, "work_fail", checked_fail):
+                    self.deliver(work, result)
+                self.assertEqual(transactions, [True])
+                state = load_shared_throttle_state(self.db)
+                self.assertEqual(set(state), {"public.example.test", "redirect.example.test"})
+                self.assertTrue(all(row["retry_not_before"] >= before + 5400 for row in state.values()))
+                self.assertEqual(self.row(work)["status"], "retry_pending")
+                fresh = self.db.create_run(self.policy.name, 1, "fresh")
+                self.db.enqueue_work(fresh, self.policy.name, "remote", kind, {
+                    "kind": kind, "url": self.URL, "scope_policy": worker_scope_snapshot(self.policy),
+                })
+                self.assertIsNone(self.api("/api/v1/work/claim", {"worker_id": "worker"})["work"])
+
+    def test_unsafe_worker_429_cannot_poison_host_cooldown(self):
+        work = self.claim(kind="http_head")
+        self.deliver(work, self.result(status_code=429, transport_status="stopped_for_safety",
+                                      transport_error="response_budget_exceeded", truncated=True))
+        self.assertEqual(self.row(work)["status"], "failed")
+        self.assertEqual(load_shared_throttle_state(self.db), {})
 
     def test_worker_api_cas_and_javascript_processing_preserve_exact_bytes(self):
         work_id = self.enqueue()
