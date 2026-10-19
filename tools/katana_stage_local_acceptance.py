@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Real stage_urls/CommandRunner/Katana acceptance; loopback only, DB stubbed."""
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -14,13 +15,14 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'app'))
 from core import CommandRunner, TargetPolicy
-from stages import stage_urls
+from stages import stage_urls, _katana_completion_supported
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--stock-only', action='store_true', help='Require an unpatched upstream binary and run only stock-mode acceptance')
     args = parser.parse_args()
     binary = args.binary.resolve(strict=True)
     reports = []
@@ -67,7 +69,7 @@ def main():
             (bindir/'katana').symlink_to(binary)
             env = dict(PATH=str(bindir)+os.pathsep+os.environ.get('PATH',''),
                        NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
-            for scenario in ('healthy', 'mixed_error'):
+            for scenario in (('stock_healthy',) if args.stock_only else ('healthy', 'mixed_error', 'stock_healthy')):
                 current=root/scenario/'current'; current.mkdir(parents=True)
                 changes=root/scenario/'changes'; changes.mkdir()
                 (current/'resolved-hosts.txt').write_text('127.0.0.1\n')
@@ -78,7 +80,10 @@ def main():
                                     logger=MagicMock(),progress=MagicMock())
                 servers[1].fail = scenario == 'mixed_error'
                 try:
-                    with patch.dict(os.environ,env), patch('stages.tool_path',side_effect=lambda t:str(binary) if t=='katana' else None), patch('stages._probe_live_origins',return_value=(origins, [])):
+                    capability = patch('stages._katana_completion_supported', return_value=False) if scenario == 'stock_healthy' and not args.stock_only else contextlib.nullcontext()
+                    with patch.dict(os.environ,env), patch('stages.tool_path',side_effect=lambda t:str(binary) if t=='katana' else None), patch('stages._probe_live_origins',return_value=(origins, [])), capability:
+                        if args.stock_only and _katana_completion_supported(ctx):
+                            parser.error('--stock-only requires a binary without the custom completion contract')
                         for phase in ('initial','resume') if scenario=='mixed_error' else ('initial',):
                             if phase=='resume': servers[1].fail=False
                             metrics=stage_urls(ctx)
@@ -88,7 +93,12 @@ def main():
                             assert pending==expected,(scenario,phase,pending,metrics)
                             assert set(completed)==set(origins)-set(expected),completed
                             outcome=metrics['katana_batch_outcomes'][-1]
-                            assert outcome['completion_contract']=='v1',outcome
+                            if scenario == 'stock_healthy':
+                                assert outcome['completion_contract'] is None,outcome
+                                assert not outcome['internal_crawl_deadline_enabled'],outcome
+                                assert metrics['collection_status']=='completed',metrics
+                            else:
+                                assert outcome['completion_contract']=='v1',outcome
                             if phase=='resume': assert outcome['origin_urls']==[origins[1]],outcome
                             report={'scenario':scenario,'phase':phase,'pending':pending,'completed':completed,
                                     'katana_status':metrics['katana_status'],'last_batch':outcome}

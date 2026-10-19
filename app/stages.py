@@ -15,7 +15,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
+from katana_runtime_contract import completion_supported as completion_contract, checkpoint_supported as checkpoint_contract
 from katana_completion import read_completion, origin_key
+from katana_reliability import (
+    classify_katana_request_errors,
+    frontier_reduction_observed,
+    katana_host,
+    load_throttle_state,
+    load_shared_throttle_state,
+    persist_shared_throttle_state,
+    register_throttling,
+)
 
 from core import (
     AppPaths,
@@ -47,6 +57,7 @@ from core import (
     write_jsonl,
 )
 from dns_wildcard import detect as detect_dns_wildcards
+from dns_explicit import fill_missing as fill_missing_dns_explicit
 from intelligence import build_js_diff, classify_endpoint, technology_confidence
 from execution import BudgetManager, WorkQueue, BudgetExceeded, DatabaseWriter
 from storage import ContentAddressedStore
@@ -314,10 +325,9 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     hosts = _scope_hosts(ctx.policy, hosts_path.read_text(encoding="utf-8", errors="replace").splitlines() if hosts_path.exists() else ctx.policy.roots)
     if not hosts:
         hosts = list(ctx.policy.roots)
-    if ctx.budget:
-        ctx.budget.consume("dns_queries", max(1, len(hosts) * 4))
+    all_input_hosts = list(hosts)
+    dns_budget_pending_hosts: list[str] = []
     input_path = ctx.current / "dns-input.txt"
-    atomic_write_text(input_path, "".join(f"{host}\n" for host in hosts))
 
     previous_rows = ctx.db.all("SELECT host,rrtype,value FROM dns_records WHERE target=? AND is_current=1", (ctx.policy.name,))
     previous = {(str(row["host"]), str(row["rrtype"]), str(row["value"])) for row in previous_rows}
@@ -329,11 +339,43 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     query_outcomes: list[dict[str, Any]] = []
     wildcard_outcomes: list[dict[str, Any]] = []
     fallback_failures: list[dict[str, Any]] = []
+    explicit_dns_outcomes: list[dict[str, Any]] = []
+    # dnsx may silently omit NXDOMAIN/NODATA. Use a shared, bounded fallback
+    # budget; omission by itself must never retire a previously observed record.
     resolved_hosts: set[str] = set()
     wildcard_candidates: set[str] = set()
     wildcard_classification_complete = False
 
-    if tool_path("dnsx"):
+    if ctx.budget:
+        # Budget admission must not abort the entire DNS stage before emitting
+        # evidence. Retain uncovered hosts and never retire their old records.
+        # This preserves the legacy conservative 4-queries-per-host envelope;
+        # it is NOT a measurement of dnsx's actual wire requests.
+        try:
+            ctx.budget.consume("dns_queries", max(1, len(hosts) * 4))
+        except BudgetExceeded as exc:
+            if exc.metric != "dns_queries":
+                raise
+            remaining = 0
+            snapshot = getattr(ctx.budget, "snapshot", None)
+            if callable(snapshot):
+                row = snapshot().get("dns_queries", {})
+                limit = int(row.get("limit") or 0)
+                remaining = max(0, limit - int(row.get("used") or 0)) if limit else 0
+            admitted = min(len(hosts), remaining // 4)
+            dns_budget_pending_hosts = hosts[admitted:]
+            hosts = hosts[:admitted]
+            collection_reasons.add("dns_budget_uncovered_hosts")
+            if hosts:
+                ctx.budget.consume("dns_queries", len(hosts) * 4)
+    explicit_dns_state: dict[str, Any] = {"used": 0, "reserved": len(hosts) * 4, "last": 0}
+    atomic_write_text(input_path, "".join(f"{host}\n" for host in hosts))
+    atomic_write_text(
+        ctx.current / "dns-budget-pending-hosts.txt",
+        "".join(f"{host}\n" for host in dns_budget_pending_hosts),
+    )
+
+    if hosts and tool_path("dnsx"):
         # Omission from dnsx filtering is not classification. Explicit controls
         # are evaluated separately after ordinary DNS collection.
         filtered_path = ctx.current / "dns-filtered-hosts.txt"
@@ -348,7 +390,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             rr_input = root_query_input if rrtype == "NS" else query_input
             result = ctx.runner.run(
                 [
-                    "dnsx", "-l", str(rr_input), "-silent", "-json", "-omit-raw", flag, "-resp", "-duc",
+                    "dnsx", "-l", str(rr_input), "-silent", "-json", "-omit-raw", flag, "-resp",
+                    "-rcode", "noerror,nxdomain", "-duc",
                     "-t", str(min(200, ctx.policy.limits.dns_rate)),
                     "-rl", str(ctx.policy.limits.dns_rate),
                 ],
@@ -406,6 +449,22 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 else:
                     unknown.add(host)
             observed -= unknown
+            # dnsx v1.2.3 can exit 0 while omitting genuine negative answers.
+            # Only an independently verified dig response (SOA-backed
+            # NXDOMAIN/NODATA or validated positive RRset) may close that gap.
+            # Malformed/contradictory dnsx rows remain unknown, not deletions.
+            explicit_values: dict[str, tuple[str, ...]] = {host: () for host in observed}
+            explicit, _ = fill_missing_dns_explicit(
+                ctx, expected_hosts - unknown, rrtype, explicit_values,
+                len(query_outcomes), 1, explicit_dns_state, resumable=True,
+            )
+            explicit_dns_outcomes.extend(explicit)
+            verified = set(explicit_values) - observed
+            for host in verified:
+                observed.add(host)
+                for value in explicit_values[host]:
+                    positive.add((host, rrtype, value))
+            outcome["explicit_verified_hosts"] = len(verified)
             observed_pairs.update((host, rrtype) for host in observed)
             missing = expected_hosts - observed
             outcome.update(valid_json_rows=valid_json_rows, observed_hosts=len(observed), unobserved_hosts=len(missing), collector_warnings=warnings)
@@ -418,7 +477,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 current_records.add((host, rrtype, value))
                 if rrtype in {"A", "AAAA", "CNAME"}:
                     resolved_hosts.add(host)
-    else:
+    elif hosts:
         ctx.logger.warn("dnsx missing; using system resolver fallback", target=ctx.policy.name)
         for index, host in enumerate(hosts, 1):
             try:
@@ -466,7 +525,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         (ctx.policy.name,),
     )
     current_resolved_hosts = {str(row["host"]) for row in effective_rows}
-    resolved_hosts = current_resolved_hosts & set(hosts)
+    resolved_hosts = current_resolved_hosts & set(all_input_hosts)
     preserved_resolved_hosts = resolved_hosts - fresh_resolved_hosts
     resolution_observed_hosts = {
         host for host, rrtype in observed_pairs if rrtype in resolution_types
@@ -478,9 +537,14 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
 
     wildcard_probe_queries = 0
     wildcard_reports = []
-    if tool_path("dnsx"):
-        wildcard_reports, wildcard_outcomes, wildcard_probe_queries = detect_dns_wildcards(ctx, hosts)
-        wildcard_classification_complete = all(
+    if hosts and tool_path("dnsx"):
+        try:
+            wildcard_reports, wildcard_outcomes, wildcard_probe_queries = detect_dns_wildcards(ctx, hosts)
+        except BudgetExceeded as exc:
+            if exc.metric != "dns_queries":
+                raise
+            collection_reasons.add("dns_wildcard_budget_exhausted")
+        wildcard_classification_complete = bool(wildcard_reports) and all(
             row["state"] != "unknown" for row in wildcard_reports
         )
         wildcard_candidates = {row["host"] for row in wildcard_reports if row["state"] == "wildcard_candidate"}
@@ -512,9 +576,11 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "wildcard_coverage_reasons": sorted({
             row["reason"] for row in wildcard_reports if row["state"] == "unknown"
         }) if wildcard_reports else (["dnsx_unavailable"] if not wildcard_classification_complete else []),
-        "hosts": len(hosts),
+        "hosts": len(all_input_hosts),
+        "dns_budget_admitted_hosts": len(hosts),
+        "dns_budget_pending_hosts": len(dns_budget_pending_hosts),
         "observed_hosts": len({host for host, _ in observed_pairs}),
-        "unobserved_hosts": len(set(hosts) - {host for host, _ in observed_pairs}),
+        "unobserved_hosts": len(set(all_input_hosts) - {host for host, _ in observed_pairs}),
         "observed_pairs": len(observed_pairs),
         "valid_json_rows": sum(outcome.get("valid_json_rows", 0) for outcome in query_outcomes),
         "resolved": len(resolved_hosts),
@@ -534,6 +600,9 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "wildcard_probe_queries": wildcard_probe_queries,
         "wildcard_unknown_hosts": sum(row["state"] == "unknown" for row in wildcard_reports),
         "dns_fallback_failures": fallback_failures,
+        "dns_explicit_query_outcomes": explicit_dns_outcomes,
+        "dns_explicit_queries": explicit_dns_state["used"],
+        "dns_explicit_reused_queries": sum(bool(row.get("reused")) for row in explicit_dns_outcomes),
     }
 
 
@@ -689,9 +758,14 @@ def _katana_crawl_plan(
     origins = ordered[:origin_count]
 
     per_origin_budget = max(1, reservation // max(1, len(origins)))
-    effective_rate = max(1, min(rate, per_origin_budget))
+    # Rate is an upper bound, not a minimum throughput requirement.  A lower
+    # per-origin rate gives a large checkpointed frontier more wall-clock time
+    # without increasing its conservative request reservation. Short crawls
+    # still finish early; long crawls remain bounded by the shared deadline.
+    target_crawl_seconds = min(60, timeout)
+    effective_rate = max(1, min(rate, per_origin_budget // target_crawl_seconds))
     crawl_seconds = max(1, per_origin_budget // effective_rate)
-    crawl_seconds = min(crawl_seconds, 30, timeout)
+    crawl_seconds = min(crawl_seconds, 60, timeout)
 
     # The product is kept below the reserved envelope. Any remainder stays
     # conservatively reserved instead of being spent through an external tool.
@@ -720,11 +794,26 @@ def _katana_crawl_plan(
     }
 
 
+def _http_host_cooling_down(ctx, url: str) -> bool:
+    return bool(load_shared_throttle_state(ctx.db, host=katana_host(url)))
+
+
+def _record_http_throttle(ctx, url: str, status: int, retry_after: str = "") -> None:
+    if status == 429:
+        state = {}
+        register_throttling(state, [katana_host(url)], now=time.time(), retry_after=retry_after)
+        persist_shared_throttle_state(ctx.db, state, ctx.run_id)
+
+
 def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
+    if _http_host_cooling_down(ctx, url):
+        return {"url": url, "live": False, "status_code": 0,
+                "error": "rate_limit_cooldown", "transport_status": "stopped_for_safety"}
     if ctx.budget:
         ctx.budget.consume("http_requests", 1)
 
     def observation(method: str, observed_url: str, status: int, headers: Any, _body: bytes, error: str = "") -> dict[str, Any]:
+        _record_http_throttle(ctx, observed_url, status, str(headers.get('Retry-After', '') if headers else ''))
         content_type = ""
         location = ""
         if headers:
@@ -833,8 +922,7 @@ def _katana_completion_supported(ctx) -> bool:
         if path.stat().st_size > 1024 * 1024:
             return False
         help_text = path.read_text(encoding="utf-8")
-        return ("-recon-completion-log" in help_text
-                and "EXPERIMENTAL v1 per-origin standard-engine completion JSONL" in help_text)
+        return completion_contract(help_text)
     except (OSError, UnicodeError, ValueError):
         return False
 
@@ -846,8 +934,7 @@ def _katana_checkpoint_supported(ctx) -> bool:
         if path.stat().st_size > 1024 * 1024:
             return False
         text = path.read_text(encoding="utf-8")
-        return ("-recon-checkpoint-dir" in text
-                and "EXPERIMENTAL v1 durable standard-engine GET frontier checkpoint" in text)
+        return checkpoint_contract(text)
     except (OSError, UnicodeError):
         return False
 
@@ -873,12 +960,54 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     candidate_base_path = ctx.current / "candidate-base-urls.txt"
     atomic_write_text(candidate_base_path, "".join(f"{url}\n" for url in sorted(candidate_base_urls)))
 
+    # A real HTTP 429 is a stop signal, not a transient error to retry.
+    # Persist host-level cooldowns across --resume, and do not even probe a
+    # throttled host while its cooldown is active.
+    throttle_path = ctx.current / "katana-throttle-state.json"
+    throttle_state = load_throttle_state(throttle_path)
+    persist_shared_throttle_state(ctx.db, throttle_state, ctx.run_id)
+    for host, saved in load_shared_throttle_state(ctx.db).items():
+        if saved['retry_not_before'] > throttle_state.get(host, {}).get('retry_not_before', 0):
+            throttle_state[host] = saved
+    throttled_hosts = set(throttle_state)
+    deferred_origins = [
+        url for url in sorted(candidate_base_urls) if katana_host(url) in throttled_hosts
+    ]
+    probe_candidates = [
+        url for url in sorted(candidate_base_urls) if katana_host(url) not in throttled_hosts
+    ]
     origin_probe_enabled = bool(ctx.policy.raw.get("urls", {}).get("origin_probe", True))
     if origin_probe_enabled:
-        base_urls, origin_results = _probe_live_origins(ctx, sorted(candidate_base_urls))
+        base_urls, origin_results = _probe_live_origins(ctx, probe_candidates)
     else:
-        base_urls = sorted(candidate_base_urls)
+        base_urls = probe_candidates
         origin_results = [{"url": url, "live": True, "transport_status": "probe_disabled"} for url in base_urls]
+    # Probe responses are part of the throttle evidence. Without this,
+    # a HEAD 429 is never logged by Katana, so --resume probes the host again.
+    probe_throttled_hosts = {
+        katana_host(str(row.get("url") or ""))
+        for row in origin_results
+        if str(row.get("status_code") or "") == "429"
+    } - {""}
+    if probe_throttled_hosts:
+        register_throttling(throttle_state, sorted(probe_throttled_hosts), now=time.time())
+        persist_shared_throttle_state(ctx.db, throttle_state, ctx.run_id)
+        throttled_hosts.update(probe_throttled_hosts)
+        atomic_write_text(throttle_path, json_dumps({
+            "version": 1, "hosts": throttle_state,
+        }))
+        # A 429 on either scheme defers the entire host, including an HTTP(S)
+        # sibling that probed successfully in the same stage invocation.
+        deferred_origins = sorted(set(deferred_origins) | {
+            url for url in candidate_base_urls
+            if katana_host(url) in probe_throttled_hosts
+        })
+        base_urls = [
+            url for url in base_urls if katana_host(url) not in probe_throttled_hosts
+        ]
+    origin_results.extend({
+        "url": url, "live": False, "transport_status": "rate_limit_cooldown",
+    } for url in deferred_origins if url not in probe_candidates)
     base_path = ctx.current / "base-urls.txt"
     atomic_write_text(base_path, "".join(f"{url}\n" for url in base_urls))
     write_jsonl(ctx.current / "origin-probe.jsonl", origin_results)
@@ -933,8 +1062,12 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     katana_origin_successes: list[str] = []
     # An unsuccessful live-origin probe is incomplete collection, not proof of
     # an empty attack surface. Preserve the candidate origins for re-check.
-    katana_pending_origins = list(base_urls) if base_urls else sorted(candidate_base_urls)
+    katana_pending_origins = (
+        list(dict.fromkeys(base_urls + deferred_origins))
+        if base_urls else sorted(candidate_base_urls)
+    )
     katana_batches_incomplete = 0
+    katana_error_categories: dict[str, int] = {}
     # On --resume, continue only unfinished origins. Never truncate evidence
     # from an earlier partial collection in the same run.
     previous_metrics: dict[str, Any] = {}
@@ -1110,6 +1243,15 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 if operator_next_requested():
                     operator_next = True
                     break
+                batch_origins = katana_origins[batch_offset:batch_offset + batch_width]
+                # A prior batch can throttle another scheme of the same host.
+                # Skip it without charging another reservation or launching Katana.
+                newly_throttled = set(load_shared_throttle_state(ctx.db))
+                throttled_hosts.update(newly_throttled)
+                if any(katana_host(origin) in throttled_hosts for origin in batch_origins):
+                    deferred_origins = sorted(set(deferred_origins) | {
+                        origin for origin in batch_origins if katana_host(origin) in throttled_hosts})
+                    continue
                 if not uncapped_katana:
                     remaining_seconds = (
                         katana_global_deadline_seconds -
@@ -1119,7 +1261,6 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                         katana_deadline_exhausted = True
                         break
 
-                batch_origins = katana_origins[batch_offset:batch_offset + batch_width]
                 if uncapped_katana:
                     batch_timeout = None
                     batch_reservation = 0
@@ -1184,13 +1325,20 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 # crawl-duration limit or an outer process wall clock. A manual
                 # interruption remains possible; an interactive Next action
                 # is a separate feature and is not implied by this mode.
-                if not uncapped_katana:
+                if not uncapped_katana and completion_supported:
                     args.extend(["-ct", f"{batch_crawl_seconds}s"])
+                elif not uncapped_katana:
+                    args.extend(["-ct", "0s"])
                 completion_path = ctx.current / f"katana-batch-{batch_number:03d}-completion.jsonl"
+                request_errors_path = ctx.current / f"katana-batch-{batch_number:03d}-request-errors.jsonl"
                 if completion_supported:
-                    # Never accept an event left behind by an earlier invocation.
+                    # Never accept events or errors left by an earlier attempt.
                     atomic_write_text(completion_path, "")
+                    atomic_write_text(request_errors_path, "")
                     args.extend(["-recon-completion-log", str(completion_path)])
+                    # Official Katana error-log flag, also supported by the
+                    # custom completion/Checkpoint producer.
+                    args.extend(["-elog", str(request_errors_path)])
                 if checkpoint_supported:
                     frontier_dir = ctx.current / "katana-frontier"
                     frontier_dir.mkdir(mode=0o700, exist_ok=True)
@@ -1202,6 +1350,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 result = ctx.runner.run(
                     args,
                     timeout=batch_timeout,
+                    termination_grace_seconds=6.0 if checkpoint_supported else 1.0,
                     output_path=batch_output,
                     heartbeat=lambda: ctx.db.stage_heartbeat(
                         ctx.run_id, ctx.policy.name, "urls",
@@ -1222,11 +1371,15 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 katana_timed_out = katana_timed_out or batch_timed_out
                 operator_next = operator_next or bool(getattr(result, "operator_next", False)) or operator_next_requested()
                 katana_duration_seconds += float(getattr(result, "duration", 0.0) or 0.0)
-                # Zero exit can mean the internal crawl deadline expired. Duration
-                # is only a conservative uncertainty guard, not proof of timeout.
+                # Stock Katana has no completion event. Leave its internal
+                # crawl deadline disabled and enforce the reserved envelope
+                # with the outer process timeout instead. A natural zero exit
+                # then cannot hide a shorter per-origin internal deadline.
+                # A custom producer's event remains mandatory when supported.
                 batch_completion_unverified = (
                     not uncapped_katana and batch_exit == 0 and not batch_timed_out
-                    and float(getattr(result, "duration", 0.0) or 0.0) >= batch_crawl_seconds
+                    and batch_timeout is not None
+                    and float(getattr(result, "duration", 0.0) or 0.0) >= batch_timeout
                 )
                 origin_completion = {}
                 completed_origins = []
@@ -1238,6 +1391,28 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     completed_origins = [origin for origin in batch_origins
                                          if origin_completion[origin_key(origin)]["status"] == "completed"]
                     batch_completion_unverified = len(completed_origins) != len(batch_origins)
+                errors_summary = (
+                    classify_katana_request_errors(request_errors_path, batch_origins)
+                    if completion_supported else {"counts": {}, "throttled_hosts": []}
+                )
+                for category, count in errors_summary["counts"].items():
+                    katana_error_categories[category] = katana_error_categories.get(category, 0) + count
+                if errors_summary["throttled_hosts"]:
+                    # Treat 429 as incomplete even if the external producer
+                    # claims a zero exit. Siblings may still be completed.
+                    throttled_hosts.update(errors_summary["throttled_hosts"])
+                    register_throttling(
+                        throttle_state, errors_summary["throttled_hosts"], now=time.time(),
+                    )
+                    persist_shared_throttle_state(ctx.db, throttle_state, ctx.run_id)
+                    atomic_write_text(throttle_path, json_dumps({
+                        "version": 1, "hosts": throttle_state,
+                    }))
+                    completed_origins = [
+                        origin for origin in completed_origins
+                        if katana_host(origin) not in throttled_hosts
+                    ]
+                    batch_completion_unverified = True
                 katana_completion_unverified |= batch_completion_unverified
                 batch_complete = (
                     batch_exit == 0 and not batch_timed_out
@@ -1252,6 +1427,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "finished_at": utc_now(),
                     "timeout_seconds": round(batch_timeout, 6) if batch_timeout is not None else None,
                     "crawl_seconds_per_origin": batch_crawl_seconds,
+                    "internal_crawl_deadline_enabled": bool(not uncapped_katana and completion_supported),
                     "reserved_requests": batch_reservation,
                     "rate_limit": katana_rate_limit,
                     "exit_code": batch_exit,
@@ -1261,6 +1437,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     "completion_artifact": completion_path.name if completion_supported else None,
                     "frontier_checkpoint_enabled": checkpoint_supported,
                     "origin_completion": origin_completion,
+                    "request_errors_artifact": request_errors_path.name if completion_supported else None,
+                    "request_error_categories": errors_summary["counts"],
+                    "rate_limited": bool(errors_summary["throttled_hosts"]),
                     "duration_seconds": round(float(getattr(result, "duration", 0.0) or 0.0), 3),
                     "lines": int(getattr(result, "lines", 0) or 0),
                     "status": "completed" if batch_complete else (
@@ -1356,6 +1535,18 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         katana_status = "operator_next"
         katana_stop_reason = "operator_next"
 
+    # Even when every *eligible* origin finished, cooldown-blocked origins
+    # still require work. Never call that a complete collection/baseline.
+    deferred_pending_origins = [
+        origin for origin in katana_pending_origins
+        if katana_host(origin) in throttled_hosts
+    ]
+    if (deferred_pending_origins and katana_pending_origins
+            and len(deferred_pending_origins) == len(katana_pending_origins)
+            and not operator_next and not katana_timed_out and not katana_nonzero_exit):
+        katana_status = "throttled"
+        katana_stop_reason = "rate_limit_cooldown"
+
     # Do not silently discard origins that were not attempted, or those
     # belonging to an incomplete batch. They require a later authorized pass.
     atomic_write_text(
@@ -1441,9 +1632,37 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
          "reason": "selected" if url in js_selected else "max_urls"}
         for url in sorted(js_candidates)
     ))
+    # A repeated partial run can make no progress on the same checkpointed
+    # frontier. Surface it explicitly; never turn unresolved requests into
+    # verified completion just to break a retry loop.
+    pending_before = set(previous_pending)
+    pending_after = set(katana_pending_origins)
+    pending_retired_on_resume = len(pending_before - pending_after)
+    katana_frontier_reduction_on_resume = frontier_reduction_observed(
+        previous_outcomes, batch_outcomes[len(previous_outcomes):],
+    )
+    katana_stalled_on_resume = bool(
+        previous_metrics and pending_before and pending_after == pending_before
+        and katana_batches_attempted > 0
+        and not katana_frontier_reduction_on_resume
+    )
+    latest_unfinished_reasons: dict[str, int] = {}
+    for batch in batch_outcomes:
+        if batch.get("status") == "completed":
+            continue
+        for completion in (batch.get("origin_completion") or {}).values():
+            if isinstance(completion, dict):
+                reason = str(completion.get("stop_reason") or "unknown")
+                latest_unfinished_reasons[reason] = latest_unfinished_reasons.get(reason, 0) + 1
     collection_reasons: list[str] = []
-    if katana_status in {"operator_next", "timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing", "no_live_origins", "no_live_pending"}:
+    # Selection caps hide discovered URLs even when all collectors exit zero.
+    # Never call this a complete collection or promote it as a clean baseline.
+    if len(candidates) > len(urls):
+        collection_reasons.append("url_selection_truncated")
+    if katana_status in {"operator_next", "timeout", "nonzero_exit", "budget_exhausted", "partial", "tool_missing", "no_live_origins", "no_live_pending", "throttled"}:
         collection_reasons.append("katana_" + katana_stop_reason)
+    if deferred_pending_origins and "katana_rate_limit_cooldown" not in collection_reasons:
+        collection_reasons.append("katana_rate_limit_cooldown")
     if wayback_outcomes and wayback_status != "completed":
         collection_reasons.append("wayback_" + wayback_status)
     metrics = {
@@ -1491,7 +1710,17 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_origins_attempted": katana_origins_attempted,
         "katana_origins_completed": len(katana_origin_successes),
         "katana_pending_origins": len(katana_pending_origins),
-        "katana_batches_incomplete": sum(
+        "katana_pending_retired_on_resume": pending_retired_on_resume,
+        "katana_stalled_on_resume": katana_stalled_on_resume,
+        "katana_frontier_reduction_on_resume": katana_frontier_reduction_on_resume,
+        "katana_deferred_origins": len(deferred_pending_origins),
+        "katana_request_error_categories_this_attempt": katana_error_categories,
+        "katana_historical_incomplete_reasons": latest_unfinished_reasons,
+        # This attempt's failures and the complete history must not be
+        # confused with the number of currently unfinished origins.
+        "katana_batches_incomplete": katana_batches_incomplete,
+        "katana_batches_incomplete_this_attempt": katana_batches_incomplete,
+        "katana_batches_incomplete_historical": sum(
             row.get("status") != "completed" for row in batch_outcomes
         ),
         "katana_global_deadline_seconds": katana_global_deadline_seconds,
@@ -1522,6 +1751,8 @@ def _download_url(
     started = time.monotonic()
 
     def before_request(_candidate: str) -> None:
+        if _http_host_cooling_down(ctx, _candidate):
+            raise StageError("HTTP host is in rate_limit_cooldown", retryable=True)
         gate = getattr(ctx, "request_gate", None)
         if callable(gate):
             gate(_candidate)
@@ -1548,17 +1779,26 @@ def _download_url(
         if isinstance(result.get("headers"), Mapping)
         else {}
     )
+    _record_http_throttle(ctx, str(result.get("final_url") or url), status_code,
+                          str(response_headers.get('Retry-After', '') or response_headers.get('retry-after', '')))
     error = str(result.get("error") or "")
 
     if error == "response_budget_exceeded":
         raise StageError(f"Content exceeded limit: {url}", retryable=False)
 
     if status_code in {404, 410}:
+        # safe_transport uses http_error for a fully received HTTP error status;
+        # other errors describe an unverified observation and must survive.
+        observation = {**result, "error": "" if error == "http_error" else error}
+        verified = _verified_not_found(ctx, url, observation)
         return {
+            **({} if verified else {"error": error or "unverified_not_found"}),
             "url": url,
             "final_url": str(result.get("final_url") or url),
             "status_code": status_code,
-            "not_found": True,
+            "not_found": verified,
+            "truncated": bool(result.get("truncated")),
+            "redirect_outside_scope": bool(result.get("redirect_outside_scope")),
             "duration": duration,
             "transport_status": str(result.get("transport_status") or ""),
             "transport_hops": list(result.get("transport_hops") or []),
@@ -1885,8 +2125,25 @@ def _select_javascript_urls(urls: Iterable[str], max_files: int) -> tuple[list[s
     return selected, unselected
 
 
+HTTP_ABSENCE_PROOF_VERSION = 2
+
+
+def _verified_not_found(ctx: StageContext, url: str, result: Mapping[str, Any]) -> bool:
+    """Accept absence only after a complete, in-scope HTTP observation."""
+    return (type(result.get("status_code")) is int and result["status_code"] in {404, 410}
+            and result.get("transport_status") == "ok"
+            and not any(result.get(key) for key in ("error", "operator_next", "truncated", "redirect_outside_scope"))
+            and result.get("transport_error", "") in {"", "http_error"}
+            and ctx.policy.url_in_scope(url)
+            and ctx.policy.url_in_scope(str(result.get("final_url") or result.get("url") or url)))
+
+
 def _javascript_work_processed(ctx: StageContext, store: ContentAddressedStore, url: str, result: Mapping[str, Any]) -> bool:
-    if result.get("status") == "not_found" and type(result.get("status_code")) is int and result["status_code"] in {404, 410}:
+    if result.get("status") == "not_found":
+        if (result.get("absence_proof_version") != HTTP_ABSENCE_PROOF_VERSION
+                or result.get("url") != url or result.get("policy_hash") != ctx.policy.policy_hash()
+                or not _verified_not_found(ctx, url, result)):
+            return False
         row = ctx.db.one("SELECT state,status_code FROM js_availability_history WHERE run_id=? AND target=? AND url=?", (ctx.run_id, ctx.policy.name, url))
         return bool(row and row["state"] == "not_found" and row["status_code"] == result["status_code"])
     digest = result.get("object_hash")
@@ -1928,6 +2185,15 @@ def _source_map_work(
     saved = safe_json_loads(row["result_json"], {}, expected_type=dict)
     if row["status"] == "completed":
         try:
+            if (saved.get("status") == "not_found"
+                    and saved.get("absence_proof_version") == HTTP_ABSENCE_PROOF_VERSION
+                    and all(saved.get(key) == value for key, value in identity.items())
+                    and saved.get("policy_hash") == ctx.policy.policy_hash()
+                    and type(saved.get("status_code")) is int and saved["status_code"] in {404, 410}
+                    and saved.get("transport_status") == "ok"
+                    and not any(saved.get(key) for key in ("error", "operator_next", "truncated", "redirect_outside_scope"))
+                    and ctx.policy.url_in_scope(str(saved.get("final_url") or ""))):
+                return work_id, {**saved, "not_found": True, "reused": True, "work_status": "completed"}
             digest, size = saved.get("object_hash"), saved.get("size")
             if (any(saved.get(key) != value for key, value in identity.items())
                     or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
@@ -1958,6 +2224,17 @@ def _source_map_work(
     result: dict[str, Any] = {}
     try:
         result = _download_url(ctx, source_map_url, ctx.policy.limits.max_js_bytes)
+        if (result.get("not_found") and type(result.get("status_code")) is int
+                and result["status_code"] in {404, 410} and result.get("transport_status") == "ok"
+                and not any(result.get(key) for key in ("error", "operator_next", "truncated", "redirect_outside_scope"))
+                and ctx.policy.url_in_scope(str(result.get("final_url") or source_map_url))):
+            absent = {**identity, "absence_proof_version": HTTP_ABSENCE_PROOF_VERSION,
+                      "policy_hash": ctx.policy.policy_hash(), "status": "not_found",
+                      "status_code": result["status_code"], "transport_status": "ok",
+                      "final_url": str(result.get("final_url") or source_map_url)}
+            queue.finish(work_id, absent)
+            return work_id, {**absent, "not_found": True, "attempted": True,
+                             "reused": False, "work_status": "completed"}
         if "data" not in result or result.get("error") or result.get("operator_next"):
             raise ValueError(str(result.get("error") or ("operator_next" if result.get("operator_next") else "Source Map download failed")))
         status = result.get("status_code")
@@ -2005,9 +2282,34 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     if urls_path.exists():
         urls = [line.strip() for line in urls_path.read_text(encoding="utf-8", errors="replace").splitlines()]
     classified_js_urls = sorted({url for url in urls if classify_url(url) == "javascript"})
-    js_urls, unselected_js_urls = _select_javascript_urls(
-        classified_js_urls, ctx.policy.limits.max_js_files,
+    work_queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", getattr(ctx, 'db_writer', None))
+    store = ContentAddressedStore(ctx.paths, ctx.db) if classified_js_urls else None
+    work_rows = {row["item_key"]: dict(row) for row in ctx.db.all(
+        "SELECT * FROM work_items WHERE run_id=? AND target=? AND stage='javascript-items'",
+        (ctx.run_id, ctx.policy.name),
+    )} if classified_js_urls else {}
+    verified_completed: set[str] = set()
+    repaired_completed = 0
+    for url in classified_js_urls:
+        row = work_rows.get(url)
+        if row and row["status"] == "completed":
+            if _javascript_work_processed(ctx, store, url, safe_json_loads(row["result_json"], {}, expected_type=dict)):
+                verified_completed.add(url)
+            elif work_queue.reopen(row["id"], "Completed JavaScript work has no verified processed artifact"):
+                repaired_completed += 1
+    # The per-attempt download quota applies to unfinished parents. Verified
+    # parents remain in the cumulative evidence but cannot starve the backlog.
+    new_selection, unselected_js_urls = _select_javascript_urls(
+        set(classified_js_urls) - verified_completed, ctx.policy.limits.max_js_files,
     )
+    js_urls = sorted(verified_completed | set(new_selection))
+    prior_changes = {}
+    for filename in ("new-js-files.txt", "changed-js-files.txt", "semantic-js-changes.txt",
+                     "semantic-js-unknown.txt", "new-js-indicators.tsv"):
+        path = ctx.changes / filename
+        prior_changes[filename] = path.read_text(encoding="utf-8").splitlines() if verified_completed and path.is_file() else []
+    prior_availability = [row for row in read_jsonl(ctx.current / "javascript-availability.jsonl")
+                          if row.get("url") in verified_completed] if verified_completed else []
     upstream_metrics: dict[str, Any] = {}
     try:
         upstream = json.loads((ctx.current / "url-collection.json").read_text(encoding="utf-8"))
@@ -2118,6 +2420,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             "source_map_sources": 0,
             "source_map_attempts": 0,
             "source_map_failures": 0,
+            "source_map_not_found": 0,
             "source_map_reused_work_items": 0,
             "source_map_pending_work_items": 0,
             "source_map_deferred_work_items": 0,
@@ -2130,18 +2433,6 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         }
 
     workers = min(50, max(1, ctx.policy.limits.js_workers))
-    work_queue = WorkQueue(ctx.db, ctx.run_id, ctx.policy.name, "javascript-items", ctx.db_writer)
-    store = ContentAddressedStore(ctx.paths, ctx.db)
-    work_rows = {row["item_key"]: dict(row) for row in ctx.db.all(
-        "SELECT * FROM work_items WHERE run_id=? AND target=? AND stage='javascript-items'",
-        (ctx.run_id, ctx.policy.name),
-    )}
-    repaired_completed = 0
-    for url in js_urls:
-        row = work_rows.get(url)
-        if row and row["status"] == "completed" and not _javascript_work_processed(ctx, store, url, safe_json_loads(row["result_json"], {}, expected_type=dict)):
-            if work_queue.reopen(row["id"], "Completed JavaScript work has no verified processed artifact"):
-                repaired_completed += 1
     pending_urls = [url for url in js_urls if not work_queue.completed(url)]
     work_ids = {url: work_queue.enqueue(url, {"kind": "download_url", "url": url, "max_bytes": ctx.policy.limits.max_js_bytes, "scope_policy": worker_scope_snapshot(ctx.policy)}) for url in pending_urls}
     results: list[dict[str, Any]] = []
@@ -2154,12 +2445,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         stored_result = safe_json_loads(row["result_json"], {}, expected_type=dict) if row else {}
         if row and row["status"] == "failed":
             status = stored_result.get("status_code")
-            if (type(status) is int and status in {404, 410} and stored_result.get("transport_status") == "ok"
-                    and not stored_result.get("truncated") and not stored_result.get("redirect_outside_scope")
-                    and ctx.policy.url_in_scope(str(stored_result.get("url") or ""))):
+            if _verified_not_found(ctx, url, stored_result):
                 work_queue.reopen(work_id, "Processing remote not-found observation")
                 if work_queue.start(work_id, "local-js"):
-                    results.append({"url": url, "status_code": status, "not_found": True})
+                    results.append({**stored_result, "url": url, "final_url": stored_result.get("final_url") or stored_result["url"], "not_found": True})
                 else:
                     deferred_urls.append(url)
             else:
@@ -2231,7 +2520,13 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     diff_count = 0
     classified_endpoints = 0
     errors: list[dict[str, str]] = []
-    not_found: list[dict[str, Any]] = []
+    # Rebuild cumulative absence evidence from verified queue receipts, not the
+    # output files: these may be missing, tampered with, or from another attempt.
+    not_found: list[dict[str, Any]] = [
+        {"url": url, "status_code": saved["status_code"]}
+        for url in sorted(verified_completed)
+        if (saved := safe_json_loads(work_rows[url]["result_json"], {}, expected_type=dict)).get("status") == "not_found"
+    ]
     source_map_rows: list[dict[str, Any]] = []
     chunk_edge_rows: list[dict[str, str]] = []
     source_map_sources = 0
@@ -2239,6 +2534,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     embedded_source_indicators = 0
     source_map_attempts = 0
     source_map_failures = 0
+    source_map_not_found = 0
     source_map_reused = 0
     source_map_deferred = 0
     source_map_work_rows: list[dict[str, Any]] = []
@@ -2375,7 +2671,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     for result in sorted(results, key=lambda x: x["url"]):
         url = result["url"]
         if "data" not in result:
-            if result.get("not_found"):
+            if result.get("not_found") and _verified_not_found(ctx, url, result):
                 status_code = int(
                     result.get("status_code") or 0
                 )
@@ -2398,6 +2694,11 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                         work_ids[url],
                         {
                             "status": "not_found",
+                            "absence_proof_version": HTTP_ABSENCE_PROOF_VERSION,
+                            "url": url,
+                            "final_url": str(result.get("final_url") or result.get("url") or url),
+                            "policy_hash": ctx.policy.policy_hash(),
+                            "transport_status": "ok",
                             "status_code": status_code,
                         },
                     )
@@ -2868,6 +3169,12 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                     })
                 source_map_reused += int(bool(map_result.get("reused")))
                 observation.update(work_status="completed", object_hash=map_hash, size=len(map_data))
+            elif map_result.get("not_found"):
+                source_map_not_found += 1
+                source_map_reused += int(bool(map_result.get("reused")))
+                store.drop_reference("source_map", js_owner_key)
+                store.sync_references("source_map_source", {}, owner_prefix=source_map_source_prefix)
+                observation.update(work_status="completed", not_found=True)
             elif map_result.get("deferred"):
                 source_map_deferred += 1
             else:
@@ -2877,11 +3184,10 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                                finished_at=state["finished_at"] or "")
             source_map_work_rows.append(observation)
 
-    atomic_write_text(ctx.changes / "new-js-files.txt", "".join(f"{x}\n" for x in new_files))
-    atomic_write_text(ctx.changes / "changed-js-files.txt", "".join(f"{x}\n" for x in changed_files))
-    atomic_write_text(ctx.changes / "semantic-js-changes.txt", "".join(f"{x}\n" for x in semantic_changes))
-    atomic_write_text(ctx.changes / "semantic-js-unknown.txt", "".join(f"{x}\n" for x in semantic_unknown))
-    atomic_write_text(ctx.changes / "new-js-indicators.tsv", "".join(f"{x}\n" for x in sorted(indicator_lines)))
+    for filename, lines in (("new-js-files.txt", new_files), ("changed-js-files.txt", changed_files),
+                            ("semantic-js-changes.txt", semantic_changes), ("semantic-js-unknown.txt", semantic_unknown),
+                            ("new-js-indicators.tsv", indicator_lines)):
+        atomic_write_text(ctx.changes / filename, "".join(f"{x}\n" for x in sorted(set(prior_changes[filename]) | set(lines))))
     write_jsonl(
         ctx.current / "javascript-errors.jsonl",
         errors,
@@ -2892,7 +3198,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     )
     write_jsonl(
         ctx.current / "javascript-availability.jsonl",
-        availability_rows,
+        list({row["url"]: row for row in prior_availability + availability_rows}.values()),
     )
     write_jsonl(
         ctx.current / "source-map-sources.jsonl",
@@ -2987,6 +3293,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "chunk_edges": len(chunk_edge_rows),
         "source_map_attempts": source_map_attempts,
         "source_map_failures": source_map_failures,
+        "source_map_not_found": source_map_not_found,
         "source_map_reused_work_items": source_map_reused,
         "source_map_pending_work_items": source_map_failures + source_map_deferred,
         "source_map_deferred_work_items": source_map_deferred,
@@ -3047,10 +3354,14 @@ def _safe_validate_endpoint(ctx: StageContext, endpoint: str, sources: Iterable[
     for url, resolution_method, resolution_source in candidates[:3]:
         if callable(getattr(ctx, "next_requested", None)) and ctx.next_requested():
             return {"endpoint": endpoint, "skipped": "operator_next"}
+        if _http_host_cooling_down(ctx, url):
+            return {"endpoint": endpoint, "resolved_url": url, "reachable": False,
+                    "error": "rate_limit_cooldown", "transport_status": "stopped_for_safety"}
         if ctx.budget:
             ctx.budget.consume("http_requests", 1)
 
         def observation(method: str, observed_url: str, status: int, headers: Any, _body: bytes, error: str = "") -> dict[str, Any]:
+            _record_http_throttle(ctx, observed_url, status, str(headers.get('Retry-After', '') if headers else ''))
             content_type = ""
             if headers:
                 with contextlib.suppress(Exception):
@@ -3361,6 +3672,17 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
     base_path = ctx.current / "base-urls.txt"
     if not base_path.exists():
         return {"probed": 0, "live": 0, "new": 0, "changed": 0}
+    base_urls = [url for url in base_path.read_text(encoding="utf-8", errors="replace").splitlines() if url.strip()]
+    cooling = set(load_shared_throttle_state(ctx.db))
+    deferred = [url for url in base_urls if katana_host(url) in cooling]
+    if deferred:
+        base_urls = [url for url in base_urls if katana_host(url) not in cooling]
+        base_path = ctx.current / "httpx-cooldown-filtered-input.txt"
+        atomic_write_text(base_path, "".join(url + "\n" for url in base_urls))
+        if not base_urls:
+            return {"probed": 0, "live": 0, "new": 0, "changed": 0,
+                    "collection_status": "partial", "collection_reasons": ["http_rate_limit_cooldown"],
+                    "cooldown_deferred": len(deferred)}
     if not tool_path("httpx"):
         ctx.logger.warn("ProjectDiscovery httpx missing; fingerprint stage skipped", target=ctx.policy.name)
         return {"probed": 0, "live": 0, "new": 0, "changed": 0, "skipped": "httpx missing"}
@@ -3417,6 +3739,7 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
         url, record = _httpx_record(row)
         if not url or not ctx.policy.url_in_scope(url):
             continue
+        _record_http_throttle(ctx, url, record.get("status_code", 0))
         live += 1
         if ctx.policy.raw.get("fingerprint", {}).get("collect_tls", True):
             record.update(_tls_certificate_info(ctx, url))
@@ -3459,7 +3782,8 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
 
     atomic_write_text(ctx.changes / "new-live-http.txt", "".join(f"{x}\n" for x in new_live))
     atomic_write_text(ctx.changes / "changed-fingerprints.txt", "".join(f"{x}\n" for x in changed))
-    return {"probed": result.lines, "live": live, "new": len(new_live), "changed": len(changed), "screenshots": bool(ctx.policy.modules.get("screenshots"))}
+    return {"probed": result.lines, "live": live, "new": len(new_live), "changed": len(changed), "screenshots": bool(ctx.policy.modules.get("screenshots")),
+            **({"collection_status": "partial", "collection_reasons": ["http_rate_limit_cooldown"], "cooldown_deferred": len(deferred)} if deferred else {})}
 
 
 _HTTP_WEB_PORTS = {80, 3000, 5000, 8000, 8008, 8080, 8888}
@@ -3546,8 +3870,12 @@ def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
         if path.exists():
             candidates.update(line.strip() for line in path.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip())
     candidates = {url for url in candidates if ctx.policy.url_in_scope(url)}
+    cooling = set(load_shared_throttle_state(ctx.db))
+    deferred = {url for url in candidates if katana_host(url) in cooling}
+    candidates -= deferred
     if not candidates:
-        return {"skipped": "no new or changed live URLs"}
+        return ({"collection_status": "partial", "collection_reasons": ["http_rate_limit_cooldown"], "cooldown_deferred": len(deferred)}
+                if deferred else {"skipped": "no new or changed live URLs"})
     input_path = ctx.current / "nuclei-input.txt"
     atomic_write_text(input_path, "".join(f"{url}\n" for url in sorted(candidates)))
     out = ctx.current / "nuclei.jsonl"
@@ -3581,7 +3909,8 @@ def stage_nuclei(ctx: StageContext) -> dict[str, Any]:
         if ctx.db.upsert_finding(ctx.policy.name, dedup, record, ctx.run_id):
             new_findings += 1
             emit_event(ctx, "nuclei_finding", f"{template_id}@{matched_at}", f"Nuclei finding: {name}", record)
-    return {"targets": len(candidates), "templates": len(template_ids), "findings": findings, "new": new_findings}
+    return {"targets": len(candidates), "templates": len(template_ids), "findings": findings, "new": new_findings,
+            **({"collection_status": "partial", "collection_reasons": ["http_rate_limit_cooldown"], "cooldown_deferred": len(deferred)} if deferred else {})}
 
 
 STAGE_FUNCTIONS: dict[str, Callable[[StageContext], dict[str, Any]]] = {

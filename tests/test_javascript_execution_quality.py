@@ -134,7 +134,7 @@ class JavascriptExecutionQualityTests(unittest.TestCase):
     def test_not_found_is_accounted_separately_from_download_errors(self):
         url = "https://example.test/old.js"
         self.inputs([url])
-        with patch("stages._download_url", return_value={"url": url, "status_code": 404, "not_found": True}):
+        with patch("stages._download_url", return_value={"url": url, "status_code": 404, "not_found": True, "transport_status": "ok"}):
             result = stage_javascript(self.ctx)
         self.assertEqual(result["not_found"], 1)
         self.assertEqual(result["errors"], 0)

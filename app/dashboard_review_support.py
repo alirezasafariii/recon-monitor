@@ -200,9 +200,10 @@ def prepare_review(source: Path, destination: Path) -> dict:
         paths.ensure()
         started = time.monotonic()
         # Do not open the installed database through Database(): it migrates.
-        original = sqlite3.connect(source_paths.db.as_uri() + "?mode=ro", uri=True, timeout=10)
-        snapshot = sqlite3.connect(paths.db)
-        try:
+        with contextlib.ExitStack() as connections:
+            original = connections.enter_context(contextlib.closing(
+                sqlite3.connect(source_paths.db.as_uri() + "?mode=ro", uri=True, timeout=10)))
+            snapshot = connections.enter_context(contextlib.closing(sqlite3.connect(paths.db)))
             original.execute("PRAGMA query_only=ON")
 
             def progress(_status, _remaining, _total):
@@ -219,9 +220,6 @@ def prepare_review(source: Path, destination: Path) -> dict:
             violations = snapshot.execute("PRAGMA foreign_key_check").fetchall()
             if quick != [("ok",)] or violations:
                 raise ReconError("Snapshot failed database integrity/foreign-key checks")
-        finally:
-            snapshot.close()
-            original.close()
         paths.db.chmod(0o600)
         paths.config.write_text("".join(f'{key}="{value}"\n' for key, value in SAFE_CONFIG.items()), encoding="utf-8")
         paths.config.chmod(0o600)

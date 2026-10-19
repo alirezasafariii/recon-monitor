@@ -35,7 +35,9 @@ class KatanaStageCompletionTests(unittest.TestCase):
                     sentinel.write_text('prior frontier preserved')
                 else:
                     self.assertNotIn('-recon-checkpoint-dir', args)
-                self.last_crawl_limits.append(int(args[args.index("-ct")+1][:-1]))
+                self.last_crawl_limits.append(int(args[args.index("-ct")+1][:-1]) if supported else 0)
+                if not supported:
+                    self.assertEqual(args[args.index('-ct')+1], '0s')
                 Path(kwargs['output_path']).write_text(origins[0]+'/evidence.js\n')
                 if supported:
                     path = Path(args[args.index('-recon-completion-log')+1])
@@ -81,9 +83,9 @@ class KatanaStageCompletionTests(unittest.TestCase):
         self.assertEqual(len(completed), 2)
         self.assertTrue(metrics['katana_batch_outcomes'][0]['completion_verified'])
         metrics, pending, completed = self.exercise('complete', supported=False)
-        self.assertEqual(len(pending), 2)
-        self.assertEqual(completed, [])
-        self.assertFalse(metrics['katana_batch_outcomes'][0]['completion_verified'])
+        self.assertEqual(pending, [])
+        self.assertEqual(len(completed), 2)
+        self.assertTrue(metrics['katana_batch_outcomes'][0]['completion_verified'])
 
     def test_valid_sibling_completes_when_other_is_failed_or_missing(self):
         for mode in ('mixed', 'missing'):
@@ -136,9 +138,11 @@ class KatanaStageCompletionTests(unittest.TestCase):
     def test_resume_plans_time_for_backlog_before_allocating_budget(self):
         metrics, pending, completed = self.exercise('mixed', resume=True, origin_count=600)
         self.assertEqual(self.last_input_batches[-1], ['https://b.example.test'])
-        self.assertEqual(self.last_crawl_limits[0], 2)
-        self.assertEqual(self.last_crawl_limits[-1], 30)
-        self.assertEqual(metrics['katana_crawl_seconds_per_origin'], 30)
+        # Adaptive allocation gives the initial backlog more crawl time while
+        # retaining the existing bounded request envelope.
+        self.assertEqual(self.last_crawl_limits[0], 8)
+        self.assertEqual(self.last_crawl_limits[-1], 60)
+        self.assertEqual(metrics['katana_crawl_seconds_per_origin'], 60)
         self.assertLessEqual(metrics['katana_reserved_requests'], metrics['katana_request_envelope'])
         self.assertEqual(pending, [])
         self.assertEqual(len(completed), 600)

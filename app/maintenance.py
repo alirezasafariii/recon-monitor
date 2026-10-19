@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import os
@@ -115,12 +116,12 @@ def migrate_v1_database(paths: AppPaths, logger: Logger) -> dict[str, int]:
     legacy = paths.root / "recon.db"
     if not legacy.exists():
         return {"assets": 0, "urls": 0, "javascript": 0, "fingerprints": 0}
-    db = Database(paths.db)
-    source = sqlite3.connect(legacy)
-    source.row_factory = sqlite3.Row
     imported = {"assets": 0, "urls": 0, "javascript": 0, "fingerprints": 0}
     now = utc_now()
-    try:
+    with contextlib.ExitStack() as connections:
+        db = connections.enter_context(contextlib.closing(Database(paths.db)))
+        source = connections.enter_context(contextlib.closing(sqlite3.connect(legacy)))
+        source.row_factory = sqlite3.Row
         tables = {row[0] for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if "assets" in tables:
             for row in source.execute("SELECT domain,asset,type,first_seen,last_seen FROM assets"):
@@ -169,9 +170,6 @@ def migrate_v1_database(paths: AppPaths, logger: Logger) -> dict[str, int]:
                     ),
                 )
                 imported["fingerprints"] += max(0, cursor.rowcount)
-    finally:
-        source.close()
-        db.close()
     logger.info("Imported legacy v1 database", **imported)
     return imported
 

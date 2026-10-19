@@ -88,10 +88,11 @@ class KatanaExecutionQualityTests(unittest.TestCase):
                 ctx.current / "urls.txt"
             ).read_text(encoding="utf-8"))
 
-    def _check_internal_deadline_exit(self, multiplier):
+    def _check_process_deadline_exit(self, multiplier):
         with tempfile.TemporaryDirectory() as tmp:
             def fake_run(args, **kwargs):
-                seconds = int(args[args.index("-ct") + 1][:-1])
+                self.assertEqual(args[args.index("-ct") + 1], "0s")
+                seconds = kwargs["timeout"]
                 Path(kwargs["output_path"]).write_text("https://0.example.test/app.js\n")
                 return SimpleNamespace(returncode=0, timed_out=False,
                                        duration=seconds * multiplier, lines=1)
@@ -112,11 +113,11 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             self.assertEqual((ctx.current / "katana-pending-origins.txt").read_text().splitlines(), live)
             self.assertIn("https://0.example.test/app.js", (ctx.current / "urls.txt").read_text())
 
-    def test_zero_exit_after_five_internal_deadlines_is_partial(self):
-        self._check_internal_deadline_exit(5.015)
+    def test_zero_exit_after_process_deadline_is_partial(self):
+        self._check_process_deadline_exit(1.015)
 
-    def test_one_origin_deadline_is_conservative_before_batch_deadline(self):
-        self._check_internal_deadline_exit(1)
+    def test_zero_exit_at_process_deadline_is_conservative(self):
+        self._check_process_deadline_exit(1)
 
     def test_katana_is_batched_and_scoped_to_each_batch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -276,8 +277,7 @@ class KatanaExecutionQualityTests(unittest.TestCase):
 
             def fake_run(args, **kwargs):
                 origins = Path(args[args.index("-list") + 1]).read_text().splitlines()
-                crawl_seconds = int(args[args.index("-ct") + 1][:-1])
-                self.assertLessEqual(crawl_seconds * len(origins), kwargs["timeout"])
+                self.assertEqual(args[args.index("-ct") + 1], "0s")
                 self.assertLessEqual(kwargs["timeout"], 120)
                 seen.append(origins)
                 if len(seen) == 2:
@@ -345,8 +345,9 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             seen = []
             def fake_run(args, **kwargs):
                 hosts = Path(args[args.index("-list") + 1]).read_text().splitlines()
-                seconds = int(args[args.index("-ct") + 1][:-1])
-                duration = len(hosts) * seconds + 0.2
+                self.assertEqual(args[args.index("-ct") + 1], "0s")
+                seconds = kwargs["timeout"] / len(hosts) * .5
+                duration = len(hosts) * seconds
                 self.assertLess(duration, kwargs["timeout"])
                 seen.append((seconds, kwargs["timeout"]))
                 Path(kwargs["output_path"]).write_text(hosts[0] + "/app.js\n")
@@ -360,10 +361,13 @@ class KatanaExecutionQualityTests(unittest.TestCase):
             ):
                 metrics = stage_urls(ctx)
             self.assertEqual(len(seen), 12)
-            self.assertEqual(seen[0], (14, 75.0))
+            # Adaptive pacing may lower -rl and extend per-origin crawl
+            # time without increasing the global request reservation.
+            self.assertGreater(seen[0][0], 0)
+            self.assertLessEqual(seen[0][1], 120.0)
             self.assertFalse(metrics["katana_timed_out"])
-            self.assertEqual(metrics["katana_pending_origins"], 60)
-            self.assertEqual(metrics["collection_status"], "partial")
+            self.assertEqual(metrics["katana_pending_origins"], 0)
+            self.assertEqual(metrics["collection_status"], "completed")
             self.assertLessEqual(metrics["katana_reserved_requests"], 2700)
             self.assertEqual(ctx.policy.limits.timeout_seconds, 1800)
 

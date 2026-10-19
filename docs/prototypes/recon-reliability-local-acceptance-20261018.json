@@ -1,0 +1,861 @@
+{
+  "date": "2026-10-18",
+  "timezone": "Asia/Tehran",
+  "base_commit": "4c6f3d95f351e08be84b7cbce7f8ec85275280c7",
+  "scope": "Controlled loopback HTTP and DNS acceptance; URL collection and lifecycle use actual tools and SQLite. Other scale-test stages, analysis and notifications are fixtures.",
+  "unit_suite": {
+    "python": "3.14.8",
+    "tests": 1791,
+    "passed": true,
+    "explicitly_closed_sqlite_connections": 3443,
+    "resource_warnings": 0
+  },
+  "producer_tests": {
+    "checkpoint_native_repetitions": 20,
+    "checkpoint_race_repetitions": 20,
+    "passed": true,
+    "cross_compiled_test_targets": [
+      "darwin/amd64",
+      "windows/amd64"
+    ]
+  },
+  "producer_patch_sha256": "fbefd4cc5fb2910d51e280265dd761be5c59d1fb76173ed797572fb816466c44",
+  "producer_binary_sha256": "e9c45594c805c9f5b1ac01d2c885353a4deb2ca29110640b3afd8f8c565a095c",
+  "scale": {
+    "origins": 200,
+    "attempts": [
+      {
+        "attempt": 1,
+        "exit_code": 2,
+        "pending": 200,
+        "observed_urls": 5,
+        "budget": {
+          "dns_queries": 0,
+          "download_bytes": 0,
+          "http_requests": 208,
+          "new_assets": 0
+        },
+        "baseline_preserved": true,
+        "timeout_phase": true,
+        "reason": "crawl_completion_unverified",
+        "last_outcomes": [
+          {
+            "origin_urls": [
+              "http://127.0.0.1:32787"
+            ],
+            "status": "completion_unverified",
+            "stop_reason": "crawl_completion_unverified",
+            "origin_completion": {
+              "http://127.0.0.1:32787": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 1,
+                  "limited_requests": 0,
+                  "pending_items": 1
+                },
+                "status": "partial",
+                "stop_reason": "deadline"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:32815"
+            ],
+            "status": "completion_unverified",
+            "stop_reason": "crawl_completion_unverified",
+            "origin_completion": {
+              "http://127.0.0.1:32815": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 1,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 1
+                },
+                "status": "partial",
+                "stop_reason": "deadline"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:32845"
+            ],
+            "status": "completion_unverified",
+            "stop_reason": "crawl_completion_unverified",
+            "origin_completion": {
+              "http://127.0.0.1:32845": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 1,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 1
+                },
+                "status": "partial",
+                "stop_reason": "deadline"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:32853"
+            ],
+            "status": "completion_unverified",
+            "stop_reason": "crawl_completion_unverified",
+            "origin_completion": {
+              "http://127.0.0.1:32853": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 1,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 1
+                },
+                "status": "partial",
+                "stop_reason": "deadline"
+              }
+            },
+            "exit_code": 0
+          }
+        ]
+      },
+      {
+        "attempt": 2,
+        "exit_code": 2,
+        "pending": 157,
+        "observed_urls": 88,
+        "budget": {
+          "dns_queries": 0,
+          "download_bytes": 0,
+          "http_requests": 11408,
+          "new_assets": 0
+        },
+        "baseline_preserved": true,
+        "timeout_phase": false,
+        "reason": "operator_next",
+        "last_outcomes": [
+          {
+            "origin_urls": [
+              "http://127.0.0.1:34929"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:34929": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:35037"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:35037": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:35179"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:35179": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:35219"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:35219": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:35433"
+            ],
+            "status": "completion_unverified",
+            "stop_reason": "crawl_completion_unverified",
+            "origin_completion": {
+              "http://127.0.0.1:35433": {
+                "status": "unknown",
+                "stop_reason": "process_incomplete"
+              }
+            },
+            "exit_code": 0
+          }
+        ]
+      },
+      {
+        "attempt": 3,
+        "exit_code": 2,
+        "pending": 118,
+        "observed_urls": 166,
+        "budget": {
+          "dns_queries": 0,
+          "download_bytes": 0,
+          "http_requests": 24368,
+          "new_assets": 0
+        },
+        "baseline_preserved": true,
+        "timeout_phase": false,
+        "reason": "operator_next",
+        "last_outcomes": [
+          {
+            "origin_urls": [
+              "http://127.0.0.1:37523"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:37523": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:37597"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:37597": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:37833"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:37833": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:37845"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:37845": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:37859"
+            ],
+            "status": "completion_unverified",
+            "stop_reason": "crawl_completion_unverified",
+            "origin_completion": {
+              "http://127.0.0.1:37859": {
+                "status": "unknown",
+                "stop_reason": "process_incomplete"
+              }
+            },
+            "exit_code": 0
+          }
+        ]
+      },
+      {
+        "attempt": 4,
+        "exit_code": 2,
+        "pending": 79,
+        "observed_urls": 244,
+        "budget": {
+          "dns_queries": 0,
+          "download_bytes": 0,
+          "http_requests": 41528,
+          "new_assets": 0
+        },
+        "baseline_preserved": true,
+        "timeout_phase": false,
+        "reason": "operator_next",
+        "last_outcomes": [
+          {
+            "origin_urls": [
+              "http://127.0.0.1:40489"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:40489": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:40511"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:40511": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:40545"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:40545": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:40549"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:40549": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:40729"
+            ],
+            "status": "operator_next",
+            "stop_reason": "operator_next",
+            "origin_completion": {
+              "http://127.0.0.1:40729": {
+                "status": "unknown",
+                "stop_reason": "process_incomplete"
+              }
+            },
+            "exit_code": 125
+          }
+        ]
+      },
+      {
+        "attempt": 5,
+        "exit_code": 2,
+        "pending": 40,
+        "observed_urls": 322,
+        "budget": {
+          "dns_queries": 0,
+          "download_bytes": 0,
+          "http_requests": 67048,
+          "new_assets": 0
+        },
+        "baseline_preserved": true,
+        "timeout_phase": false,
+        "reason": "operator_next",
+        "last_outcomes": [
+          {
+            "origin_urls": [
+              "http://127.0.0.1:43095"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:43095": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:43119"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:43119": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:43169"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:43169": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:43289"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:43289": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:43551"
+            ],
+            "status": "operator_next",
+            "stop_reason": "operator_next",
+            "origin_completion": {
+              "http://127.0.0.1:43551": {
+                "status": "unknown",
+                "stop_reason": "process_incomplete"
+              }
+            },
+            "exit_code": 125
+          }
+        ]
+      },
+      {
+        "attempt": 6,
+        "exit_code": 2,
+        "pending": 1,
+        "observed_urls": 400,
+        "budget": {
+          "dns_queries": 0,
+          "download_bytes": 0,
+          "http_requests": 117248,
+          "new_assets": 0
+        },
+        "baseline_preserved": true,
+        "timeout_phase": false,
+        "reason": "operator_next",
+        "last_outcomes": [
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46485"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:46485": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46557"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:46557": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46791"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:46791": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46833"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:46833": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46879"
+            ],
+            "status": "completion_unverified",
+            "stop_reason": "crawl_completion_unverified",
+            "origin_completion": {
+              "http://127.0.0.1:46879": {
+                "status": "unknown",
+                "stop_reason": "process_incomplete"
+              }
+            },
+            "exit_code": 0
+          }
+        ]
+      },
+      {
+        "attempt": 7,
+        "exit_code": 0,
+        "pending": 0,
+        "observed_urls": 400,
+        "budget": {
+          "dns_queries": 0,
+          "download_bytes": 0,
+          "http_requests": 120698,
+          "new_assets": 0
+        },
+        "baseline_preserved": false,
+        "timeout_phase": false,
+        "reason": "completed",
+        "last_outcomes": [
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46557"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:46557": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46791"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:46791": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46833"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:46833": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 2,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46879"
+            ],
+            "status": "completion_unverified",
+            "stop_reason": "crawl_completion_unverified",
+            "origin_completion": {
+              "http://127.0.0.1:46879": {
+                "status": "unknown",
+                "stop_reason": "process_incomplete"
+              }
+            },
+            "exit_code": 0
+          },
+          {
+            "origin_urls": [
+              "http://127.0.0.1:46879"
+            ],
+            "status": "completed",
+            "stop_reason": "completed",
+            "origin_completion": {
+              "http://127.0.0.1:46879": {
+                "counters": {
+                  "active_items": 0,
+                  "attempted_requests": 1,
+                  "failed_requests": 0,
+                  "limited_requests": 0,
+                  "pending_items": 0
+                },
+                "status": "completed",
+                "stop_reason": "queue_exhausted"
+              }
+            },
+            "exit_code": 0
+          }
+        ]
+      }
+    ],
+    "passed": true,
+    "run_id": "20261018-195149-f05ea1cf",
+    "requested_pages": 400,
+    "final_url_count": 400,
+    "certified_origins_revisited": false,
+    "root_requests": 205
+  },
+  "dns": {
+    "scenario": "real_dnsx_dig_negative_resume",
+    "attempts": [
+      {
+        "attempt": 1,
+        "status": "partial",
+        "queries": 128,
+        "reused_queries": 0
+      },
+      {
+        "attempt": 2,
+        "status": "partial",
+        "queries": 128,
+        "reused_queries": 128
+      },
+      {
+        "attempt": 3,
+        "status": "completed",
+        "queries": 5,
+        "reused_queries": 256
+      }
+    ],
+    "passed": true,
+    "wire_queries": 2869,
+    "reused_after_completion": 261
+  },
+  "independent_run_http_cooldown": {
+    "passed": true,
+    "first_run": "20261018-194728-78682d8b",
+    "fresh_run": "20261018-194728-2c3af2c0",
+    "requests_before_cooldown": 1,
+    "requests_during_cooldown": 0,
+    "requests_after_expiry": 1
+  },
+  "migration_limit": "An old empty checkpoint .json.lock must be removed only after verifying the legacy producer has stopped. The checkpoint JSON is retained."
+}

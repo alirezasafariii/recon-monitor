@@ -590,32 +590,71 @@ class PolicySet:
         return matches
 
 
+# Schema version 18 was reused across releases with different incremental columns.
+# This revision records completion of the migrations in this source revision;
+# the numeric version alone cannot prove that upgrades have run.
+MIGRATION_REVISION = "recon-reliability-20261018-2"
+
+
 class Database:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
         self.conn = sqlite3.connect(path, timeout=30, isolation_level=None, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.execute("PRAGMA synchronous=NORMAL")
-        self.conn.execute("PRAGMA foreign_keys=ON")
-        self.conn.execute("PRAGMA busy_timeout=30000")
-        self.conn.execute("PRAGMA temp_store=MEMORY")
-        self._lock = threading.RLock()
-        self._managed_transaction_depth = 0
-        self._pending_audit_lines: list[str] = []
-        self.migrate()
+        try:
+            self.conn.row_factory = sqlite3.Row
+            # WAL mode is persisted in the database file. Re-setting it on every
+            # connection (particularly dashboard GET requests) can contend with
+            # active scan writers. Change the mode only on initial/legacy databases.
+            journal_mode = self.conn.execute("PRAGMA journal_mode").fetchone()
+            if not journal_mode or str(journal_mode[0]).lower() != "wal":
+                self.conn.execute("PRAGMA journal_mode=WAL")
+            self.conn.execute("PRAGMA synchronous=NORMAL")
+            self.conn.execute("PRAGMA foreign_keys=ON")
+            self.conn.execute("PRAGMA busy_timeout=30000")
+            self.conn.execute("PRAGMA temp_store=MEMORY")
+            self._lock = threading.RLock()
+            self._managed_transaction_depth = 0
+            self._pending_audit_lines: list[str] = []
+            self.migrate()
+        except BaseException:
+            self.conn.close()
+            raise
 
     def close(self) -> None:
         self.conn.close()
 
     def migrate(self) -> None:
+        # New dashboard connections must not re-run the full migration on
+        # every HTTP request. That migration includes unconditional UPDATEs
+        # and DDL and can compete for SQLite's single writer slot.
+        try:
+            row = self.conn.execute(
+                "SELECT value FROM schema_meta WHERE key='schema_version'"
+            ).fetchone()
+        except sqlite3.OperationalError as exc:
+            if "no such table: schema_meta" not in str(exc).lower():
+                raise
+            row = None
+        if row is not None and str(row[0]) == str(SCHEMA_VERSION):
+            revision = self.conn.execute(
+                "SELECT value FROM schema_meta WHERE key='migration_revision'"
+            ).fetchone()
+            if revision is not None and str(revision[0]) == MIGRATION_REVISION:
+                return
         self.conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS schema_meta (
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS http_host_cooldowns (
+              host TEXT PRIMARY KEY,
+              retry_not_before REAL NOT NULL,
+              source_run_id TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_http_host_cooldown_expiry
+              ON http_host_cooldowns(retry_not_before);
             CREATE TABLE IF NOT EXISTS runs (
               id TEXT PRIMARY KEY,
               version TEXT NOT NULL,
@@ -1734,6 +1773,13 @@ class Database:
             "INSERT INTO schema_meta(key,value) VALUES('schema_version',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (str(SCHEMA_VERSION),),
         )
+        # Set the revision marker last. A database built by an older release
+        # may already report schema_version=18 but lack incremental columns.
+        self.conn.execute(
+            "INSERT INTO schema_meta(key,value) VALUES('migration_revision',?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (MIGRATION_REVISION,),
+        )
 
     @contextlib.contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
@@ -1872,8 +1918,14 @@ class Database:
                 return amount, 0, True
             used = int(row["used"]) + amount
             limit_value = int(row["limit_value"])
-            self.execute("UPDATE run_budgets SET used=?,updated_at=? WHERE run_id=? AND target=? AND metric=?", (used,utc_now(),run_id,target,metric))
-        return used, limit_value, limit_value == 0 or used <= limit_value
+            # A rejected reservation must never poison a retry or a resumed run.
+            # Return the attempted total for BudgetExceeded diagnostics, but
+            # only persist usage when the reservation is actually admitted.
+            if limit_value and used > limit_value:
+                return used, limit_value, False
+            if amount:
+                self.execute("UPDATE run_budgets SET used=?,updated_at=? WHERE run_id=? AND target=? AND metric=?", (used, utc_now(), run_id, target, metric))
+        return used, limit_value, True
 
     def enqueue_work(self, run_id: str, target: str, stage: str, item_key: str, payload: Mapping[str, Any] | None = None) -> int:
         now = utc_now()
@@ -3097,6 +3149,7 @@ class CommandRunner:
         self.logger = logger
         self.db = db
         self._active: subprocess.Popen[str] | None = None
+        self._active_termination_grace_seconds = 3.0
         self._stop = threading.Event()
         self.next_check: Callable[[], bool] | None = None
         self.next_raise = True
@@ -3123,12 +3176,21 @@ class CommandRunner:
         self._stop.set()
         proc = self._active
         if proc:
+            grace = self._active_termination_grace_seconds
+            started = time.monotonic()
             self._signal_process_group(proc, signal.SIGTERM)
             try:
-                proc.wait(timeout=3)
+                proc.wait(timeout=grace)
             except subprocess.TimeoutExpired:
                 pass
-            # Descendants can still hold a pipe after the parent has exited.
+            # Checkpoint-aware tools need the full shutdown window,
+            # even when the group leader exits before its descendants.
+            # Preserve the existing prompt cancellation for other tools.
+            if grace > 3.0:
+                remaining = started + grace - time.monotonic()
+                if remaining > 0:
+                    time.sleep(remaining)
+            # Sweep the whole group, not just its original leader.
             self._signal_process_group(proc, signal.SIGKILL)
 
     def run(
@@ -3139,6 +3201,7 @@ class CommandRunner:
         env: Mapping[str, str] | None = None,
         env_unset: Sequence[str] = (),
         timeout: float | None = 600,
+        termination_grace_seconds: float = 1.0,
         output_path: Path | None = None,
         line_callback: Callable[[str, int], None] | None = None,
         heartbeat: Callable[[], None] | None = None,
@@ -3146,6 +3209,8 @@ class CommandRunner:
     ) -> CommandResult:
         if not args:
             raise ValueError("Empty command")
+        if not 0.0 < termination_grace_seconds <= 15.0:
+            raise ValueError("Invalid termination grace period")
         started = time.monotonic()
         lines = 0
         timed_out = False
@@ -3205,7 +3270,10 @@ class CommandRunner:
                         self._signal_process_group(proc, signal.SIGTERM)
                         # Preserve output during shutdown, then kill the entire
                         # group even if only a descendant is still running.
-                        finished.wait(1)
+                        # The main process can exit before its descendants.
+                        # Give cleanup its full grace period, then sweep
+                        # the entire group even if output pipes have closed.
+                        time.sleep(termination_grace_seconds)
                         self._signal_process_group(proc, signal.SIGKILL)
                     except OSError as exc:
                         # Report a real signal failure to the calling thread;
@@ -3232,6 +3300,9 @@ class CommandRunner:
                 text=True,
                 bufsize=1,
                 start_new_session=True,
+            )
+            self._active_termination_grace_seconds = max(
+                3.0, termination_grace_seconds
             )
             self._active = proc
             watcher = threading.Thread(target=watchdog, name="command-watchdog", daemon=True)
@@ -3292,7 +3363,7 @@ class CommandRunner:
                 if interrupted.is_set():
                     if proc.stdin is not None and not proc.stdin.closed:
                         close_pipe(proc.stdin)
-                    if time.monotonic() - interrupted_at >= 1.25:
+                    if time.monotonic() - interrupted_at >= termination_grace_seconds + 0.25:
                         # A detached descendant may retain a pipe beyond the
                         # process group's lifetime. Do not wait for its EOF.
                         self._signal_process_group(proc, signal.SIGKILL)
@@ -3335,7 +3406,11 @@ class CommandRunner:
                         self._signal_process_group(proc, signal.SIGKILL)
                 finally:
                     if watcher is not None and watcher.ident is not None:
-                        watcher.join(timeout=1.25)
+                        # Do not return before the final group cleanup.
+                        watcher.join(
+                            timeout=termination_grace_seconds + 0.75
+                            if interrupted.is_set() else 1.25
+                        )
             finally:
                 try:
                     if selector is not None:
@@ -3354,6 +3429,7 @@ class CommandRunner:
                             output_handle.close()
                     finally:
                         self._active = None
+                        self._active_termination_grace_seconds = 3.0
                         self._stop.clear()
         if shutdown_error is not None:
             raise shutdown_error

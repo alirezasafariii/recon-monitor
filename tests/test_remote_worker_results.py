@@ -206,6 +206,9 @@ class RemoteWorkerResultTests(unittest.TestCase):
             return self.api(paths, token, route, payload)
 
         for index, kind in enumerate(remote_worker.WORKER_CAPABILITIES):
+            # Each kind is an independent transport fixture. The separate
+            # shared-cooldown regressions verify blocking between claims.
+            db.execute("DELETE FROM http_host_cooldowns")
             work_id = db.enqueue_work(run_id, self.policy.name, "remote", str(index), self.payload(kind))
             error = urllib.error.HTTPError(self.URL, 429, "rate limited", {"Retry-After": "120"}, io.BytesIO(b"limited"))
             self.addCleanup(error.close)
@@ -258,10 +261,15 @@ class RemoteWorkerResultTests(unittest.TestCase):
 
     def test_retry_cooldown_does_not_starve_ready_work_on_later_claim_pages(self):
         paths, db, run_id, token = self.project()
-        for index in range(55):
-            work = self.claim(paths, db, run_id, token, key=str(index))
+        # These leases were already in flight when the first throttle arrived.
+        works = [self.claim(paths, db, run_id, token, key=str(index)) for index in range(55)]
+        for work in works:
             self.deliver(paths, token, work, self.result(429, "stopped_for_safety", transport_error="http_error"))
-        ready = self.claim(paths, db, run_id, token, key="ready")
+        payload = self.payload("http_head")
+        payload["url"] = "https://unrelated.example.test/"
+        work_id = db.enqueue_work(run_id, self.policy.name, "remote", "ready", payload)
+        ready = self.api(paths, token, "/api/v1/work/claim", {"worker_id": "worker"})
+        self.assertEqual(ready["id"], work_id)
         self.assertTrue(ready["lease_token"])
         self.assertEqual(db.one("SELECT count(*) FROM work_items WHERE status='retry_pending'")[0], 55)
 

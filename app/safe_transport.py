@@ -218,18 +218,22 @@ def perform_pinned_request(
             return _annotate_resolution(result, addresses, pinned_ip), "ok"
 
     except urllib.error.HTTPError as exc:
-        body = exc.read(max_response_bytes + 1) if method != "HEAD" else b""
-        if len(body) > max_response_bytes:
-            body = body[:max_response_bytes]
-        result = observation(method, url, int(exc.code), exc.headers, body, "http_error")
-        location = result.get("headers", {}).get("location", "")
-        if location:
-            redirected = urllib.parse.urljoin(url, location)
-            result["redirect_outside_scope"] = not policy.url_in_scope(redirected)
-        result = _annotate_resolution(result, addresses, pinned_ip)
-        if exc.code == 429:
-            return result, "stopped_for_safety"
-        return result, "ok"
+        try:
+            body = exc.read(max_response_bytes + 1) if method != "HEAD" else b""
+            if len(body) > max_response_bytes:
+                body = body[:max_response_bytes]
+            result = observation(method, url, int(exc.code), exc.headers, body, "http_error")
+            location = result.get("headers", {}).get("location", "")
+            if location:
+                redirected = urllib.parse.urljoin(url, location)
+                result["redirect_outside_scope"] = not policy.url_in_scope(redirected)
+            result = _annotate_resolution(result, addresses, pinned_ip)
+            if exc.code == 429:
+                return result, "stopped_for_safety"
+            return result, "ok"
+        finally:
+            with contextlib.suppress(Exception):
+                exc.close()
 
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         result = observation(method, url, 0, {}, b"", str(exc)[:500])
@@ -487,113 +491,122 @@ def perform_pinned_download(
                 )
 
         except urllib.error.HTTPError as exc:
-            status_code = int(exc.code or 0)
-            response_headers = exc.headers or {}
-            location = str(response_headers.get("Location", "") or "").strip()
-            if status_code in _REDIRECT_STATUSES and location:
-                next_url = urllib.parse.urljoin(current_url, location)
-                in_scope = bool(policy.url_in_scope(next_url))
-                current_parts = urllib.parse.urlsplit(current_url)
-                next_parts = urllib.parse.urlsplit(next_url)
-                downgrade = (
-                    current_parts.scheme.lower()=="https"
-                    and next_parts.scheme.lower()=="http"
-                )
+            try:
+                status_code = int(exc.code or 0)
+                response_headers = exc.headers or {}
+                location = str(response_headers.get("Location", "") or "").strip()
+                if status_code in _REDIRECT_STATUSES and location:
+                    next_url = urllib.parse.urljoin(current_url, location)
+                    in_scope = bool(policy.url_in_scope(next_url))
+                    current_parts = urllib.parse.urlsplit(current_url)
+                    next_parts = urllib.parse.urlsplit(next_url)
+                    downgrade = (
+                        current_parts.scheme.lower()=="https"
+                        and next_parts.scheme.lower()=="http"
+                    )
+                    hop_log.append(
+                        {
+                            "url": current_url,
+                            "resolved_addresses": addresses,
+                            "pinned_address": pinned_ip,
+                            "status_code": status_code,
+                            "location": location,
+                            "next_url": next_url,
+                            "result": (
+                                "redirect_scheme_downgrade"
+                                if downgrade
+                                else (
+                                    "redirect_in_scope"
+                                    if in_scope
+                                    else "redirect_outside_scope"
+                                )
+                            ),
+                        }
+                    )
+                    with contextlib.suppress(Exception):
+                        exc.close()
+                    if not in_scope:
+                        return _transport_result(
+                            original_url=original_url,
+                            final_url=current_url,
+                            status_code=status_code,
+                            headers=response_headers,
+                            error="redirect_outside_scope",
+                            transport_status="stopped_for_safety",
+                            resolved_addresses=addresses,
+                            pinned_address=pinned_ip,
+                            transport_hops=hop_log,
+                            redirect_outside_scope=True,
+                        )
+                    if downgrade:
+                        return _transport_result(
+                            original_url=original_url,
+                            final_url=current_url,
+                            status_code=status_code,
+                            headers=response_headers,
+                            error="redirect_scheme_downgrade_blocked",
+                            transport_status="stopped_for_safety",
+                            resolved_addresses=addresses,
+                            pinned_address=pinned_ip,
+                            transport_hops=hop_log,
+                        )
+                    if redirect_index >= redirect_limit:
+                        return _transport_result(
+                            original_url=original_url,
+                            final_url=current_url,
+                            status_code=status_code,
+                            headers=response_headers,
+                            error="redirect_limit_exceeded",
+                            transport_status="stopped_for_safety",
+                            resolved_addresses=addresses,
+                            pinned_address=pinned_ip,
+                            transport_hops=hop_log,
+                        )
+                    active_headers = _redirect_headers(
+                        active_headers,
+                        previous_url=current_url,
+                        next_url=next_url,
+                    )
+                    current_url = next_url
+                    continue
+
+                body = b""
+                body_error = ""
+                if max_bytes:
+                    try:
+                        body = exc.read(max_bytes + 1)
+                    except Exception:
+                        body_error = "response_read_failed"
+                    if len(body) > max_bytes:
+                        body = body[:max_bytes]
+                        body_error = "response_budget_exceeded"
                 hop_log.append(
                     {
                         "url": current_url,
                         "resolved_addresses": addresses,
                         "pinned_address": pinned_ip,
                         "status_code": status_code,
-                        "location": location,
-                        "next_url": next_url,
-                        "result": (
-                            "redirect_scheme_downgrade"
-                            if downgrade
-                            else (
-                                "redirect_in_scope"
-                                if in_scope
-                                else "redirect_outside_scope"
-                            )
-                        ),
+                        "result": "http_error",
                     }
                 )
+                return _transport_result(
+                    original_url=original_url,
+                    final_url=current_url,
+                    status_code=status_code,
+                    headers=response_headers,
+                    data=body,
+                    error=body_error or "http_error",
+                    transport_status=("stopped_for_safety" if status_code == 429 or body_error == "response_budget_exceeded"
+                                      else "error" if body_error else "ok"),
+                    resolved_addresses=addresses,
+                    pinned_address=pinned_ip,
+                    transport_hops=hop_log,
+                )
+
+
+            finally:
                 with contextlib.suppress(Exception):
                     exc.close()
-                if not in_scope:
-                    return _transport_result(
-                        original_url=original_url,
-                        final_url=current_url,
-                        status_code=status_code,
-                        headers=response_headers,
-                        error="redirect_outside_scope",
-                        transport_status="stopped_for_safety",
-                        resolved_addresses=addresses,
-                        pinned_address=pinned_ip,
-                        transport_hops=hop_log,
-                        redirect_outside_scope=True,
-                    )
-                if downgrade:
-                    return _transport_result(
-                        original_url=original_url,
-                        final_url=current_url,
-                        status_code=status_code,
-                        headers=response_headers,
-                        error="redirect_scheme_downgrade_blocked",
-                        transport_status="stopped_for_safety",
-                        resolved_addresses=addresses,
-                        pinned_address=pinned_ip,
-                        transport_hops=hop_log,
-                    )
-                if redirect_index >= redirect_limit:
-                    return _transport_result(
-                        original_url=original_url,
-                        final_url=current_url,
-                        status_code=status_code,
-                        headers=response_headers,
-                        error="redirect_limit_exceeded",
-                        transport_status="stopped_for_safety",
-                        resolved_addresses=addresses,
-                        pinned_address=pinned_ip,
-                        transport_hops=hop_log,
-                    )
-                active_headers = _redirect_headers(
-                    active_headers,
-                    previous_url=current_url,
-                    next_url=next_url,
-                )
-                current_url = next_url
-                continue
-
-            body = b""
-            if max_bytes:
-                with contextlib.suppress(Exception):
-                    body = exc.read(max_bytes + 1)
-                if len(body) > max_bytes:
-                    body = body[:max_bytes]
-            with contextlib.suppress(Exception):
-                exc.close()
-            hop_log.append(
-                {
-                    "url": current_url,
-                    "resolved_addresses": addresses,
-                    "pinned_address": pinned_ip,
-                    "status_code": status_code,
-                    "result": "http_error",
-                }
-            )
-            return _transport_result(
-                original_url=original_url,
-                final_url=current_url,
-                status_code=status_code,
-                headers=response_headers,
-                data=body,
-                error="http_error",
-                transport_status="stopped_for_safety" if status_code == 429 else "ok",
-                resolved_addresses=addresses,
-                pinned_address=pinned_ip,
-                transport_hops=hop_log,
-            )
 
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             hop_log.append(

@@ -354,13 +354,21 @@ class SourceMapResumeTests(unittest.TestCase):
         self.assertEqual(self.map_items(), [])
 
     def test_not_found_parent_has_no_map_subtask_and_resumes_without_requests(self):
-        with patch("stages._download_url", return_value={"url": self.URL, "status_code": 404, "not_found": True}):
+        with patch("stages._download_url", return_value={"url": self.URL, "status_code": 404, "not_found": True, "transport_status": "ok"}):
             first = stage_javascript(self.ctx)
         self.assertEqual(first["collection_status"], "completed")
         with patch("stages._download_url", side_effect=AssertionError("not-found parent requested")):
             second = stage_javascript(self.ctx)
         self.assertEqual(second["collection_status"], "completed")
         self.assertEqual(self.map_items(), [])
+
+    def test_legacy_absence_proof_is_revalidated_before_reuse(self):
+        self.first_failure({'url': self.MAP, 'status_code': 404, 'not_found': True, 'transport_status': 'ok'})
+        item = self.map_items()[0]
+        saved = json.loads(item['result_json'])
+        saved.pop('absence_proof_version')
+        self.db.execute('UPDATE work_items SET result_json=? WHERE id=?', (json.dumps(saved), item['id']))
+        self.assertEqual(self.resume_map()['source_maps'], 1)
 
     def test_map_subtask_identity_includes_parent_raw_hash_across_runs(self):
         self.complete()

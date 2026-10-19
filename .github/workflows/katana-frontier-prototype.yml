@@ -3,9 +3,17 @@ on:
   pull_request:
     paths:
       - 'app/stages.py'
+      - 'app/core.py'
+      - 'app/katana_runtime_contract.py'
+      - 'app/katana_run_preflight.py'
+      - 'recon-monitor.sh'
+      - 'install.sh'
+      - 'tools/install_project_katana.sh'
       - 'docs/prototypes/katana-v1.8.0-frontier.patch'
       - 'tools/katana_frontier*'
       - 'tools/katana_filtered_frontier*'
+      - 'tools/katana_stage_local_acceptance.py'
+      - 'tools/collection_scale_local_acceptance.py'
       - '.github/workflows/katana-frontier-prototype.yml'
 permissions:
   contents: read
@@ -27,6 +35,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
+      - name: Unpatched upstream Katana stage acceptance
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          test -z "$(git -C katana-source status --porcelain)"
+          (cd katana-source && go build -buildvcs=false -o /tmp/katana-upstream ./cmd/katana)
+          python tools/katana_stage_local_acceptance.py --stock-only --binary /tmp/katana-upstream --output /tmp/upstream-stage.json
       - name: Apply pinned producer patch
         run: |
           git -C katana-source apply --check ../docs/prototypes/katana-v1.8.0-frontier.patch
@@ -36,7 +51,7 @@ jobs:
           GOTOOLCHAIN: local
         run: |
           cd katana-source
-          go test -race -count=20 ./pkg/engine/common ./pkg/engine/standard ./pkg/utils/queue ./pkg/utils ./pkg/engine/parser -run 'Test(ReconCheckpoint|ParsingContent|OriginContent|Tracked|ReconCompletion|ReconDiagnostics|ReconProvenance|Script)'
+          go test -race -count=20 ./pkg/engine/common ./pkg/engine/standard ./pkg/utils/queue ./pkg/utils ./pkg/engine/parser ./internal/runner -run 'Test(ReconExecution|ReconCheckpoint|ParsingContent|OriginContent|Tracked|ReconCompletion|ReconDiagnostics|ReconProvenance|Script)'
           go build -buildvcs=false -o /tmp/katana-frontier ./cmd/katana
           cd ..
           python tools/katana_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier.json
@@ -47,3 +62,4 @@ jobs:
           python tools/katana_provenance_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/provenance.json
           python tools/katana_filtered_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/filtered-frontier.json
           python tools/katana_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/stage.json
+          python tools/collection_scale_local_acceptance.py --binary /tmp/katana-frontier --origins 200 --chunk 40 --output /tmp/scale-200.json
