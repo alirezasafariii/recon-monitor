@@ -287,6 +287,20 @@ def case_autopilot_queue(db: Database, *, target: str = "", limit: int = 100, pe
     return out
 
 
+def _context_auth_state(label: str, observations: Iterable[Any]) -> str:
+    """Resolve observed login state without treating a context name as proof.
+
+    Explicit public labels declare an anonymous context. All other labels are
+    descriptive only; metadata-only captures and identity names cannot establish
+    authentication. Conflicting observations remain unknown.
+    """
+    states = {str(state or "").strip().lower() for state in observations}
+    states &= {"anonymous", "authenticated"}
+    if label.strip().lower() in {"anonymous", "anon", "public", "unauthenticated"}:
+        states.add("anonymous")
+    return next(iter(states)) if len(states) == 1 else "unknown"
+
+
 def authentication_contexts(db: Database, *, target: str = "", analysis_id: str = "", persist: bool = True) -> list[dict[str, Any]]:
     analysis_id = analysis_id or _latest_analysis(db, target)
     targets = [target] if target else [str(r["target"]) for r in db.all("SELECT DISTINCT target FROM behavioral_observations WHERE analysis_id=? ORDER BY target", (analysis_id,))]
@@ -301,6 +315,7 @@ def authentication_contexts(db: Database, *, target: str = "", analysis_id: str 
                 if row["status_code"] is not None: item["statuses"].add(int(row["status_code"]))
                 if row["shape_hash"]: item["shape_hashes"].add(str(row["shape_hash"]))
                 item["confidence"].append(int(row["confidence"] or 0))
+                item.setdefault("auth_states", set()).add(row["auth_state"])
             for row in db.all("SELECT entity_type,entity_value,confidence FROM identity_entities WHERE analysis_id=? AND target=?", (analysis_id, tgt)):
                 if str(row["entity_type"]).lower() in {"identity", "role", "auth_context", "principal", "user"}:
                     label = str(row["entity_value"] or "unknown")
@@ -315,6 +330,7 @@ def authentication_contexts(db: Database, *, target: str = "", analysis_id: str 
             if obs.get("status_code") is not None: item["statuses"].add(int(obs["status_code"]))
             if obs.get("shape_hash"): item["shape_hashes"].add(str(obs["shape_hash"]))
             item["sources"].add("imported_http")
+            item.setdefault("auth_states", set()).add(str(obs.get("auth_state") or ""))
         if _table_exists(db, "browser_capture_events"):
             for row in db.all("SELECT context_label,url,status_code,metadata_json FROM browser_capture_events WHERE target=? ORDER BY created_at DESC LIMIT 500", (tgt,)):
                 label = str(row["context_label"] or "").strip()
@@ -332,8 +348,7 @@ def authentication_contexts(db: Database, *, target: str = "", analysis_id: str 
                 item["confidence"].append(70)
                 item["sources"].add("browser_capture")
         for label, item in sorted(contexts.items()):
-            lower = label.lower()
-            auth_state = "anonymous" if lower in {"anonymous", "anon", "public", "unauthenticated"} else "authenticated"
+            auth_state = _context_auth_state(label, item.get("auth_states", ()))
             confidence = _clamp(sum(item["confidence"]) / max(1, len(item["confidence"])) if item["confidence"] else 60)
             result = {
                 "target": tgt,
@@ -408,7 +423,10 @@ def recon_coverage(db: Database, *, target: str, run_id: str = "", persist: bool
         if "skipped" in metrics: return 25
         return 100
     analysis_id = _latest_analysis(db, target)
-    auth_context_count = len(authentication_contexts(db, target=target, analysis_id=analysis_id, persist=False)) if analysis_id else 0
+    auth_context_count = sum(
+        context["auth_state"] == "authenticated"
+        for context in authentication_contexts(db, target=target, analysis_id=analysis_id, persist=False)
+    ) if analysis_id else 0
     endpoint_count = int((db.one("SELECT COUNT(*) c FROM endpoint_intelligence WHERE target=?", (target,)) or {"c": 0})["c"])
     shape_count = int((db.one("SELECT COUNT(*) c FROM response_shape_fingerprints WHERE analysis_id=? AND target=?", (analysis_id, target)) or {"c": 0})["c"]) if analysis_id else 0
     components = {

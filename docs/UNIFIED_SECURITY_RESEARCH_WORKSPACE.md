@@ -40,6 +40,21 @@ Report Builder links claims to persisted evidence records and redacted observati
 
 Browser Capture accepts metadata only: URL, method, status, content type, navigation type, response-shape metadata and an analyst-supplied context label. Sensitive query keys are redacted and secret headers are ignored.
 
+Context names such as `browser-observed` or `Account A`, HTTP 200 responses and
+identity/role names do not establish a logged-in session. Authentication profiles
+preserve explicit behavioral/imported `auth_state` observations; missing or
+conflicting state is `unknown`. An explicitly public/anonymous label declares an
+anonymous context. Only profiles with an observed `authenticated` state count
+towards authenticated-context and role-comparison coverage.
+
+After updating an installation with previously imported captures, recompute its
+profiles and coverage without reimporting the capture or changing scan status:
+
+```bash
+./recon-monitor.sh workspace contexts --target example.com
+./recon-monitor.sh workspace coverage --target example.com
+```
+
 ## Operator UX
 
 The v7 dashboard provides a Cockpit, Universal Search, Command Palette (`⌘K`), structured Error IDs, Diagnostics & Repair and Safety Center. Safe repair is preview-first and limited to stale execution state and expired local sessions; it does not delete evidence/cases/targets/output.
