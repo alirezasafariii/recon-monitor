@@ -84,6 +84,7 @@ class StageContext:
     download_max_redirects: int = 3
     request_gate: Callable[[str], None] | None = None
     response_gate: Callable[[int], None] | None = None
+    resume_failed_work: bool = False
 
     def next_requested(self) -> bool:
         callback = getattr(self.runner, "next_check", None)
@@ -2090,7 +2091,9 @@ def _prepare_javascript_derived_differentials(
     return signals, meta
 
 
-def _select_javascript_urls(urls: Iterable[str], max_files: int) -> tuple[list[str], list[str]]:
+def _select_javascript_urls(
+    urls: Iterable[str], max_files: int, *, attempts: Mapping[str, int] | None = None,
+) -> tuple[list[str], list[str]]:
     """Choose a deterministic host-balanced subset without losing the backlog.
 
     A single host's many paths must not consume the whole per-run JS quota.
@@ -2098,6 +2101,20 @@ def _select_javascript_urls(urls: Iterable[str], max_files: int) -> tuple[list[s
     URLs separately so the collection remains explicitly partial.
     """
     candidates = sorted(set(urls))
+    if attempts:
+        # A failing lexical prefix must not monopolize every resumed batch.
+        # Keep host balancing within each attempt tier, starting with new work.
+        tiers: dict[int, list[str]] = {}
+        for url in candidates:
+            tiers.setdefault(max(0, int(attempts.get(url, 0))), []).append(url)
+        selected: list[str] = []
+        for tier in sorted(tiers):
+            if len(selected) >= max_files:
+                break
+            batch, _ = _select_javascript_urls(tiers[tier], max_files - len(selected))
+            selected.extend(batch)
+        selected_set = set(selected)
+        return selected, [url for url in candidates if url not in selected_set]
     by_host: dict[str, list[str]] = {}
     for url in candidates:
         host = (urllib.parse.urlsplit(url).hostname or "").lower()
@@ -2123,6 +2140,46 @@ def _select_javascript_urls(urls: Iterable[str], max_files: int) -> tuple[list[s
     selected_set = set(selected)
     unselected = [url for url in candidates if url not in selected_set]
     return selected, unselected
+
+
+def _retryable_javascript_error(result: Mapping[str, Any]) -> bool:
+    """Retry transient failures only; access, scope and budget limits persist."""
+    if any(result.get(key) for key in ('operator_next', 'truncated', 'redirect_outside_scope')):
+        return False
+    error = str(result.get('error') or '').lower()
+    if any(token in error for token in ('budget', 'scope', 'non_public', 'operator_next', 'cooldown')):
+        return False
+    status = int(result.get('status_code') or 0)
+    if status in {408, 425, 500, 502, 503, 504}:
+        return True
+    return status == 0 and any(token in error for token in (
+        'timed out', 'timeout', 'connection reset', 'connection refused',
+        'connection aborted', 'broken pipe', 'temporary failure',
+    ))
+
+
+def _javascript_resume_hint(reasons: list[str], failures: list[dict[str, Any]]) -> str:
+    if not reasons:
+        return 'none'
+    hints = []
+    statuses = {int(row.get('status_code') or 0) for row in failures}
+    if 400 in statuses:
+        hints.append('HTTP 400: refresh the failed URL or check site access before resuming')
+    if statuses & {401, 403}:
+        hints.append('HTTP 401/403: check the permitted access context before resuming')
+    if 429 in statuses or any('cooldown' in str(row.get('error') or '') for row in failures):
+        hints.append('Wait for the shared host cooldown before resuming')
+    if any('budget' in str(row.get('error') or '').lower() for row in failures):
+        hints.append('Review budget usage and configured limits before resuming')
+    if 'upstream_url_collection_partial' in reasons:
+        hints.append('Resume unfinished URL collection first')
+    if 'url_selection_limit' in reasons:
+        hints.append('Review the URL limit before resuming URL collection')
+    if 'javascript_file_limit' in reasons:
+        hints.append('Resume the next batch; verified files are reused')
+    if not hints:
+        hints.append('Resume pending work; inspect javascript-errors.jsonl and source-map-work.jsonl')
+    return '; '.join(hints)
 
 
 HTTP_ABSENCE_PROOF_VERSION = 2
@@ -2183,6 +2240,8 @@ def _source_map_work(
     })
     row = ctx.db.one("SELECT * FROM work_items WHERE id=?", (work_id,))
     saved = safe_json_loads(row["result_json"], {}, expected_type=dict)
+    if row['status'] == 'failed' and ctx.resume_failed_work:
+        queue.reopen(work_id, 'Retrying failed Source Map work in a new stage attempt')
     if row["status"] == "completed":
         try:
             if (saved.get("status") == "not_found"
@@ -2301,6 +2360,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
     # parents remain in the cumulative evidence but cannot starve the backlog.
     new_selection, unselected_js_urls = _select_javascript_urls(
         set(classified_js_urls) - verified_completed, ctx.policy.limits.max_js_files,
+        attempts={url: int(row['attempts']) for url, row in work_rows.items()},
     )
     js_urls = sorted(verified_completed | set(new_selection))
     prior_changes = {}
@@ -2342,7 +2402,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         "javascript_discovered": selection.get("javascript_candidates"),
         "javascript_dropped_by_url_limit": dropped_js,
         "javascript_dropped_by_file_limit": len(unselected_js_urls),
-        "javascript_selection_method": "host_round_robin_lexical_within_host",
+        "javascript_selection_method": "least_attempted_then_host_round_robin_lexical",
         "javascript_selected_hosts": len({
             urllib.parse.urlsplit(url).hostname for url in js_urls
         }),
@@ -2397,6 +2457,8 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             "downloaded": 0,
             "collection_status": "partial" if input_issues else "no_input",
             "collection_reasons": input_issues or ["no_javascript_urls_classified"],
+            "completion_blockers": ', '.join(input_issues) or 'no_javascript_urls_classified',
+            "completion_next_action": 'Resume URL collection to repair missing or incomplete inputs' if input_issues else 'none',
             "zero_download_reasons": input_issues or ["no_javascript_urls_classified"],
             "download_attempts": 0,
             "reused_work_items": 0,
@@ -2444,18 +2506,24 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
         row = work_rows.get(url)
         stored_result = safe_json_loads(row["result_json"], {}, expected_type=dict) if row else {}
         if row and row["status"] == "failed":
-            status = stored_result.get("status_code")
             if _verified_not_found(ctx, url, stored_result):
                 work_queue.reopen(work_id, "Processing remote not-found observation")
                 if work_queue.start(work_id, "local-js"):
                     results.append({**stored_result, "url": url, "final_url": stored_result.get("final_url") or stored_result["url"], "not_found": True})
                 else:
                     deferred_urls.append(url)
+                continue
             else:
-                results.append({"url": url, "error": row["error"] or "Remote work failed", "status_code": status or 0,
-                                "transport_status": stored_result.get("transport_status", "")})
-                work_ids.pop(url)
-            continue
+                if not ctx.resume_failed_work:
+                    results.append({"url": url, "error": row['error'] or 'Remote work failed',
+                                    "status_code": int(stored_result.get('status_code') or 0),
+                                    "transport_status": stored_result.get('transport_status', '')})
+                    work_ids.pop(url)
+                    continue
+                if not work_queue.reopen(work_id, "Retrying failed JavaScript work in a new stage attempt"):
+                    deferred_urls.append(url)
+                    work_ids.pop(url)
+                    continue
         if not work_queue.start(work_id, "local-js"):
             deferred_urls.append(url)
             continue
@@ -2744,6 +2812,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                         )
                     ),
                     retry=True,
+                    result=errors[-1],
                 )
 
             continue
@@ -2788,7 +2857,7 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
                 error=error_text,
             )
             if url in work_ids:
-                work_queue.fail(work_ids[url], error_text, retry=True)
+                work_queue.fail(work_ids[url], error_text, retry=True, result=errors[-1])
                 store.drop_reference("work_item", str(work_ids[url]))
             continue
         downloaded += 1
@@ -3263,10 +3332,21 @@ def stage_javascript(ctx: StageContext) -> dict[str, Any]:
             zero_download_reasons.append("not_found")
         if len(pending_urls) < len(js_urls):
             zero_download_reasons.append("already_processed")
+    failed_maps = [row for row in source_map_work_rows if row.get('work_status') != 'completed']
+    http_status_counts = {
+        str(status): sum(int(row.get('status_code') or 0) == status for row in errors + failed_maps)
+        for status in sorted({int(row.get('status_code') or 0) for row in errors + failed_maps})
+    }
     return {
         **input_metrics,
         "collection_status": "partial" if collection_reasons else "completed",
         "collection_reasons": collection_reasons,
+        "completion_blockers": ', '.join(collection_reasons) or 'none',
+        "completion_next_action": _javascript_resume_hint(collection_reasons, errors + failed_maps),
+        "retryable_collection_errors": sum(_retryable_javascript_error(row) for row in errors)
+            + sum(_retryable_javascript_error(row) for row in failed_maps),
+        "download_http_status_counts": http_status_counts,
+        "download_http_status_summary": ', '.join(f'HTTP {code}={count}' for code, count in http_status_counts.items()) or 'none',
         "zero_download_reasons": zero_download_reasons,
         "download_attempts": len(download_urls),
         "reused_work_items": len(js_urls) - len(pending_urls),

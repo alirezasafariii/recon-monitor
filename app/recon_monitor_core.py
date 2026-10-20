@@ -312,6 +312,9 @@ class Orchestrator:
                 # orchestration result so downstream stages can still run.
                 collection_status = str(metrics.get("collection_status") or "")
                 persisted_status = "partial" if collection_status == "partial" else "success"
+                if stage_name == 'javascript':
+                    metrics['collection_attempt'] = attempt
+                    metrics['collection_attempt_limit'] = attempts
                 self.db.stage_finish(
                     ctx.run_id,
                     ctx.policy.name,
@@ -325,6 +328,16 @@ class Orchestrator:
                     "no-input" if collection_status == "no_input" else "ok"
                 )
                 self.progress.finish_stage(progress_status, metrics)
+                if (stage_name == 'javascript' and persisted_status == 'partial'
+                        and int(metrics.get('retryable_collection_errors') or 0) > 0
+                        and 'operator_next' not in metrics.get('collection_reasons', [])
+                        and attempt < attempts):
+                    delay = min(30, 2 ** (attempt - 1))
+                    self.progress.message(
+                        f"  Retrying unfinished JavaScript work in {delay}s ({attempt}/{attempts})…"
+                    )
+                    time.sleep(delay)
+                    continue
                 return "success", metrics
             except NextStageRequested:
                 # The active tool's stdout has already been flushed to its
@@ -439,6 +452,7 @@ class Orchestrator:
                     self.allow_active,
                     BudgetManager.create(self.db, run_id, policy.name, policy),
                     self.db_writer,
+                    resume_failed_work=bool(resume_id),
                 )
                 target_failed = False
                 target_partial = False
@@ -529,7 +543,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("setup", help="Interactive target and module setup wizard")
     run = sub.add_parser("run", help="Run recon monitoring")
     run.add_argument("--target", help="Policy name or root domain")
-    run.add_argument("--resume", help="Resume an interrupted/failed run ID")
+    run.add_argument("--resume", help="Resume a partial, interrupted, or failed run ID")
     run.add_argument("--allow-active", action="store_true", help="Satisfy the CLI gate for already-authorized active modules")
     run.add_argument("--dry-run", action="store_true", help="Preview scope, modules, limits, and budgets without network requests")
     run.add_argument("--json-plan", action="store_true", help="Print dry-run plan as JSON")
