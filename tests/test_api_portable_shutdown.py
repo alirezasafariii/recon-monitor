@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -397,6 +398,15 @@ class LocalAPIServerShutdownTests(unittest.TestCase):
              patch.object(api.os, "kill", side_effect=probe):
             pid = api.start_api(self.paths, "127.0.0.1", 0)
             self.assertEqual(pid, children[0].pid)
+            # start_api returns a process locator, not a server-ready receipt.
+            # Cold imports on Intel macOS can exceed the shutdown deadline;
+            # measure shutdown only after the fixture has bound its listener.
+            log_path = api.api_paths(self.paths)[1]
+            ready_deadline = time.monotonic() + 15
+            while "ready" not in log_path.read_text().splitlines():
+                if children[0].poll() is not None or time.monotonic() >= ready_deadline:
+                    self.fail(f"Fixture did not become ready: {log_path.read_text()!r}")
+                time.sleep(.05)
             if sys.platform == "darwin":
                 active, detail = api.api_status(self.paths)
                 self.assertTrue(active, detail)
