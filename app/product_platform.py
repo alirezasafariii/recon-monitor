@@ -11,6 +11,7 @@ from typing import Any, Iterable
 
 from core import APP_VERSION, AppPaths, Database, ReconError, json_dumps, parse_int, safe_json_loads, utc_now
 from notification_operations_center import notification_delivery_operations
+from scan_coverage import COVERAGE_VERSION, stage_coverage
 
 PLATFORM_VERSION = "6.0.5"
 
@@ -113,7 +114,8 @@ def run_completeness_snapshot(db: Database, run_id: str | None = None, *, refres
     run_id = run_id or _latest_run(db)
     if not run_id:
         return {"run_id": "", "score": 0, "dimensions": {}, "warnings": ["No runs available."]}
-    cache_key = f"completeness:{db.path}:{run_id}"
+    revision = _completeness_revision(db, run_id)
+    cache_key = f"completeness:{db.path}:{run_id}:{revision}"
     if not refresh:
         cached = _memo_get(cache_key, 120)
         if cached is not None:
@@ -121,7 +123,8 @@ def run_completeness_snapshot(db: Database, run_id: str | None = None, *, refres
         row = db.one("SELECT score,metrics_json,created_at FROM run_completeness WHERE run_id=?", (run_id,))
         if row:
             payload = _loads(row["metrics_json"], {})
-            if isinstance(payload, dict) and payload:
+            if (isinstance(payload, dict) and payload.get("coverage_version") == COVERAGE_VERSION
+                    and payload.get("stage_revision") == revision):
                 payload = dict(payload)
                 payload["snapshot_created_at"] = row["created_at"]
                 return _memo_set(cache_key, payload)
@@ -611,35 +614,61 @@ def scope_center(paths: AppPaths, db: Database, *, persist: bool = False) -> dic
     return {"policy_schema":policy.get("schema",0) if isinstance(policy,dict) else 0,"targets":targets,"defaults":defaults,"generated_at":now}
 
 
+def _completeness_revision(db: Database, run_id: str) -> str:
+    rows = [dict(row) for row in db.all(
+        "SELECT target,stage,status,metrics_json,error,finished_at FROM stage_runs "
+        "WHERE run_id=? ORDER BY target,stage", (run_id,),
+    )]
+    for row in rows:
+        if row["stage"] == "report":
+            metrics = _loads(row.get("metrics_json"), {})
+            row["metrics_json"] = {key: metrics[key] for key in ("collection_status", "skipped") if key in metrics}
+    targets = [dict(row) for row in db.all(
+        "SELECT target FROM run_targets WHERE run_id=? ORDER BY target", (run_id,),
+    )]
+    return hashlib.sha256(json_dumps([targets, rows]).encode()).hexdigest()
+
+
 def run_completeness(db: Database, run_id: str | None = None, *, persist: bool = True) -> dict[str, Any]:
     run_id=run_id or _latest_run(db)
     if not run_id:return {"run_id":"","score":0,"dimensions":{}}
     stages=[dict(row) for row in db.all("SELECT target,stage,status,metrics_json,error FROM stage_runs WHERE run_id=?",(run_id,))]
-    expected={"subdomains","dns","urls","javascript","endpoint_validation","fingerprint","ports","nuclei","report"}
-    by_stage={stage:[] for stage in expected}
-    for row in stages: by_stage.setdefault(str(row["stage"]),[]).append(row)
-    dimensions={}
     weights={"subdomains":12,"dns":10,"urls":12,"javascript":18,"endpoint_validation":10,"fingerprint":15,"ports":4,"nuclei":4,"report":15}
-    total_weight=0; earned=0
+    targets = {str(row["target"]) for row in db.all("SELECT target FROM run_targets WHERE run_id=?", (run_id,))}
+    targets.update(str(row["target"]) for row in stages)
+    by_target = {(str(row["target"]), str(row["stage"])): row for row in stages}
+    dimensions = {}
+    total_weight = earned = execution_earned = 0
     for stage,weight in weights.items():
-        rows=by_stage.get(stage,[])
-        if not rows:
-            status="not_observed"; score=0
-        else:
-            success=sum(1 for row in rows if row["status"] in {"success","skipped"})
-            failed=sum(1 for row in rows if row["status"]=="failed")
-            score=round(success/max(1,len(rows))*100)
-            status="complete" if score==100 and not failed else "partial" if score>0 else "failed"
-        dimensions[stage]={"status":status,"score":score,"weight":weight,"records":len(rows)}
-        # Optional active stages do not penalize completeness when explicitly skipped/not configured.
-        if stage in {"ports","nuclei"} and (not rows or all(row["status"]=="skipped" for row in rows)): continue
-        total_weight+=weight; earned+=score*weight/100
+        rows = [row for row in stages if row["stage"] == stage]
+        observations = {target: stage_coverage(stage, by_target.get((target, stage), {})) for target in sorted(targets)}
+        applicable = [value for value in observations.values() if value["status"] != "skipped"]
+        if stage in {"ports", "nuclei"} and not rows:
+            applicable = []
+        score = round(sum(value["score"] for value in applicable) / max(1, len(applicable)))
+        execution_score = round(sum(value["execution_score"] for value in applicable) / max(1, len(applicable)))
+        states = {value["status"] for value in (applicable or list(observations.values()))}
+        status = (next(iter(states)) if len(states) == 1 else "partial") if states else "not_observed"
+        dimensions[stage] = {"status": status, "score": score, "execution_score": execution_score,
+                             "weight": weight, "records": len(rows), "targets": observations}
+        if applicable:
+            total_weight += weight
+            earned += score * weight / 100
+            execution_earned += execution_score * weight / 100
     score=round(earned/max(1,total_weight)*100)
     warnings=[]
     if dimensions["javascript"]["score"]<60:warnings.append("JavaScript coverage is incomplete.")
     if dimensions["endpoint_validation"]["score"]<40:warnings.append("Endpoint validation coverage is limited; behavioral conclusions may be sparse.")
-    if dimensions["report"]["score"]<100:warnings.append("Run finalization/report stage is incomplete.")
-    payload={"run_id":run_id,"score":score,"dimensions":dimensions,"warnings":warnings,"generated_at":utc_now()}
+    if dimensions["report"]["status"] == "running":
+        warnings.append("Report generation is still running; this is a provisional snapshot.")
+    elif dimensions["report"]["status"] not in {"complete", "skipped"}:
+        warnings.append("Run finalization/report stage is incomplete.")
+    if any(value["status"] == "access_restricted" for dimension in dimensions.values() for value in dimension["targets"].values()):
+        warnings.append("HTTP 401/403 restricted content visibility; successful execution does not establish application coverage.")
+    payload={"run_id":run_id,"score":score,"dimensions":dimensions,"warnings":warnings,"generated_at":utc_now(),
+             "execution_score":round(execution_earned/max(1,total_weight)*100),
+             "coverage_version":COVERAGE_VERSION, "stage_revision":_completeness_revision(db, run_id),
+             "score_semantics":"Configured-stage collection visibility; not a percentage of the site's content or security testing."}
     if persist: db.execute("INSERT OR REPLACE INTO run_completeness(run_id,score,metrics_json,created_at) VALUES(?,?,?,?)",(run_id,score,json_dumps(payload),utc_now()))
     return payload
 

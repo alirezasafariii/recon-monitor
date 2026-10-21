@@ -13,6 +13,7 @@ from product_platform import (
     list_cases,
     operations_center,
     run_completeness_snapshot,
+    run_completeness,
     storage_health_snapshot,
 )
 
@@ -68,12 +69,11 @@ class DashboardPerformanceV501Tests(unittest.TestCase):
 
     def test_run_and_storage_snapshots_are_reused(self) -> None:
         self.db.execute("INSERT INTO runs(id,version,status,started_at,target_count) VALUES('R1','5.1.0','success','2026-01-01',1)")
-        run_payload = {"run_id": "R1", "score": 88, "dimensions": {}, "warnings": []}
-        self.db.execute("INSERT INTO run_completeness(run_id,score,metrics_json,created_at) VALUES(?,?,?,?)", ("R1", 88, json.dumps(run_payload), "2026-01-01"))
+        run_payload = run_completeness(self.db, "R1", persist=True)
         storage_payload = {"estimated_total_bytes": 1234, "retention_preview": {}}
         self.db.execute("INSERT INTO storage_snapshots(metrics_json,created_at) VALUES(?,?)", (json.dumps(storage_payload), "2026-01-01"))
         with mock.patch("product_platform.run_completeness", side_effect=AssertionError("recompute should not run")):
-            self.assertEqual(run_completeness_snapshot(self.db, "R1")["score"], 88)
+            self.assertEqual(run_completeness_snapshot(self.db, "R1")["score"], run_payload["score"])
         with mock.patch("product_platform.storage_health", side_effect=AssertionError("tree scan should not run")):
             self.assertEqual(storage_health_snapshot(self.paths, self.db)["estimated_total_bytes"], 1234)
 

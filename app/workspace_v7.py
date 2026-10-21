@@ -16,6 +16,7 @@ from typing import Any, Iterable
 
 from core import APP_VERSION, SCHEMA_VERSION, AppPaths, Config, Database, ReconError, json_dumps, safe_json_loads, sha256_text, utc_now
 from family_reasoning import DEFAULT_CASE_REQUIREMENTS, FAMILY_REASONING, case_requirement_map
+from scan_coverage import stage_coverage
 
 WORKSPACE_V7_VERSION = APP_VERSION
 
@@ -418,16 +419,15 @@ def recon_coverage(db: Database, *, target: str, run_id: str = "", persist: bool
     def stage_score(name: str) -> int:
         row = stages.get(name)
         if not row: return 0
-        if str(row.get("status")) != "success": return 20 if str(row.get("status")) == "skipped" else 0
-        metrics = _loads(row.get("metrics_json"), {})
-        if "skipped" in metrics: return 25
-        return 100
-    analysis_id = _latest_analysis(db, target)
+        return int(stage_coverage(name, row)["score"])
+    analysis_row = db.one("SELECT id FROM analysis_runs WHERE source_run_id=? AND target IN (?, '*') "
+                          "AND status='success' ORDER BY finished_at DESC LIMIT 1", (run_id, target))
+    analysis_id = str(analysis_row["id"]) if analysis_row else ""
     auth_context_count = sum(
         context["auth_state"] == "authenticated"
         for context in authentication_contexts(db, target=target, analysis_id=analysis_id, persist=False)
     ) if analysis_id else 0
-    endpoint_count = int((db.one("SELECT COUNT(*) c FROM endpoint_intelligence WHERE target=?", (target,)) or {"c": 0})["c"])
+    endpoint_count = int((db.one("SELECT COUNT(*) c FROM endpoint_intelligence WHERE target=? AND last_run_id=?", (target, run_id)) or {"c": 0})["c"])
     shape_count = int((db.one("SELECT COUNT(*) c FROM response_shape_fingerprints WHERE analysis_id=? AND target=?", (analysis_id, target)) or {"c": 0})["c"]) if analysis_id else 0
     components = {
         "subdomain": stage_score("subdomains"),

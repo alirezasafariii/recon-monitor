@@ -2566,7 +2566,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         backups=''.join(f"<tr><td><code>{_esc(row['backup_id'])}</code></td><td>{_esc(row['created_at'])}</td><td>{_esc(row['verified_at'] or 'not verified')}</td><td>{row['size']}</td></tr>" for row in data.get('backups',[]))
         schedules=''.join(f"<tr><td>{_esc(row['target'])}</td><td>{_esc(row['cadence'])}</td><td>{_pill('active' if row['enabled'] else 'disabled')}</td><td>{row['request_budget']}</td><td>{row['max_runtime_minutes']} min</td></tr>" for row in data.get('schedules',[]))
         header=_page_header('Operations center','Program health plus a unified control plane for Finding and Recon Alert delivery. Queue and lifecycle state remain independent.',"<a class='button secondary' href='/operations-center?refresh=1'>Run deep refresh</a><a class='button secondary' href='/storage-health'>Storage health</a><a class='button' href='/scope-center'>Scope center</a>",f'Recon Monitor {APP_VERSION} · Cached daily operations')
-        metrics="<div class='metrics-grid'>"+_metric_card('Program health',data.get('program_health_score',0),'Database, runs, backups, delivery and engine quality','success' if data.get('program_health_score',0)>=75 else 'amber')+_metric_card('Notification supervisor',supervisor.get('state','unknown'),f"last: {supervisor.get('last_status','never_run')}",'danger' if supervisor.get('state')=='degraded' else 'amber' if supervisor.get('state')=='disabled' else 'success')+_metric_card('Delivery backlog',delivery.get('queue_depth',0),f"{delivery.get('due_now',0)} due now",'amber' if delivery.get('due_now',0) else 'success')+_metric_card('Dead letters',delivery.get('dead_letter_open',0),'Finding + Recon Alert delivery','danger' if delivery.get('dead_letter_open',0) else 'success')+_metric_card('Run completeness',f"{completeness.get('score',0)}%",data.get('latest_run') or 'No run','info')+_metric_card('Engine health',quality.get('health_score',0),'Quality and backlog health','purple')+_metric_card('Failed stages',data.get('failed_stages',0),'Historical failed stage records','danger' if data.get('failed_stages',0) else 'success')+_metric_card('Storage',f"{round(storage.get('estimated_total_bytes',0)/1024/1024,1)} MB",'Estimated managed data','blue')+_metric_card('Backups',len(data.get('backups',[])),'Catalogued recent backups','orange')+"</div>"
+        metrics="<div class='metrics-grid'>"+_metric_card('Program health',data.get('program_health_score',0),'Database, runs, backups, delivery and engine quality','success' if data.get('program_health_score',0)>=75 else 'amber')+_metric_card('Notification supervisor',supervisor.get('state','unknown'),f"last: {supervisor.get('last_status','never_run')}",'danger' if supervisor.get('state')=='degraded' else 'amber' if supervisor.get('state')=='disabled' else 'success')+_metric_card('Delivery backlog',delivery.get('queue_depth',0),f"{delivery.get('due_now',0)} due now",'amber' if delivery.get('due_now',0) else 'success')+_metric_card('Dead letters',delivery.get('dead_letter_open',0),'Finding + Recon Alert delivery','danger' if delivery.get('dead_letter_open',0) else 'success')+_metric_card('Collection visibility',f"{completeness.get('score',0)}%",f"Execution: {completeness.get('execution_score',0)}% · configured stages",'info')+_metric_card('Engine health',quality.get('health_score',0),'Quality and backlog health','purple')+_metric_card('Failed stages',data.get('failed_stages',0),'Historical failed stage records','danger' if data.get('failed_stages',0) else 'success')+_metric_card('Storage',f"{round(storage.get('estimated_total_bytes',0)/1024/1024,1)} MB",'Estimated managed data','blue')+_metric_card('Backups',len(data.get('backups',[])),'Catalogued recent backups','orange')+"</div>"
 
         def worker_panel(key,label):
             worker=dict(workers.get(key) or {}); policy=dict(worker.get('policy') or {}); last=dict(worker.get('last_worker_run') or {})
@@ -2764,7 +2764,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             # stage_begin retains the preceding attempt's metrics and duration
             # until stage_finish writes this attempt's result.
             if raw_status == 'running': metrics = {}
+            if isinstance(metrics.get("coverage_audit"), dict):
+                metrics.update(metrics["coverage_audit"])
+                metrics["collection_reasons"] = sorted(set(metrics.get("collection_reasons") or [])
+                                                        | set(metrics.get("origin_coverage_reasons") or []))
             quality = str(metrics.get("collection_status") or "")
+            from scan_coverage import stage_coverage
+            visibility = stage_coverage(stage_name, {"status": raw_status, "metrics_json": metrics})
             if raw_status == "partial" or quality == "partial":
                 partial_count += 1
                 label = "Partial"
@@ -2773,6 +2779,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 label = "No input"
             else:
                 label = raw_status.replace("_", " ").title()
+            if visibility["status"] == "access_restricted":
+                label = "Partial / Access restricted"
+                if raw_status != "partial" and quality != "partial":
+                    partial_count += 1
+            elif visibility["status"] == "no_input" and quality != "no_input":
+                label = "No input"
+                if stage_name != "javascript":
+                    no_input_count += 1
             if raw_status == 'failed' and label == 'Partial': label = 'Failed / Partial'
             timed_out = bool(metrics.get('katana_timed_out') or metrics.get('timed_out') or metrics.get('katana_status') == 'timeout')
             if timed_out:
@@ -2786,6 +2800,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             highlights = []
             if stage_name == "urls":
                 highlights.append(f"URLs: {metrics.get('urls', '—')}")
+                highlights.append(f"Origin probe failures: {metrics.get('origin_probe_failed', 0)} · HTTP 401/403 restrictions: {metrics.get('origin_access_restricted', 0)}")
+                if metrics.get('origin_coverage_pending_origins'):
+                    highlights.append('Coverage pending: ' + ', '.join(metrics['origin_coverage_pending_origins']))
                 if "katana_status" in metrics:
                     highlights.append(
                         f"Katana: {metrics['katana_status']} "

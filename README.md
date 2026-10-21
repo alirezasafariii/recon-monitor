@@ -1,5 +1,9 @@
 # Recon Monitor 8.8.18
 
+Scan execution and content visibility are reported separately, including HTTP
+access restrictions, origin failures and finalized report states. See
+[scan visibility](docs/SCAN_VISIBILITY.md).
+
 <!-- recon-monitor-current: app=8.8.18 schema=18 -->
 
 ## Current release: Katana Resume Budget Allocation

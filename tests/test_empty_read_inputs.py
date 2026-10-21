@@ -262,7 +262,7 @@ class EmptyReadInputTests(unittest.TestCase):
         payload = self._quality("?run_id=RUN-1&target=example.com")
         self.assertEqual(payload["run_id"], "RUN-1")
         self.assertEqual(payload["targets"]["example.com"]["metrics"]["stage_status"]["urls"], "running")
-        self.assertIn("incomplete_stages", {spot["code"] for spot in payload["blind_spots"]})
+        self.assertIn("in_progress_stages", {spot["code"] for spot in payload["blind_spots"]})
 
     def test_quality_auth_precedes_no_data_validation(self):
         for token in ("", "invalid"):

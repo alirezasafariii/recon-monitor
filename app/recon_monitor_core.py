@@ -266,14 +266,25 @@ class Orchestrator:
     ) -> tuple[str, dict[str, Any]]:
         self.progress.configure(target_index, target_total, stage_index, stage_total, label)
         prior = self.db.stage_status(ctx.run_id, ctx.policy.name, stage_name)
+        legacy_origin_gap = False
         if resume and prior == "success" and stage_name != "report":
             metrics_row = self.db.one(
                 "SELECT metrics_json FROM stage_runs WHERE run_id=? AND target=? AND stage=?",
                 (ctx.run_id, ctx.policy.name, stage_name),
             )
             metrics = safe_json_loads(metrics_row["metrics_json"], {}, expected_type=dict) if metrics_row else {}
-            self.progress.finish_stage("resume-skip", metrics)
-            return "success", metrics
+            legacy_origin_gap = False
+            if stage_name == "urls" and ("origin_probe_coverage_version" not in metrics
+                    or metrics.get("origin_coverage_status") == "partial"):
+                from scan_coverage import origin_probe_coverage
+                probe_file = ctx.current / "origin-probe.jsonl"
+                if probe_file.is_file():
+                    from core import read_jsonl
+                    legacy_origin_gap = origin_probe_coverage(list(read_jsonl(probe_file)))["origin_coverage_status"] == "partial"
+            if not legacy_origin_gap:
+                self.progress.finish_stage("resume-skip", metrics)
+                return "success", metrics
+            ctx.refresh_origin_coverage = True
 
         module_enabled = True
         if stage_name in {"subdomains", "dns", "urls", "javascript", "endpoint_validation", "fingerprint", "ports", "nuclei"}:
@@ -300,11 +311,15 @@ class Orchestrator:
                     metrics = stage_report(ctx, baseline)
                 else:
                     metrics = STAGE_FUNCTIONS[stage_name](ctx)
+                if legacy_origin_gap:
+                    metrics["resumed_origin_probe_gap"] = True
+                metrics.setdefault("execution_status", "success")
                 duration = time.monotonic() - started
                 if self.db.stage_next_requested(
                     ctx.run_id, ctx.policy.name, stage_name, attempt,
                 ):
                     metrics["collection_status"] = "partial"
+                    metrics["execution_status"] = "interrupted"
                     metrics["stop_reason"] = "operator_next"
                     metrics["pending_stage_resume"] = stage_name != "urls"
                 # A collector may preserve useful output while its underlying
@@ -704,7 +719,7 @@ def build_parser() -> argparse.ArgumentParser:
     analysis_cmd.add_argument("--limit", type=int, default=20)
 
     platform = sub.add_parser("platform", help="Manage the 5.0 quality, cases, operations, scope and production platform")
-    platform.add_argument("action", choices=["sync","quality","cases","case-show","case-set","stories","scope","operations","storage","completeness","validation-package","report-draft","rules","rule-set","schedule-set","notification-set","incremental","learning","noise-budget"])
+    platform.add_argument("action", choices=["sync","finalize","quality","cases","case-show","case-set","stories","scope","operations","storage","completeness","validation-package","report-draft","rules","rule-set","schedule-set","notification-set","incremental","learning","noise-budget"])
     platform.add_argument("--analysis-id", default="")
     platform.add_argument("--run", dest="run_id", default="")
     platform.add_argument("--target", default="")
@@ -1057,7 +1072,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "platform":
-            if args.action == "sync":
+            if args.action == "finalize":
+                if not args.run_id:
+                    raise ReconError("platform finalize requires --run RUN_ID")
+                from scan_finalization import finalize_run_diagnostics
+                result = finalize_run_diagnostics(paths, db, args.run_id)
+            elif args.action == "sync":
                 legacy = platform_sync(paths, db, args.analysis_id or None)
                 workspace = workspace_v7_sync(paths, config, db, target=args.target or "", actor="cli-platform-sync")
                 result = {"platform": legacy, "workspace_v7": workspace}

@@ -14,6 +14,7 @@ import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
+from scan_coverage import origin_probe_coverage
 
 from katana_runtime_contract import completion_supported as completion_contract, checkpoint_supported as checkpoint_contract
 from katana_completion import read_completion, origin_key
@@ -85,6 +86,7 @@ class StageContext:
     request_gate: Callable[[str], None] | None = None
     response_gate: Callable[[int], None] | None = None
     resume_failed_work: bool = False
+    refresh_origin_coverage: bool = False
 
     def next_requested(self) -> bool:
         callback = getattr(self.runner, "next_check", None)
@@ -851,7 +853,7 @@ def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
     # method-specific rejection. Safety stops (scope/non-public/429) never retry.
     head_status = int(result.get("status_code") or 0)
     if (
-        head_status in {0, 405, 501}
+        head_status in {0, 401, 403, 405, 501}
         and transport_status != "stopped_for_safety"
     ):
         if ctx.budget:
@@ -1012,6 +1014,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     base_path = ctx.current / "base-urls.txt"
     atomic_write_text(base_path, "".join(f"{url}\n" for url in base_urls))
     write_jsonl(ctx.current / "origin-probe.jsonl", origin_results)
+    probe_coverage = origin_probe_coverage(origin_results)
+    atomic_write_text(ctx.current / "origin-probe-pending.txt", "".join(
+        url + "\n" for url in probe_coverage["origin_coverage_pending_origins"]
+    ))
 
     wildcard_hosts_path = ctx.current / "wildcard-candidates.txt"
     wildcard_hosts = set(
@@ -1064,7 +1070,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     # An unsuccessful live-origin probe is incomplete collection, not proof of
     # an empty attack surface. Preserve the candidate origins for re-check.
     katana_pending_origins = (
-        list(dict.fromkeys(base_urls + deferred_origins))
+        list(dict.fromkeys(base_urls + deferred_origins + probe_coverage["origin_probe_failed_origins"]))
         if base_urls else sorted(candidate_base_urls)
     )
     katana_batches_incomplete = 0
@@ -1154,6 +1160,19 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         origin for origin in previous_completed
         if ctx.policy.url_in_scope(origin)
     ]
+    # A crawl completed against a restricted root is not reusable after that
+    # root becomes accessible. Use a fresh checkpoint namespace, retaining
+    # the old evidence instead of deleting or overwriting it.
+    access_generations = dict(previous_metrics.get("katana_access_generations") or {})
+    newly_accessible = set(previous_metrics.get("origin_access_restricted_origins") or []) - set(
+        probe_coverage["origin_access_restricted_origins"]
+    )
+    newly_accessible &= set(base_urls)
+    if getattr(ctx, "refresh_origin_coverage", False):
+        newly_accessible.update(base_urls)
+    for origin in newly_accessible:
+        access_generations[origin] = int(access_generations.get(origin, 0)) + 1
+    katana_origin_successes = [origin for origin in katana_origin_successes if origin not in newly_accessible]
     katana_pending_origins = list(dict.fromkeys(
         previous_pending + katana_pending_origins
     ))
@@ -1215,7 +1234,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         katana_crawl_seconds = int(plan["crawl_seconds"] or 0)
         katana_global_deadline_seconds = int(plan.get("wall_seconds") or 0)
         katana_pending_origins = list(dict.fromkeys(
-            origin for origin in previous_pending + list(base_urls)
+            origin for origin in previous_pending + list(base_urls) + probe_coverage["origin_probe_failed_origins"]
             if origin not in already_completed
         ))
 
@@ -1342,6 +1361,11 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     args.extend(["-elog", str(request_errors_path)])
                 if checkpoint_supported:
                     frontier_dir = ctx.current / "katana-frontier"
+                    generation = access_generations.get(batch_origins[0], 0)
+                    if generation:
+                        frontier_dir = ctx.current / ("katana-frontier-access-" + sha256_text(
+                            batch_origins[0] + ":" + str(generation)
+                        )[:24])
                     frontier_dir.mkdir(mode=0o700, exist_ok=True)
                     # The producer owns validation and durable updates; never
                     # infer completion from the existence of a checkpoint.
@@ -1655,7 +1679,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             if isinstance(completion, dict):
                 reason = str(completion.get("stop_reason") or "unknown")
                 latest_unfinished_reasons[reason] = latest_unfinished_reasons.get(reason, 0) + 1
-    collection_reasons: list[str] = []
+    collection_reasons: list[str] = list(probe_coverage["origin_coverage_reasons"])
     # Selection caps hide discovered URLs even when all collectors exit zero.
     # Never call this a complete collection or promote it as a clean baseline.
     if len(candidates) > len(urls):
@@ -1667,6 +1691,9 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
     if wayback_outcomes and wayback_status != "completed":
         collection_reasons.append("wayback_" + wayback_status)
     metrics = {
+        **probe_coverage,
+        "execution_status": "success",
+        "katana_access_generations": access_generations,
         "hosts": len(hosts),
         "candidate_origins": len(candidate_base_urls),
         "live_origins": len(base_urls),
@@ -3815,10 +3842,22 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
     new_live: list[str] = []
     changed: list[str] = []
     live = 0
+    http_status_counts: dict[str, int] = {}
+    restricted_urls: set[str] = set()
+    observed_inputs: set[str] = set()
     for index, row in enumerate(read_jsonl(out), 1):
         url, record = _httpx_record(row)
         if not url or not ctx.policy.url_in_scope(url):
             continue
+        response_status = int(record.get("status_code") or 0)
+        if not response_status:
+            continue
+        input_url = normalize_url_preserving_semantics(str(row.get("input") or url))
+        if input_url:
+            observed_inputs.add(input_url.rstrip("/"))
+        http_status_counts[str(response_status)] = http_status_counts.get(str(response_status), 0) + 1
+        if response_status in {401, 403}:
+            restricted_urls.add(url)
         _record_http_throttle(ctx, url, record.get("status_code", 0))
         live += 1
         if ctx.policy.raw.get("fingerprint", {}).get("collect_tls", True):
@@ -3862,8 +3901,20 @@ def stage_fingerprint(ctx: StageContext) -> dict[str, Any]:
 
     atomic_write_text(ctx.changes / "new-live-http.txt", "".join(f"{x}\n" for x in new_live))
     atomic_write_text(ctx.changes / "changed-fingerprints.txt", "".join(f"{x}\n" for x in changed))
-    return {"probed": result.lines, "live": live, "new": len(new_live), "changed": len(changed), "screenshots": bool(ctx.policy.modules.get("screenshots")),
-            **({"collection_status": "partial", "collection_reasons": ["http_rate_limit_cooldown"], "cooldown_deferred": len(deferred)} if deferred else {})}
+    unobserved_inputs = sorted({url.rstrip("/") for url in base_urls} - observed_inputs)
+    reasons = (["http_rate_limit_cooldown"] if deferred else [])
+    if restricted_urls:
+        reasons.append("http_access_restricted")
+    if unobserved_inputs:
+        reasons.append("http_probe_unobserved_inputs")
+    return {"probed": base_count, "live": live, "new": len(new_live), "changed": len(changed),
+            "screenshots": bool(ctx.policy.modules.get("screenshots")),
+            "http_status_counts": http_status_counts,
+            "http_access_restricted": len(restricted_urls),
+            "http_access_restricted_urls": sorted(restricted_urls),
+            "http_probe_unobserved_inputs": unobserved_inputs,
+            "collection_status": "partial" if reasons else "completed",
+            "collection_reasons": reasons, "cooldown_deferred": len(deferred)}
 
 
 _HTTP_WEB_PORTS = {80, 3000, 5000, 8000, 8008, 8080, 8888}
