@@ -3168,11 +3168,16 @@ class CommandRunner:
         except ProcessLookupError:
             return
         except PermissionError as exc:
-            # Darwin can retain a process group after its leader has exited
-            # and deny further signals. Keep bounded pipe cleanup possible,
-            # but do not hide a permission failure for a live child or Linux.
-            if sys.platform != "darwin" or proc.poll() is None:
+            # Darwin can deny group signals after the child exits. poll()
+            # can still return None while another thread owns Popen's wait
+            # lock, so verify exit through a bounded public wait instead.
+            # A live child or a non-Darwin denial must still reach the caller.
+            if sys.platform != "darwin":
                 raise
+            try:
+                proc.wait(timeout=0.1)
+            except subprocess.TimeoutExpired:
+                raise exc from None
             self.logger.warn(
                 "Process-group signal denied after child exit",
                 pid=proc.pid,
