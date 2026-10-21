@@ -161,6 +161,48 @@ class ScanVisibilityTests(unittest.TestCase):
         self.assertEqual(result["collection_status"], "partial")
         self.assertEqual(result["probed"], 2)
 
+    def test_headers_only_probe_does_not_require_server_range_support_or_relax_body_limits(self):
+        import urllib.error
+        from safe_transport import perform_pinned_request
+        ctx = self.context()
+        url = "https://example.test"
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.status = 200
+        response.headers = {"Content-Type": "text/html", "Content-Length": "99999"}
+        response.read.side_effect = AssertionError("headers-only probe consumed a body")
+        opener = MagicMock()
+        opener.open.side_effect = [urllib.error.HTTPError(url, 401, "Unauthorized", {}, io.BytesIO(b"")), response]
+        with patch("safe_transport.resolve_public_addresses", return_value=(True, ["93.184.216.34"])), \
+             patch("safe_transport.build_pinned_opener", return_value=opener):
+            result = _origin_probe_one(ctx, url)
+            self.assertEqual(result["status_code"], 200)
+            self.assertEqual(result["transport_status"], "ok")
+            response.read.assert_not_called()
+            response.read.side_effect = None
+            response.read.return_value = b"xx"
+            opener.open.side_effect = None
+            opener.open.return_value = response
+            observation = lambda method, url, status, headers, body, error="": {"status_code": status, "error": error}
+            normal, status = perform_pinned_request({"method": "GET", "url": url}, self.policy,
+                safe_methods={"GET"}, url_safety=lambda url, policy: (True, ""), observation=observation,
+                max_response_bytes=1, validation_version="regression")
+            self.assertEqual(status, "stopped_for_safety")
+            self.assertEqual(normal["error"], "response_budget_exceeded")
+
+    def test_origin_redirect_scope_is_checked_from_observed_location(self):
+        import urllib.error
+        ctx = self.context()
+        url = "https://example.test"
+        opener = MagicMock()
+        opener.open.side_effect = urllib.error.HTTPError(url, 302, "Found", {"Location": "https://outside.test/login"}, io.BytesIO(b""))
+        with patch("safe_transport.resolve_public_addresses", return_value=(True, ["93.184.216.34"])), \
+             patch("safe_transport.build_pinned_opener", return_value=opener):
+            result = _origin_probe_one(ctx, url)
+        self.assertTrue(result["redirect_outside_scope"])
+        self.assertEqual(opener.open.call_count, 1)
+        self.assertEqual(origin_probe_coverage([result])["origin_coverage_reasons"], ["origin_redirect_outside_scope"])
+
     def test_no_input_and_running_are_not_complete_or_failed_coverage(self):
         row = {"status": "success", "metrics_json": {"collection_status": "no_input", "files": 0, "downloaded": 0}}
         self.assertEqual(stage_coverage("javascript", row)["score"], 0)
@@ -259,6 +301,7 @@ class ScanVisibilityTests(unittest.TestCase):
         self.assertEqual(report["collection_quality"]["dimensions"]["urls"]["origin_probe_failed"], 2)
         self.assertIn("http_access_restricted", report["collection_quality"]["dimensions"]["urls"]["reason"])
         self.assertTrue(report["diagnostics_finalization"]["baseline_review_required"])
+        self.assertIn("Historical baseline review required.", (ctx.run_dir / "report.html").read_text())
 
     def test_zero_response_fingerprint_stays_partial_and_accounts_attempted_inputs(self):
         ctx = self.context()

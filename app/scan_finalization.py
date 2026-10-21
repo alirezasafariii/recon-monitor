@@ -52,6 +52,7 @@ def finalize_run_diagnostics(paths: Any, db: Any, run_id: str) -> dict[str, Any]
     completeness = run_completeness(db, run_id, persist=True)
     quality = data_quality_snapshot(db, run_id, persist=True)
     finalized = []
+    baseline_reviews = []
     for target_row in db.all("SELECT target,run_dir FROM run_targets WHERE run_id=?", (run_id,)):
         target = str(target_row["target"])
         run_dir = Path(str(target_row["run_dir"]))
@@ -71,6 +72,8 @@ def finalize_run_diagnostics(paths: Any, db: Any, run_id: str) -> dict[str, Any]
         finalization["baseline_review_required"] = bool(lifecycle.get("baseline_eligible") and any(
             value["status"] in {"access_restricted", "partial"} for value in observations.values()
         ))
+        if finalization["baseline_review_required"]:
+            baseline_reviews.append(target)
         old_quality = metrics_dict(report_metrics.get("collection_quality"))
         dimensions = metrics_dict(old_quality.get("dimensions"))
         stage_rows = db.all("SELECT stage,metrics_json FROM stage_runs WHERE run_id=? AND target=?", (run_id, target))
@@ -148,4 +151,5 @@ def finalize_run_diagnostics(paths: Any, db: Any, run_id: str) -> dict[str, Any]
         finalized.append(target)
     invalidate_platform_cache()
     return {"run_id": run_id, "targets": finalized, "run_completeness": completeness,
+            "baseline_review_required_targets": baseline_reviews,
             "collection_or_baseline_changed": False, "network_requests": 0}

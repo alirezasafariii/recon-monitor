@@ -412,6 +412,9 @@ def render_report_html(report: Mapping[str, Any]) -> str:
                    + "% · <strong>Collection visibility:</strong> " + str(completeness.get("score", 0))
                    + "% of configured stages. These scores do not certify full application or security coverage.</p>"
                    if report.get("diagnostics_finalization") else "<p>Provisional report: final execution states are not yet recorded.</p>")
+    if report.get("diagnostics_finalization", {}).get("baseline_review_required"):
+        final_state += ("<p><strong>Historical baseline review required.</strong> Retained evidence shows limited collection visibility. "
+                        "The original scan outcome and comparison baseline have been preserved.</p>")
     return f"""<!doctype html>
 <html lang='en'>
 <head>

@@ -9,8 +9,11 @@ pages tested or the probability that it is secure.
 
 Origin probes retain HTTP 401/403 responses as evidence of a live service, while
 recording `http_access_restricted` as incomplete content visibility. An initial
-HEAD 401/403 receives at most one existing bounded, one-byte GET fallback so a
-HEAD-specific restriction does not misclassify an accessible GET endpoint.
+HEAD 401/403 receives at most one bounded GET fallback that consumes headers only, so a
+HEAD-specific restriction does not misclassify an accessible GET endpoint. Range
+support is not assumed; the body is not read even when the server ignores Range.
+Body limits for other pinned requests and downloads are unchanged. Redirect scope
+is checked against the observed Location without following it.
 Scope, DNS pinning, headers, request budgets and the HTTP 429 stop remain intact.
 No login, challenge solving, credential discovery or new authentication context
 is performed.

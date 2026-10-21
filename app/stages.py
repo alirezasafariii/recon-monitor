@@ -829,6 +829,9 @@ def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
             "status_code": int(status or 0),
             "content_type": content_type,
             "location": location,
+            "redirect_outside_scope": bool(location and not ctx.policy.url_in_scope(
+                urllib.parse.urljoin(observed_url, location))),
+            "body_collected": False,
             "live": bool(status),
             "error": "" if status else str(error or ""),
         }
@@ -848,9 +851,9 @@ def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
     result["transport_status"] = transport_status
     result["live"] = bool(result.get("status_code"))
 
-    # Some origins reject/drop HEAD while serving GET normally. Retry once with
-    # a one-byte ranged GET only when the HEAD result was inconclusive or a
-    # method-specific rejection. Safety stops (scope/non-public/429) never retry.
+    # Some origins reject HEAD while serving GET normally. Retry once using
+    # response headers only; Range is an advisory hint, not a requirement on
+    # the server. Safety stops (scope/non-public/429) never retry.
     head_status = int(result.get("status_code") or 0)
     if (
         head_status in {0, 401, 403, 405, 501}
@@ -871,7 +874,8 @@ def _origin_probe_one(ctx: StageContext, url: str) -> dict[str, Any]:
                 "outside_scope" if not policy.url_in_scope(candidate) else "",
             ),
             observation=observation,
-            max_response_bytes=1,
+            max_response_bytes=0,
+            response_headers_only=True,
             validation_version="recon-origin-probe-1",
         )
         get_result["transport_status"] = get_transport_status

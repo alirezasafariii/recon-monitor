@@ -162,6 +162,7 @@ def perform_pinned_request(
     observation: Callable[[str, str, int, Any, bytes, str], dict[str, Any]],
     max_response_bytes: int,
     validation_version: str,
+    response_headers_only: bool = False,
 ) -> tuple[dict[str, Any], str]:
     """Execute one bounded request against a prevalidated pinned address."""
     method = str(item.get("method") or "GET").upper()
@@ -197,7 +198,7 @@ def perform_pinned_request(
 
     try:
         with opener.open(request, timeout=8) as response:
-            body = response.read(max_response_bytes + 1) if method != "HEAD" else b""
+            body = response.read(max_response_bytes + 1) if method != "HEAD" and not response_headers_only else b""
             if len(body) > max_response_bytes:
                 result = observation(
                     method,
@@ -219,7 +220,7 @@ def perform_pinned_request(
 
     except urllib.error.HTTPError as exc:
         try:
-            body = exc.read(max_response_bytes + 1) if method != "HEAD" else b""
+            body = exc.read(max_response_bytes + 1) if method != "HEAD" and not response_headers_only else b""
             if len(body) > max_response_bytes:
                 body = body[:max_response_bytes]
             result = observation(method, url, int(exc.code), exc.headers, body, "http_error")
