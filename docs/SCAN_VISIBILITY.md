@@ -32,6 +32,19 @@ it does not by itself fail a scan of an otherwise accessible static site.
 
 ## Resume
 
+An ordinary failed collector does not stop the remaining collection stages.
+They consume their available scoped inputs using their normal validation and
+authorization gates, and Report/Analysis still run on the evidence collected.
+A missing input remains missing; continuation does not make the failed stage
+successful or establish/refresh an incomplete comparison baseline. Collectors
+that return partial evidence already followed this continuation rule.
+
+Explicit target-budget exhaustion still stops subsequent collection, and is
+recorded with its metric, used amount and limit without futile stage retries.
+Runtime is checked before each enabled collector attempt. Report/Analysis may
+still run locally after this stop. Operator interruption still terminates the
+run, and shared HTTP cooldowns continue to defer requests to affected hosts.
+
 Explicit resume rechecks incomplete origin probes and refreshes downstream inputs.
 When a previously restricted origin becomes accessible, its old completed crawl
 receipt cannot suppress a new crawl. A new checkpoint namespace is selected for

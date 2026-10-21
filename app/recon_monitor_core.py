@@ -86,7 +86,7 @@ from workspace_v7 import (  # noqa: E402
     false_positive_learning, import_browser_capture, operator_diagnostics, recent_error_events, recon_coverage, safe_repair,
     safety_center, smart_recon_plan, stage_value_analysis, target_memory, universal_search, workspace_v7_sync,
 )
-from execution import BudgetManager, DatabaseWriter  # noqa: E402
+from execution import BudgetExceeded, BudgetManager, DatabaseWriter  # noqa: E402
 from planning import build_plan, format_plan  # noqa: E402
 from plugins import PluginManager  # noqa: E402
 from operations import BackupManager, UpdateManager, benchmark  # noqa: E402
@@ -307,6 +307,8 @@ class Orchestrator:
             self.runner.next_raise = stage_name != "urls"
             started = time.monotonic()
             try:
+                if stage_name != "report" and ctx.budget:
+                    ctx.budget.check_runtime()
                 if stage_name == "report":
                     metrics = stage_report(ctx, baseline)
                 else:
@@ -389,6 +391,18 @@ class Orchestrator:
                 exit_code = int(getattr(exc, "exit_code", 1))
                 retryable = bool(getattr(exc, "retryable", True))
                 last_error = str(exc)
+                failure_metrics: dict[str, Any] = {"attempt": attempt}
+                if isinstance(exc, BudgetExceeded):
+                    # Retrying cannot replenish a cumulative target budget.
+                    # Keep this distinct from a recoverable collector failure
+                    # so orchestration can preserve the target-wide stop.
+                    retryable = False
+                    failure_metrics.update({
+                        "stop_reason": "budget_exhausted",
+                        "budget_metric": exc.metric,
+                        "budget_used": exc.used,
+                        "budget_limit": exc.limit,
+                    })
                 self.db.stage_finish(
                     ctx.run_id,
                     ctx.policy.name,
@@ -397,7 +411,7 @@ class Orchestrator:
                     exit_code=exit_code,
                     duration=duration,
                     error=last_error,
-                    metrics={"attempt": attempt},
+                    metrics=failure_metrics,
                 )
                 self.logger.warn(
                     "Stage failed",
@@ -412,8 +426,8 @@ class Orchestrator:
                     self.progress.message(f"  Retrying {stage_name} in {delay}s ({attempt}/{attempts})…")
                     time.sleep(delay)
                     continue
-                self.progress.finish_stage("failed", {"error": last_error, "attempt": attempt})
-                return "failed", {"error": last_error, "attempt": attempt}
+                self.progress.finish_stage("failed", {"error": last_error, **failure_metrics})
+                return "failed", {"error": last_error, **failure_metrics}
         return "failed", {"error": last_error}
 
     def run(self, policies: PolicySet, selector: str | None = None, resume_id: str | None = None) -> int:
@@ -470,6 +484,7 @@ class Orchestrator:
                     resume_failed_work=bool(resume_id),
                 )
                 target_failed = False
+                collection_stopped = False
                 target_partial = False
                 report_ran = False
                 # On --resume, a previously partial collector may discover
@@ -477,8 +492,9 @@ class Orchestrator:
                 # instead of incorrectly keeping its earlier "success".
                 replay_downstream = False
                 for stage_index, (stage_name, label) in enumerate(STAGES, 1):
-                    if target_failed and stage_name != "report":
-                        # Persist explicit skipped state so resume can continue at the failed stage.
+                    if collection_stopped and stage_name != "report":
+                        # Preserve budget stops; ordinary stage failures leave
+                        # the remaining collectors free to use available input.
                         continue
                     if resume_id and self.db.stage_status(
                         run_id, policy.name, stage_name,
@@ -503,6 +519,8 @@ class Orchestrator:
                         # eligibility for baseline promotion is evaluated
                         # independently by the lifecycle guard.
                         target_failed = True
+                        if stage_name != "report":
+                            collection_stopped = _metrics.get("stop_reason") == "budget_exhausted"
                     if _metrics.get("collection_status") == "partial":
                         target_partial = True
                 if target_failed and not report_ran:

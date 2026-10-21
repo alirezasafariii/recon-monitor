@@ -243,6 +243,7 @@ class ReportFailureLifecycleTests(unittest.TestCase):
         self.assertEqual(str(target["status"]), "failed")
         self.assertEqual(str(run["status"]), "partial")
         self.assertIn("report", orchestrator.stage_calls)
+        self.assertEqual(orchestrator.stage_calls, [name for name, _ in recon_monitor_core.STAGES])
         self.assertEqual(str(lifecycle["collection_status"]), "failed")
         self.assertEqual(str(lifecycle["report_status"]), "success")
         self.assertEqual(str(lifecycle["overall_status"]), "failed")
@@ -250,6 +251,18 @@ class ReportFailureLifecycleTests(unittest.TestCase):
         self.assertEqual(str(lifecycle["baseline_state"]), "blocked")
         self.assertFalse(self.db.target_has_history(self.TARGET))
         self.assertFalse(self.db.successful_snapshot_status(self.TARGET)["exists"])
+
+    def test_each_collector_failure_allows_remaining_stages_without_hiding_failure(self) -> None:
+        stage_names = [name for name, _ in recon_monitor_core.STAGES]
+        for stage_name in stage_names[:-1]:
+            with self.subTest(stage=stage_name):
+                code, orchestrator = self._run(stage_name)
+                _run, _target, lifecycle = self._latest_rows()
+                self.assertEqual(code, 2)
+                self.assertEqual(orchestrator.stage_calls, stage_names)
+                self.assertEqual(lifecycle["collection_status"], "failed")
+                self.assertEqual(lifecycle["analysis_status"], "success")
+                self.assertFalse(lifecycle["baseline_eligible"])
 
 
 if __name__ == "__main__":
