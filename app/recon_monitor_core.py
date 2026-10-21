@@ -719,7 +719,7 @@ def build_parser() -> argparse.ArgumentParser:
     analysis_cmd.add_argument("--limit", type=int, default=20)
 
     platform = sub.add_parser("platform", help="Manage the 5.0 quality, cases, operations, scope and production platform")
-    platform.add_argument("action", choices=["sync","finalize","quality","cases","case-show","case-set","stories","scope","operations","storage","completeness","validation-package","report-draft","rules","rule-set","schedule-set","notification-set","incremental","learning","noise-budget"])
+    platform.add_argument("action", choices=["sync","finalize","baseline-repair","quality","cases","case-show","case-set","stories","scope","operations","storage","completeness","validation-package","report-draft","rules","rule-set","schedule-set","notification-set","incremental","learning","noise-budget"])
     platform.add_argument("--analysis-id", default="")
     platform.add_argument("--run", dest="run_id", default="")
     platform.add_argument("--target", default="")
@@ -1072,7 +1072,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "platform":
-            if args.action == "finalize":
+            if args.action == "baseline-repair":
+                from baseline_integrity import repair_baselines
+                with RunLock(paths.lock, logger):
+                    result = repair_baselines(paths, db, run_id=args.run_id or "", target=args.target or "")
+            elif args.action == "finalize":
                 if not args.run_id:
                     raise ReconError("platform finalize requires --run RUN_ID")
                 from scan_finalization import finalize_run_diagnostics

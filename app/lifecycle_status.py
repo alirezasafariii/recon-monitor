@@ -86,6 +86,8 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
         try:
             for target_index, policy in enumerate(targets, 1):
                 self.current_target = policy.name
+                from baseline_integrity import review_committed_baseline
+                review_committed_baseline(self.db, policy.name, paths=self.paths)
                 existing = self.db.one(
                     "SELECT run_dir,baseline FROM run_targets "
                     "WHERE run_id=? AND target=?",
@@ -93,7 +95,7 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                 )
                 if existing:
                     run_dir = Path(str(existing["run_dir"]))
-                    baseline = bool(existing["baseline"])
+                    baseline = bool(existing["baseline"]) or not self.db.target_has_history(policy.name)
                     # Resume through the runtime Database so an older in-flight
                     # target also gets an explicit lifecycle row.
                     self.db.create_run_target(run_id, policy, run_dir, baseline)

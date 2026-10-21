@@ -126,6 +126,8 @@ def baseline_record(db: Any, target: str) -> dict[str, Any] | None:
 def begin_target_lifecycle(db: Any, run_id: str, target: str) -> None:
     ensure_lifecycle_schema(db)
     existing = baseline_record(db, target)
+    if existing and existing["state"] != "established":
+        existing = None
     now = utc_now()
     db.execute(
         "INSERT OR IGNORE INTO target_run_lifecycle("
@@ -347,14 +349,17 @@ def mark_baseline_committed(db: Any, run_id: str, target: str, reason: str) -> s
 
     now = utc_now()
     previous = baseline_record(db, target)
-    if previous is None:
+    if previous is None or previous["state"] != "established":
         state = "established"
         established_at = now
         db.execute(
             "INSERT INTO target_baselines("
             "target,state,established_run_id,established_at,last_refreshed_run_id,"
             "last_refreshed_at,reason,migrated,updated_at"
-            ") VALUES(?,?,?,?,?,?,?,?,?)",
+            ") VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(target) DO UPDATE SET "
+            "state='established',established_run_id=excluded.established_run_id,"
+            "established_at=excluded.established_at,last_refreshed_run_id=excluded.last_refreshed_run_id,"
+            "last_refreshed_at=excluded.last_refreshed_at,reason=excluded.reason,migrated=0,updated_at=excluded.updated_at",
             (
                 target,
                 "established",
@@ -395,6 +400,8 @@ def mark_baseline_committed(db: Any, run_id: str, target: str, reason: str) -> s
 
 def mark_baseline_not_committed(db: Any, run_id: str, target: str, reason: str) -> str:
     existing = baseline_record(db, target)
+    if existing and existing["state"] != "established":
+        existing = None
     state = "retained" if existing is not None else "blocked"
     db.execute(
         "UPDATE target_run_lifecycle SET baseline_state=?,baseline_reason=?,"

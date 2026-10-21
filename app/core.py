@@ -2367,6 +2367,7 @@ class Database:
                 f"Invalid JS availability state: {state}"
             )
 
+        from baseline_integrity import exclusion_sql, js_observation_sql, refresh_js_observation
         previous_row = self.one(
             """
             SELECT
@@ -2386,6 +2387,7 @@ class Database:
               AND h.url=?
               AND h.run_id<>?
               AND rt.status='success'
+            """ + exclusion_sql(self, "h.target", "h.run_id") + js_observation_sql(self, "h") + """
             ORDER BY h.observed_at DESC, h.run_id DESC
             LIMIT 1
             """,
@@ -2442,6 +2444,7 @@ class Database:
             ),
         )
 
+        refresh_js_observation(self, "js_availability_history", target, url, run_id)
         changed = bool(
             previous
             and (
@@ -2477,7 +2480,11 @@ class Database:
         previous_semantic_hash: str | None = None,
     ) -> tuple[bool, bool, bool]:
         now = utc_now()
-        row = self.one("SELECT raw_hash,semantic_hash FROM js_files WHERE target=? AND url=?", (target, url))
+        row = self.one("SELECT * FROM js_files WHERE target=? AND url=?", (target, url))
+        from baseline_integrity import baseline_run_excluded, refresh_js_observation
+        if row and (baseline_run_excluded(self, target, str(row["last_run_id"] or ""))
+                    or ("comparison_quarantined" in row.keys() and row["comparison_quarantined"])):
+            row = None
         is_new = row is None
         raw_changed = bool(row and row["raw_hash"] != raw_hash)
         comparison_hash = previous_semantic_hash if previous_semantic_hash is not None else (row["semantic_hash"] if row else "")
@@ -2498,6 +2505,7 @@ class Database:
                 now, now, now if semantic_changed else None, run_id, int(semantic_changed),
             ),
         )
+        refresh_js_observation(self, "js_files", target, url, run_id)
         return is_new, raw_changed, semantic_changed
 
     def upsert_js_indicator(self, target: str, js_url: str, kind: str, value: str, redacted: bool, run_id: str) -> bool:

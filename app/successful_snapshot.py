@@ -28,6 +28,10 @@ from typing import Any, Mapping
 
 from core import Database as BaseDatabase
 from core import TargetPolicy, json_dumps, safe_json_loads, sha256_text, utc_now
+from baseline_integrity import (
+    baseline_run_excluded, collection_gaps, ensure_baseline_integrity_schema,
+    record_baseline_receipt, recover_baseline_review, review_committed_baseline,
+)
 from finding_notifications import (
     ensure_finding_notification_schema,
     install_finding_notification_pipeline,
@@ -65,6 +69,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             # The installer is idempotent and wraps DNS/fingerprint hooks exactly once.
             install_stable_confirmation()
             ensure_lifecycle_schema(self)
+            ensure_baseline_integrity_schema(self)
             ensure_stable_confirmation_schema(self)
             ensure_finding_notification_schema(self)
         except BaseException:
@@ -208,7 +213,10 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         # Baseline/history eligibility is now explicit and independent from the
         # aggregate run_targets status. The baseline registry is initialized
         # from previously trusted successful_recon_commits during migration.
-        return has_established_baseline(self, target)
+        review_committed_baseline(self, target)
+        commit = self.one("SELECT run_id FROM successful_recon_commits WHERE target=?", (target,))
+        return bool(has_established_baseline(self, target) and commit
+                    and not baseline_run_excluded(self, target, str(commit["run_id"])))
 
     def _table_columns(self, table_name: str) -> list[str]:
         if table_name not in TRACKED_TABLES:
@@ -273,6 +281,8 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
                 total_rows,
             ),
         )
+        if not bootstrap:
+            record_baseline_receipt(self, target, run_id)
         return {"tables": len(TRACKED_TABLES), "rows": total_rows}
 
     def _restore_successful_snapshot_no_tx(self, target: str) -> dict[str, int]:
@@ -280,6 +290,8 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             "SELECT run_id FROM successful_recon_commits WHERE target=?",
             (target,),
         )
+        if not has_established_baseline(self, target) or (commit and baseline_run_excluded(self, target, str(commit["run_id"]))):
+            commit = None
         restored_rows = 0
 
         # Clear the target's mutable comparison view first. If no committed
@@ -343,11 +355,14 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             payload = dict(raw_payload)
             current[item_key] = payload
 
+        review_committed_baseline(self, target)
         baseline_set = self.one(
             "SELECT committed_run_id FROM successful_recon_derived_sets "
             "WHERE target=? AND state_type=?",
             (target, normalized_type),
         )
+        if not has_established_baseline(self, target) or (baseline_set and baseline_run_excluded(self, target, str(baseline_set["committed_run_id"]))):
+            baseline_set = None
         previous_rows = self.all(
             "SELECT item_key,item_hash,item_json FROM successful_recon_derived_state "
             "WHERE target=? AND state_type=? ORDER BY item_key",
@@ -505,6 +520,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             return {
                 "target": target,
                 "exists": False,
+                "usable": False,
                 "run_id": "",
                 "bootstrap": False,
                 "table_count": 0,
@@ -515,6 +531,8 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         return {
             "target": target,
             "exists": True,
+            "usable": has_established_baseline(self, target) and not baseline_run_excluded(self, target, str(row["run_id"])),
+            "quarantined": baseline_run_excluded(self, target, str(row["run_id"])),
             "run_id": str(row["run_id"]),
             "committed_at": str(row["committed_at"]),
             "bootstrap": bool(row["bootstrap"]),
@@ -531,15 +549,31 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
         run_dir: Path,
         baseline: bool,
     ) -> None:
+        review_committed_baseline(self, policy.name)
+        quarantined = self.one("SELECT 1 FROM target_baselines WHERE target=? AND state='quarantined'", (policy.name,))
+        baseline = bool(baseline or quarantined)
         existing = self.one(
-            "SELECT 1 FROM run_targets WHERE run_id=? AND target=?",
+            "SELECT baseline FROM run_targets WHERE run_id=? AND target=?",
             (run_id, policy.name),
         )
         if existing is not None:
             # Resume/re-entry of the same run keeps completed-stage working
             # state. A restore here would erase progress from that same run.
+            commit = self.one("SELECT run_id FROM successful_recon_commits WHERE target=?", (policy.name,))
+            if not quarantined and commit and commit["run_id"] == run_id:
+                record_baseline_receipt(self, policy.name, run_id, replace=False)
             begin_target_lifecycle(self, run_id, policy.name)
-            return super().create_run_target(run_id, policy, run_dir, baseline)
+            with self.transaction():
+                if quarantined and not existing["baseline"]:
+                    # Keep this resume's observations, discard inherited rows
+                    # that came from the excluded reference, and restart its
+                    # provisional confirmation counters without old evidence.
+                    for table in TRACKED_TABLES:
+                        self.execute(f'DELETE FROM "{table}" WHERE target=? AND COALESCE(last_run_id,\'\')<>?', (policy.name, run_id))
+                    self.execute("DELETE FROM stable_change_run_state WHERE target=? AND run_id=?", (policy.name, run_id))
+                super().create_run_target(run_id, policy, run_dir, baseline)
+                self.execute("UPDATE run_targets SET baseline=? WHERE run_id=? AND target=?", (int(baseline), run_id, policy.name))
+            return
         with self.transaction():
             discard_stale_stable_change_runs(self, policy.name, run_id)
             self.execute(
@@ -576,6 +610,8 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             commit_ready = self._snapshot_commit_ready(run_id, target, status)
         else:
             commit_ready = explicit_eligibility
+        if commit_ready and collection_gaps(self, target, run_id, working=True):
+            commit_ready = False
 
         lifecycle = lifecycle_record(self, run_id, target)
         reason = str((lifecycle or {}).get("baseline_reason") or "collection_complete")
@@ -585,6 +621,16 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
             # Stable change confirmation tracks trusted Recon observations, so
             # it follows collection/baseline eligibility rather than report or
             # notification side effects.
+            if commit_ready:
+                self.execute("DELETE FROM stable_change_state WHERE target=? AND last_run_id IN "
+                             "(SELECT run_id FROM recon_baseline_reviews WHERE target=? AND state='quarantined')", (target, target))
+                if baseline_run_excluded(self, target, run_id):
+                    # A same-ID recovery must not rehabilitate old derived
+                    # receipts that the healthy attempt did not prepare anew.
+                    for table in ("successful_recon_derived_state", "successful_recon_derived_sets"):
+                        self.execute(f"DELETE FROM {table} WHERE target=? AND committed_run_id=? AND state_type NOT IN "
+                                     "(SELECT state_type FROM working_recon_derived_sets WHERE target=? AND run_id=?)",
+                                     (target, run_id, target, run_id))
             finalize_stable_change_run(
                 self,
                 run_id,
@@ -598,6 +644,7 @@ class SuccessfulSnapshotDatabase(BaseDatabase):
                 self._promote_derived_working_state_no_tx(run_id, target)
                 if lifecycle is not None:
                     mark_baseline_committed(self, run_id, target, reason)
+                recover_baseline_review(self, target, run_id)
             else:
                 self._discard_derived_working_state_no_tx(run_id, target)
                 if lifecycle is not None:
