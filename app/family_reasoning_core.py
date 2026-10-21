@@ -398,6 +398,9 @@ FAMILY_REASONING: dict[str, dict[str, Any]] = {
         "promotion_required": _groups(
             {"sensitive_fields"},
             {"client_operation"},
+            # Multiple client operations can merge into one hypothesis. Their
+            # distinct static roots do not establish a field-access boundary.
+            {"field_policy_context", "sensitive_graphql_response_observed", "field_authorization_differential"},
         ),
         "min_independent_sources": 2,
         "blocking_contradictions": frozenset({"field_authorization_observed", "sensitive_fields_not_returned"}),

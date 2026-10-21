@@ -1,5 +1,9 @@
 # Recon Monitor 8.8.18
 
+Scan execution and content visibility are reported separately, including HTTP
+access restrictions, origin failures and finalized report states. See
+[scan visibility](docs/SCAN_VISIBILITY.md).
+
 <!-- recon-monitor-current: app=8.8.18 schema=18 -->
 
 ## Current release: Katana Resume Budget Allocation
@@ -74,6 +78,15 @@ Version 8 keeps the same database schema **16** and preserves the v7 safety mode
 
 See `MIGRATION-v8.0.md` for the 7.0 → 8.0 transition.
 
+
+## Offline browser JavaScript analysis
+
+Use `workspace javascript-import --target TARGET --run RUN_ID --file ARCHIVE.zip`
+to analyze scoped JavaScript exported from a browser HAR. Results appear in
+**Browser JavaScript** in the dashboard, separately from recon analyses. Imports
+retain their browser provenance and unknown authentication state; the existing
+scan and baseline keep their original status. See the
+[browser evidence workflow](docs/UNIFIED_SECURITY_RESEARCH_WORKSPACE.md#offline-javascript-evidence-from-har).
 
 ## Unified Security Research Workspace in 7.0
 

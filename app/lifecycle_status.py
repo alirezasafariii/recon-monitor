@@ -121,6 +121,7 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                     self.allow_active,
                     BudgetManager.create(self.db, run_id, policy.name, policy),
                     self.db_writer,
+                    resume_failed_work=bool(resume_id),
                 )
 
                 collection_failed = False
@@ -152,6 +153,8 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                         baseline,
                         bool(resume_id) and not replay_downstream,
                     )
+                    if resume_id and metrics.get("resumed_origin_probe_gap"):
+                        replay_downstream = True
                     if stage_name == "report":
                         report_ran = True
                         report_metrics = dict(metrics or {})
@@ -235,6 +238,21 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
 
             status = "success" if failures == 0 else "partial"
             self.db.finish_run(run_id, status)
+            try:
+                from scan_finalization import finalize_run_diagnostics
+                finalize_run_diagnostics(self.paths, self.db, run_id)
+            except Exception as exc:
+                # A failed final report refresh must be visible. Complete
+                # collection and any committed baseline remain independent.
+                self.logger.warn("Final diagnostic refresh failed", run_id=run_id, error=str(exc))
+                with self.db.transaction():
+                    message = "Final diagnostics: " + str(exc)
+                    self.db.execute("UPDATE runs SET status='partial',error=? WHERE id=?", (message, run_id))
+                    self.db.execute("UPDATE run_targets SET status='partial' WHERE run_id=?", (run_id,))
+                    self.db.execute("UPDATE stage_runs SET status='failed',error=? WHERE run_id=? AND stage='report' AND status='success'", (message, run_id))
+                    self.db.execute("UPDATE target_run_lifecycle SET report_status='failed',overall_status='partial' WHERE run_id=?", (run_id,))
+                status = "partial"
+                failures = max(1, failures)
             if self.config.bool("AUTO_RETENTION", True):
                 with contextlib.suppress(Exception):
                     retention(

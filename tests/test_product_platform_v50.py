@@ -116,7 +116,9 @@ class ProductPlatformV50Tests(unittest.TestCase):
         temp, paths, db, _, _ = self.analyzed_project()
         try:
             scope = scope_center(paths, db); self.assertEqual(scope["targets"][0]["authorization_status"], "confirmed")
-            completeness = run_completeness(db, "run50"); self.assertGreaterEqual(completeness["score"], 90)
+            completeness = run_completeness(db, "run50")
+            self.assertGreaterEqual(completeness["execution_score"], 90)
+            self.assertEqual(completeness["dimensions"]["javascript"]["status"], "unknown")
             storage = storage_health(paths, db, persist=True); self.assertIn("retention_preview", storage)
             operations = operations_center(paths, db); self.assertIn("program_health_score", operations); self.assertIn("plugins", operations)
         finally: db.close(); temp.cleanup()

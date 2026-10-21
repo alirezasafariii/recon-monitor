@@ -30,6 +30,7 @@ from notification_transports import deliver_notification_message
 from recon_alert_outbox import deliver_recon_alert_outbox, enqueue_recon_alert_event
 from validation_eligibility import snapshot_validation_eligibility
 from validation_runner import snapshot_validation_runner_dry_run
+from scan_coverage import stage_coverage
 
 SEVERITY_ORDER = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
@@ -203,9 +204,14 @@ def _stage_metrics(ctx: StageContext) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for row in rows:
         metrics = safe_json_loads(row["metrics_json"], {}, expected_type=dict)
-        display_status = "success" if row["stage"] == "report" and row["status"] == "running" else row["status"]
+        if row["stage"] == "report":
+            # Never recursively embed the previous report/analysis on resume.
+            metrics = {key: value for key, value in metrics.items() if key in {
+                "events", "alerts", "notified", "report", "manifest", "finding_notified",
+                "finding_notification_delivery_deferred", "diagnostics_finalization",
+            }}
         result[str(row["stage"])] = {
-            "status": display_status,
+            "status": row["status"],
             "duration_seconds": row["duration_seconds"],
             "attempt": row["attempt"],
             "metrics": metrics,
@@ -374,8 +380,10 @@ def render_report_html(report: Mapping[str, Any]) -> str:
     stage_rows = []
     for stage, value in report.get("stages", {}).items():
         metrics = html.escape(json_dumps(value.get("metrics", {})))
+        visibility = stage_coverage(stage, {"status": value.get("status"), "metrics_json": value.get("metrics", {})})
         stage_rows.append(
-            f"<tr><td>{html.escape(stage)}</td><td>{html.escape(str(value.get('status')))}</td>"
+            f"<tr><td>{html.escape(stage)}</td><td>{html.escape(str(value.get('status')))}"
+            f"<br>Coverage: {html.escape(visibility['status'])}<br>{html.escape(visibility['reason'])}</td>"
             f"<td>{html.escape(str(value.get('duration_seconds') or 0))}</td><td><code>{metrics}</code></td></tr>"
         )
     event_rows = []
@@ -396,6 +404,17 @@ def render_report_html(report: Mapping[str, Any]) -> str:
         f"<div class='card'><div class='label'>{html.escape(str(key).replace('_',' ').title())}</div><div class='value'>{int(value)}</div></div>"
         for key, value in counts.items()
     )
+    completeness = report.get("run_completeness", {})
+    lifecycle = report.get("lifecycle", {})
+    final_state = ("<p><strong>Collection:</strong> " + html.escape(str(lifecycle.get("collection_status", "unknown")))
+                   + " · <strong>Report:</strong> " + html.escape(str(lifecycle.get("report_status", "unknown")))
+                   + " · <strong>Execution completion:</strong> " + str(completeness.get("execution_score", 0))
+                   + "% · <strong>Collection visibility:</strong> " + str(completeness.get("score", 0))
+                   + "% of configured stages. These scores do not certify full application or security coverage.</p>"
+                   if report.get("diagnostics_finalization") else "<p>Provisional report: final execution states are not yet recorded.</p>")
+    if report.get("diagnostics_finalization", {}).get("baseline_review_required"):
+        final_state += ("<p><strong>Historical baseline review required.</strong> Retained evidence shows limited collection visibility. "
+                        "The original scan outcome and comparison baseline have been preserved.</p>")
     return f"""<!doctype html>
 <html lang='en'>
 <head>
@@ -415,6 +434,7 @@ section{{margin-top:28px}} .scroll{{overflow:auto}} a{{color:var(--accent)}}
 </head>
 <body><main>
 <h1>Recon Monitor report</h1>
+{final_state}
 <p><strong>Target:</strong> {target}<br><strong>Run:</strong> {run_id}<br><strong>Generated:</strong> {html.escape(str(report.get('generated_at','')))}<br><strong>Baseline:</strong> {bool(report.get('baseline'))}</p>
 <div class='grid'>{count_cards}</div>
 <section><h2>Changes</h2><div class='scroll'><table><thead><tr><th>Severity</th><th>Score</th><th>Class</th><th>State</th><th>Title</th><th>Item</th><th>Risk reasons</th></tr></thead><tbody>{''.join(event_rows) or '<tr><td colspan=7>No changes</td></tr>'}</tbody></table></div></section>

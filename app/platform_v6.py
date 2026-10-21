@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from storage import ContentAddressedStore
+from scan_coverage import stage_coverage
 
 from core import (
     APP_VERSION,
@@ -446,7 +447,9 @@ def data_quality_snapshot(db: Database, run_id: str | None = None, target: str |
         js_files = parse_int((db.one("SELECT COUNT(*) count FROM js_files WHERE target=? AND last_run_id=?", (item, run_id)) or {"count": 0})["count"], 0)
         js_indicators = parse_int((db.one("SELECT COUNT(*) count FROM js_indicators WHERE target=? AND last_run_id=?", (item, run_id)) or {"count": 0})["count"], 0)
         fingerprints = parse_int((db.one("SELECT COUNT(*) count FROM fingerprints WHERE target=? AND last_run_id=?", (item, run_id)) or {"count": 0})["count"], 0)
-        analysis_id = _latest_analysis(db, item)
+        analysis_row = db.one("SELECT id FROM analysis_runs WHERE source_run_id=? AND target IN (?, '*') "
+                              "AND status='success' ORDER BY finished_at DESC LIMIT 1", (run_id, item))
+        analysis_id = str(analysis_row["id"]) if analysis_row else ""
         endpoints = parse_int((db.one("SELECT COUNT(*) count FROM endpoint_contracts WHERE analysis_id=?", (analysis_id,)) or {"count": 0})["count"], 0) if analysis_id else 0
         response_shapes = parse_int((db.one("SELECT COUNT(*) count FROM response_shape_fingerprints WHERE analysis_id=?", (analysis_id,)) or {"count": 0})["count"], 0) if analysis_id else 0
         auth_contexts = parse_int((db.one("SELECT COUNT(DISTINCT context) count FROM behavioral_observations WHERE analysis_id=?", (analysis_id,)) or {"count": 0})["count"], 0) if analysis_id else 0
@@ -497,9 +500,19 @@ def data_quality_snapshot(db: Database, run_id: str | None = None, target: str |
             blind_spots.append({"severity": "high", "code": "no_response_shapes", "message": "Endpoint contracts exist but no response-shape observations are available."})
         if statuses.get("fingerprint") not in {"success", "skipped"}:
             blind_spots.append({"severity": "high", "code": "fingerprint_stage_incomplete", "message": "HTTP fingerprint collection did not complete successfully."})
-        missing = [stage for stage, status in statuses.items() if status not in {"success", "skipped"}]
+        missing = [stage for stage, status in statuses.items() if status not in {"success", "skipped", "running"}]
         if missing:
             blind_spots.append({"severity": "high", "code": "incomplete_stages", "message": "Incomplete stages: " + ", ".join(missing)})
+        running = [stage for stage, status in statuses.items() if status == "running"]
+        if running:
+            blind_spots.append({"severity": "info", "code": "in_progress_stages", "message": "Stages still running: " + ", ".join(running)})
+        metrics["collection_visibility"] = {
+            stage: stage_coverage(stage, stage_map.get((item, stage), {})) for stage in expected_stages
+        }
+        for stage, visibility in metrics["collection_visibility"].items():
+            if visibility["status"] in {"partial", "access_restricted"}:
+                blind_spots.append({"severity": "high", "code": stage + "_collection_visibility",
+                                    "message": visibility["reason"]})
         if evidence == 0 and analysis_id:
             blind_spots.append({"severity": "medium", "code": "no_reasoning_evidence", "message": "Analysis exists but no unified evidence record is available."})
         target_results[item] = {"score": max(0, min(100, score)), "metrics": metrics, "blind_spots": blind_spots}

@@ -66,6 +66,11 @@ def _stage_record(ctx: Any, stage: str) -> dict[str, Any]:
         }
     data = _as_mapping(row)
     metrics = safe_json_loads(data.get("metrics_json"), {}, expected_type=dict)
+    audit = metrics.get("coverage_audit")
+    if isinstance(audit, Mapping):
+        metrics.update(audit)
+        metrics["collection_reasons"] = sorted(set(metrics.get("collection_reasons") or [])
+                                                | set(audit.get("origin_coverage_reasons") or []))
     return {
         "available": True,
         "status": str(data.get("status") or "unknown").strip().lower(),
@@ -181,6 +186,9 @@ def _urls_dimension(ctx: Any) -> dict[str, Any]:
         return base
 
     metrics = base["metrics"]
+    base["origin_access_restricted"] = _int(metrics.get("origin_access_restricted"))
+    base["origin_probe_failed"] = _int(metrics.get("origin_probe_failed"))
+    base["origin_coverage_pending_origins"] = list(metrics.get("origin_coverage_pending_origins") or [])
     katana_status = str(metrics.get("katana_status") or "not_recorded")
     base["katana_status"] = katana_status
     base["katana_stop_reason"] = str(metrics.get("katana_stop_reason") or "")
@@ -189,10 +197,12 @@ def _urls_dimension(ctx: Any) -> dict[str, Any]:
     wayback_incomplete = wayback_status not in {"completed", "not_available", "not_recorded"}
     katana_incomplete = katana_status in {"operator_next", "timeout", "nonzero_exit", "budget_exhausted", "tool_missing", "partial", "no_live_origins", "no_live_pending"}
     if (base["status"] == "partial" or metrics.get("collection_status") == "partial"
+            or metrics.get("origin_coverage_status") == "partial"
             or katana_incomplete or wayback_incomplete):
         base["status"] = "partial"
         base["collected"] = _int(metrics.get("urls"))
-        base["reason"] = f"URL collection is incomplete; Katana: {katana_status}; waybackurls: {wayback_status}."
+        base["reason"] = (f"URL collection is incomplete; Katana: {katana_status}; waybackurls: {wayback_status}. "
+                          + ", ".join(str(reason) for reason in metrics.get("collection_reasons") or []))
         base["not_collected"] = (
             (["incomplete_katana_crawl"] if katana_incomplete else [])
             + (["incomplete_wayback_archive"] if wayback_incomplete else [])
@@ -269,8 +279,9 @@ def _javascript_dimension(ctx: Any) -> dict[str, Any]:
     if isinstance(recorded_reasons, list):
         base["collection_reasons"] = [str(reason) for reason in recorded_reasons]
 
-    if downloaded < files:
-        reasons.append(f"downloaded {downloaded}/{files} selected JavaScript files")
+    accounted = min(files, downloaded + _int(metrics.get("reused_work_items")) + _int(metrics.get("not_found")))
+    if accounted < files:
+        reasons.append(f"completed {accounted}/{files} selected JavaScript observations")
         not_collected.append("undownloaded_javascript_files")
     if errors:
         reasons.append(f"{errors} JavaScript collection errors")

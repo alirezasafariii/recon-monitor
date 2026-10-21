@@ -56,6 +56,7 @@ from dashboard_service import (  # noqa: E402
 )
 from analysis import compare_runs, format_comparison  # noqa: E402
 from analysis_engine import run_analysis, replay_analysis, analysis_quality, calibration_report, feedback_report  # noqa: E402
+from browser_javascript import import_browser_javascript, list_browser_javascript_imports, browser_javascript_report  # noqa: E402
 from bug_candidates import ANALYST_DECISIONS, FEEDBACK_REASON_CODES, get_bug_candidate, list_bug_candidates, set_bug_candidate_decision  # noqa: E402
 from candidate_intelligence import PROFILES, candidate_calibration, candidate_evaluation, set_gold_label  # noqa: E402
 from behavioral_intelligence import behavioral_summary  # noqa: E402
@@ -265,14 +266,25 @@ class Orchestrator:
     ) -> tuple[str, dict[str, Any]]:
         self.progress.configure(target_index, target_total, stage_index, stage_total, label)
         prior = self.db.stage_status(ctx.run_id, ctx.policy.name, stage_name)
+        legacy_origin_gap = False
         if resume and prior == "success" and stage_name != "report":
             metrics_row = self.db.one(
                 "SELECT metrics_json FROM stage_runs WHERE run_id=? AND target=? AND stage=?",
                 (ctx.run_id, ctx.policy.name, stage_name),
             )
             metrics = safe_json_loads(metrics_row["metrics_json"], {}, expected_type=dict) if metrics_row else {}
-            self.progress.finish_stage("resume-skip", metrics)
-            return "success", metrics
+            legacy_origin_gap = False
+            if stage_name == "urls" and ("origin_probe_coverage_version" not in metrics
+                    or metrics.get("origin_coverage_status") == "partial"):
+                from scan_coverage import origin_probe_coverage
+                probe_file = ctx.current / "origin-probe.jsonl"
+                if probe_file.is_file():
+                    from core import read_jsonl
+                    legacy_origin_gap = origin_probe_coverage(list(read_jsonl(probe_file)))["origin_coverage_status"] == "partial"
+            if not legacy_origin_gap:
+                self.progress.finish_stage("resume-skip", metrics)
+                return "success", metrics
+            ctx.refresh_origin_coverage = True
 
         module_enabled = True
         if stage_name in {"subdomains", "dns", "urls", "javascript", "endpoint_validation", "fingerprint", "ports", "nuclei"}:
@@ -299,11 +311,15 @@ class Orchestrator:
                     metrics = stage_report(ctx, baseline)
                 else:
                     metrics = STAGE_FUNCTIONS[stage_name](ctx)
+                if legacy_origin_gap:
+                    metrics["resumed_origin_probe_gap"] = True
+                metrics.setdefault("execution_status", "success")
                 duration = time.monotonic() - started
                 if self.db.stage_next_requested(
                     ctx.run_id, ctx.policy.name, stage_name, attempt,
                 ):
                     metrics["collection_status"] = "partial"
+                    metrics["execution_status"] = "interrupted"
                     metrics["stop_reason"] = "operator_next"
                     metrics["pending_stage_resume"] = stage_name != "urls"
                 # A collector may preserve useful output while its underlying
@@ -311,6 +327,9 @@ class Orchestrator:
                 # orchestration result so downstream stages can still run.
                 collection_status = str(metrics.get("collection_status") or "")
                 persisted_status = "partial" if collection_status == "partial" else "success"
+                if stage_name == 'javascript':
+                    metrics['collection_attempt'] = attempt
+                    metrics['collection_attempt_limit'] = attempts
                 self.db.stage_finish(
                     ctx.run_id,
                     ctx.policy.name,
@@ -324,6 +343,16 @@ class Orchestrator:
                     "no-input" if collection_status == "no_input" else "ok"
                 )
                 self.progress.finish_stage(progress_status, metrics)
+                if (stage_name == 'javascript' and persisted_status == 'partial'
+                        and int(metrics.get('retryable_collection_errors') or 0) > 0
+                        and 'operator_next' not in metrics.get('collection_reasons', [])
+                        and attempt < attempts):
+                    delay = min(30, 2 ** (attempt - 1))
+                    self.progress.message(
+                        f"  Retrying unfinished JavaScript work in {delay}s ({attempt}/{attempts})…"
+                    )
+                    time.sleep(delay)
+                    continue
                 return "success", metrics
             except NextStageRequested:
                 # The active tool's stdout has already been flushed to its
@@ -438,6 +467,7 @@ class Orchestrator:
                     self.allow_active,
                     BudgetManager.create(self.db, run_id, policy.name, policy),
                     self.db_writer,
+                    resume_failed_work=bool(resume_id),
                 )
                 target_failed = False
                 target_partial = False
@@ -528,7 +558,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("setup", help="Interactive target and module setup wizard")
     run = sub.add_parser("run", help="Run recon monitoring")
     run.add_argument("--target", help="Policy name or root domain")
-    run.add_argument("--resume", help="Resume an interrupted/failed run ID")
+    run.add_argument("--resume", help="Resume a partial, interrupted, or failed run ID")
     run.add_argument("--allow-active", action="store_true", help="Satisfy the CLI gate for already-authorized active modules")
     run.add_argument("--dry-run", action="store_true", help="Preview scope, modules, limits, and budgets without network requests")
     run.add_argument("--json-plan", action="store_true", help="Print dry-run plan as JSON")
@@ -689,7 +719,7 @@ def build_parser() -> argparse.ArgumentParser:
     analysis_cmd.add_argument("--limit", type=int, default=20)
 
     platform = sub.add_parser("platform", help="Manage the 5.0 quality, cases, operations, scope and production platform")
-    platform.add_argument("action", choices=["sync","quality","cases","case-show","case-set","stories","scope","operations","storage","completeness","validation-package","report-draft","rules","rule-set","schedule-set","notification-set","incremental","learning","noise-budget"])
+    platform.add_argument("action", choices=["sync","finalize","quality","cases","case-show","case-set","stories","scope","operations","storage","completeness","validation-package","report-draft","rules","rule-set","schedule-set","notification-set","incremental","learning","noise-budget"])
     platform.add_argument("--analysis-id", default="")
     platform.add_argument("--run", dest="run_id", default="")
     platform.add_argument("--target", default="")
@@ -737,13 +767,14 @@ def build_parser() -> argparse.ArgumentParser:
     suite.add_argument("--template-id", default="")
 
     workspace = sub.add_parser("workspace", help="Manage the Recon Monitor 8.x unified security research workspace")
-    workspace.add_argument("action", choices=["sync","diagnostics","repair","errors","evidence-gap","autopilot","autopilot-queue","contexts","differential","coverage","graph","changes","memory","learning","plan","stage-value","report","capture-import","safety","cockpit","search"])
+    workspace.add_argument("action", choices=["sync","diagnostics","repair","errors","evidence-gap","autopilot","autopilot-queue","contexts","differential","coverage","graph","changes","memory","learning","plan","stage-value","report","capture-import","javascript-import","javascript-imports","javascript-show","safety","cockpit","search"])
     workspace.add_argument("--target", default="")
     workspace.add_argument("--run", dest="run_id", default="")
     workspace.add_argument("--analysis-id", default="")
     workspace.add_argument("--case-id", default="")
     workspace.add_argument("--file", default="")
     workspace.add_argument("--context", default="")
+    workspace.add_argument("--import-id", default="")
     workspace.add_argument("--query", default="")
     workspace.add_argument("--limit", type=int, default=100)
     workspace.add_argument("--apply", action="store_true", help="Apply the safe repair action after preview")
@@ -1041,7 +1072,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "platform":
-            if args.action == "sync":
+            if args.action == "finalize":
+                if not args.run_id:
+                    raise ReconError("platform finalize requires --run RUN_ID")
+                from scan_finalization import finalize_run_diagnostics
+                result = finalize_run_diagnostics(paths, db, args.run_id)
+            elif args.action == "sync":
                 legacy = platform_sync(paths, db, args.analysis_id or None)
                 workspace = workspace_v7_sync(paths, config, db, target=args.target or "", actor="cli-platform-sync")
                 result = {"platform": legacy, "workspace_v7": workspace}
@@ -1206,6 +1242,16 @@ def main(argv: list[str] | None = None) -> int:
             elif args.action == "capture-import":
                 if not args.target or not args.file or not args.context: raise ReconError("workspace capture-import requires --target --file --context")
                 result = import_browser_capture(paths, db, target=args.target, file_path=args.file, context_label=args.context, actor="cli", limit=args.limit)
+            elif args.action == "javascript-import":
+                if not args.target or not args.file or not args.run_id:
+                    raise ReconError("workspace javascript-import requires --target --run --file")
+                result = import_browser_javascript(paths, db, target=args.target, run_id=args.run_id,
+                    file_path=args.file, context_label=args.context or "browser-observed")
+            elif args.action == "javascript-imports":
+                result = {"imports": list_browser_javascript_imports(db, target=args.target, limit=args.limit)}
+            elif args.action == "javascript-show":
+                if not args.import_id: raise ReconError("workspace javascript-show requires --import-id")
+                result = browser_javascript_report(db, args.import_id)
             elif args.action == "safety":
                 result = safety_center(paths, config, db)
             elif args.action == "cockpit":
