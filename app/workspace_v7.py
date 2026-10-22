@@ -88,8 +88,14 @@ def _latest_run(db: Database, target: str = "") -> str:
 
 
 def _previous_run(db: Database, target: str, current_run: str = "") -> str:
+    from baseline_integrity import exclusion_sql
     params: list[Any] = [target]
+    if current_run:
+        current_target = db.one("SELECT baseline FROM run_targets WHERE run_id=? AND target=?", (current_run, target))
+        if current_target and current_target["baseline"]:
+            return ""
     sql = "SELECT r.id FROM runs r JOIN run_targets rt ON rt.run_id=r.id WHERE r.status IN ('success','partial') AND rt.status='success' AND rt.target=?"
+    sql += exclusion_sql(db, "rt.target", "r.id")
     if current_run:
         current = db.one("SELECT COALESCE(finished_at,started_at) ts FROM runs WHERE id=?", (current_run,))
         if current and current["ts"]:
@@ -522,10 +528,14 @@ def attack_surface_graph(db: Database, *, target: str, limit: int = 1200) -> dic
 
 
 def change_intelligence(db: Database, *, target: str, run_id: str = "", persist: bool = True) -> dict[str, Any]:
+    from baseline_integrity import baseline_run_excluded
     run_id = run_id or _latest_run(db, target)
     previous = _previous_run(db, target, run_id)
     if not run_id:
         return {"target": target, "current_run": "", "previous_run": "", "changes": [], "important": []}
+    if baseline_run_excluded(db, target, run_id):
+        return {"target": target, "current_run": run_id, "previous_run": "", "changes": [], "important": [],
+                "comparison_status": "baseline_quarantined", "generated_at": utc_now()}
     changes: list[dict[str, Any]] = []
     important: list[dict[str, Any]] = []
     current_assets = {str(r["host"]) for r in db.all("SELECT host FROM assets WHERE target=? AND last_run_id=?", (target, run_id))}

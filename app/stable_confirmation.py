@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from core import json_dumps, safe_json_loads, sha256_text, utc_now
+from baseline_integrity import baseline_run_excluded
 
 
 STABLE_CONFIRMATION_SCHEMA_VERSION = 1
@@ -149,6 +150,8 @@ def observe_stable_change_state(
             "SELECT * FROM stable_change_state WHERE target=? AND subject_key=?",
             (target, subject_key),
         )
+        if committed and baseline_run_excluded(db, target, str(committed["last_run_id"])):
+            committed = None
         same_state = bool(
             committed is not None
             and str(committed["state_version"]) == state_version

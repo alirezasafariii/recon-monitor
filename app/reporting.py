@@ -415,6 +415,9 @@ def render_report_html(report: Mapping[str, Any]) -> str:
     if report.get("diagnostics_finalization", {}).get("baseline_review_required"):
         final_state += ("<p><strong>Historical baseline review required.</strong> Retained evidence shows limited collection visibility. "
                         "The original scan outcome and comparison baseline have been preserved.</p>")
+    if report.get("diagnostics_finalization", {}).get("baseline_quarantined"):
+        final_state += ("<p><strong>Incomplete baseline excluded from comparisons.</strong> "
+                        "Historical evidence is retained. A complete collection is required to establish a trusted replacement.</p>")
     return f"""<!doctype html>
 <html lang='en'>
 <head>

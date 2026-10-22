@@ -13,9 +13,10 @@ from core import ReconError, atomic_write_text, json_dumps, safe_json_loads, utc
 from scan_coverage import COVERAGE_VERSION, metrics_dict, origin_probe_coverage, stage_coverage
 
 
-def _audit_legacy_origins(paths: Any, db: Any, run_id: str) -> None:
+def _audit_legacy_origins(paths: Any, db: Any, run_id: str, *, target: str = "") -> None:
     """Annotate old omissions using retained local evidence, not fresh traffic."""
-    for target in db.all("SELECT target,run_dir FROM run_targets WHERE run_id=?", (run_id,)):
+    for target in db.all("SELECT target,run_dir FROM run_targets WHERE run_id=?" + (" AND target=?" if target else ""),
+                         (run_id, target) if target else (run_id,)):
         directory = Path(str(target["run_dir"]))
         if not directory.resolve().is_relative_to(paths.output.resolve()):
             raise ReconError("Run output directory is outside the configured output root")
@@ -39,6 +40,7 @@ def finalize_run_diagnostics(paths: Any, db: Any, run_id: str) -> dict[str, Any]
     from reporting import _stage_metrics, render_report_html
     from workspace_v7 import recon_coverage
     from collection_quality import snapshot_collection_quality
+    from baseline_integrity import baseline_review
 
     run = db.one("SELECT status FROM runs WHERE id=?", (run_id,))
     if not run:
@@ -53,6 +55,7 @@ def finalize_run_diagnostics(paths: Any, db: Any, run_id: str) -> dict[str, Any]
     quality = data_quality_snapshot(db, run_id, persist=True)
     finalized = []
     baseline_reviews = []
+    quarantined = []
     for target_row in db.all("SELECT target,run_dir FROM run_targets WHERE run_id=?", (run_id,)):
         target = str(target_row["target"])
         run_dir = Path(str(target_row["run_dir"]))
@@ -69,9 +72,16 @@ def finalize_run_diagnostics(paths: Any, db: Any, run_id: str) -> dict[str, Any]
             "SELECT stage,status,metrics_json FROM stage_runs WHERE run_id=? AND target=?", (run_id, target),
         )}
         finalization["collection_visibility"] = observations
+        review = baseline_review(db, target, run_id)
+        finalization["baseline_quarantined"] = bool(review and review["state"] == "quarantined")
+        if finalization["baseline_quarantined"]:
+            quarantined.append(target)
+            finalization["baseline_integrity"] = {"state": "quarantined", "run_id": run_id,
+                                                  "detected_at": review["detected_at"],
+                                                  "reason": "baseline_coverage_incomplete"}
         finalization["baseline_review_required"] = bool(lifecycle.get("baseline_eligible") and any(
             value["status"] in {"access_restricted", "partial"} for value in observations.values()
-        ))
+        ) and not finalization["baseline_quarantined"])
         if finalization["baseline_review_required"]:
             baseline_reviews.append(target)
         old_quality = metrics_dict(report_metrics.get("collection_quality"))
@@ -152,4 +162,5 @@ def finalize_run_diagnostics(paths: Any, db: Any, run_id: str) -> dict[str, Any]
     invalidate_platform_cache()
     return {"run_id": run_id, "targets": finalized, "run_completeness": completeness,
             "baseline_review_required_targets": baseline_reviews,
+            "baseline_quarantined_targets": quarantined,
             "collection_or_baseline_changed": False, "network_requests": 0}

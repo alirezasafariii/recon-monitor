@@ -86,6 +86,8 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
         try:
             for target_index, policy in enumerate(targets, 1):
                 self.current_target = policy.name
+                from baseline_integrity import review_committed_baseline
+                review_committed_baseline(self.db, policy.name, paths=self.paths)
                 existing = self.db.one(
                     "SELECT run_dir,baseline FROM run_targets "
                     "WHERE run_id=? AND target=?",
@@ -93,7 +95,7 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                 )
                 if existing:
                     run_dir = Path(str(existing["run_dir"]))
-                    baseline = bool(existing["baseline"])
+                    baseline = bool(existing["baseline"]) or not self.db.target_has_history(policy.name)
                     # Resume through the runtime Database so an older in-flight
                     # target also gets an explicit lifecycle row.
                     self.db.create_run_target(run_id, policy, run_dir, baseline)
@@ -125,15 +127,16 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                 )
 
                 collection_failed = False
+                collection_stopped = False
                 report_ran = False
                 report_metrics: dict[str, Any] = {}
                 replay_downstream = False
 
                 for stage_index, (stage_name, label) in enumerate(stages, 1):
-                    if collection_failed and stage_name != "report":
-                        # Keep partial-reporting behavior: stop further target
-                        # collection after a collection failure, but still run
-                        # report for diagnostics and persisted partial evidence.
+                    if collection_stopped and stage_name != "report":
+                        # A target-wide budget stop still prevents traffic.
+                        # Ordinary collector failures do not invalidate inputs
+                        # already available to the remaining stages.
                         continue
                     # A resumed collector can add inputs after a partial run.
                     # Its dependents must refresh even if they previously
@@ -160,6 +163,12 @@ def install_lifecycle_status_guard(namespace: Mapping[str, Any]) -> None:
                         report_metrics = dict(metrics or {})
                     elif status != "success":
                         collection_failed = True
+                        collection_stopped = metrics.get("stop_reason") == "budget_exhausted"
+                        if not collection_stopped:
+                            self.logger.warn(
+                                "Collection stage failed; continuing with available inputs",
+                                run_id=run_id, target=policy.name, stage=stage_name,
+                            )
 
                 if collection_failed and not report_ran:
                     # Defensive fallback: report failure must never rewrite

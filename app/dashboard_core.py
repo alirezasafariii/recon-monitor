@@ -630,15 +630,16 @@ def _change_priority(kind: str, change: str, value: str = "") -> tuple[str, int]
 
 
 def _latest_successful_runs(db: Database, target: str = "") -> list[dict[str, str]]:
+    from baseline_integrity import exclusion_sql
     params: list[Any] = []
     where = ""
     if target:
         where = " AND rt.target=?"
         params.append(target)
     rows = db.all(
-        "SELECT rt.target,r.id,r.started_at,COALESCE(r.finished_at,r.started_at) finished_at "
-        "FROM runs r JOIN run_targets rt ON rt.run_id=r.id WHERE r.status='success'" + where +
-        " AND COALESCE(r.finished_at,r.started_at)=(SELECT MAX(COALESCE(r2.finished_at,r2.started_at)) FROM runs r2 JOIN run_targets rt2 ON rt2.run_id=r2.id WHERE r2.status='success' AND rt2.target=rt.target) "
+        "SELECT rt.target,rt.baseline,r.id,r.started_at,COALESCE(r.finished_at,r.started_at) finished_at "
+        "FROM runs r JOIN run_targets rt ON rt.run_id=r.id WHERE r.status='success'" + where + exclusion_sql(db, "rt.target", "r.id") +
+        " AND COALESCE(r.finished_at,r.started_at)=(SELECT MAX(COALESCE(r2.finished_at,r2.started_at)) FROM runs r2 JOIN run_targets rt2 ON rt2.run_id=r2.id WHERE r2.status='success' AND rt2.target=rt.target" + exclusion_sql(db, "rt2.target", "r2.id") + ") "
         "ORDER BY COALESCE(r.finished_at,r.started_at) DESC,rt.target",
         tuple(params),
     )
@@ -646,10 +647,10 @@ def _latest_successful_runs(db: Database, target: str = "") -> list[dict[str, st
     for row in rows:
         prev=db.one(
             "SELECT r.id,COALESCE(r.finished_at,r.started_at) ts FROM runs r JOIN run_targets rt ON rt.run_id=r.id "
-            "WHERE r.status='success' AND rt.target=? AND COALESCE(r.finished_at,r.started_at)<? ORDER BY COALESCE(r.finished_at,r.started_at) DESC LIMIT 1",
+            "WHERE r.status='success' AND rt.target=? AND COALESCE(r.finished_at,r.started_at)<?" + exclusion_sql(db, "rt.target", "r.id") + " ORDER BY COALESCE(r.finished_at,r.started_at) DESC LIMIT 1",
             (row['target'], row['finished_at']),
         )
-        out.append({"target":str(row['target']),"run_id":str(row['id']),"started_at":str(row['started_at'] or ''),"finished_at":str(row['finished_at'] or ''),"previous_run":str(prev['id']) if prev else ""})
+        out.append({"target":str(row['target']),"run_id":str(row['id']),"started_at":str(row['started_at'] or ''),"finished_at":str(row['finished_at'] or ''),"previous_run":str(prev['id']) if prev and not row['baseline'] else ""})
     return out
 
 

@@ -483,6 +483,54 @@ class CommandRunnerStdinTests(unittest.TestCase):
         self.assertEqual(self.output.read_text(), "saved\n")
         self._assert_clean()
 
+    def test_macos_signal_denial_during_concurrent_child_reaping_is_not_a_live_failure(self):
+        # CPython poll() returns None if another waiter owns its waitpid lock,
+        # even after the OS has reaped the child. Reproduce that exact window
+        # without relying on the scheduler to race two cancellation threads.
+        command = self._command("import time; time.sleep(4)")
+        proc = REAL_POPEN(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, text=True, start_new_session=True)
+        self.processes.append(proc)
+        reaped = threading.Event()
+        release = threading.Event()
+        failures = []
+        real_killpg = os.killpg
+        real_wait = proc.wait
+
+        def reap():
+            try:
+                with proc._waitpid_lock:
+                    real_killpg(proc.pid, signal.SIGTERM)
+                    _pid, status = os.waitpid(proc.pid, 0)
+                    reaped.set()
+                    if not release.wait(3):
+                        raise AssertionError("fixture reaper was not released")
+                    proc._handle_exitstatus(status)
+            except BaseException as exc:
+                failures.append(exc)
+                reaped.set()
+
+        def finish_wait(*args, **kwargs):
+            release.set()
+            return real_wait(*args, **kwargs)
+
+        thread = threading.Thread(target=reap, daemon=True)
+        thread.start()
+        try:
+            self.assertTrue(reaped.wait(3), "fixture child was not reaped")
+            self.assertEqual(failures, [])
+            self.assertIsNone(proc.poll(), "fixture must hold the concurrent-reaper window")
+            with patch("core.sys.platform", "darwin"), \
+                 patch("core.os.killpg", side_effect=PermissionError(errno.EPERM, "exited group denied")), \
+                 patch.object(proc, "wait", side_effect=finish_wait):
+                self.runner._signal_process_group(proc, signal.SIGTERM)
+        finally:
+            release.set()
+            thread.join(3)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(failures, [])
+        self.assertEqual(proc.returncode, -signal.SIGTERM)
+
     def test_linux_exited_group_permission_error_is_not_suppressed(self):
         def on_exit(_line, _count):
             self.processes[-1].wait(timeout=1)

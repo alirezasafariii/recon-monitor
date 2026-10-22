@@ -32,6 +32,19 @@ it does not by itself fail a scan of an otherwise accessible static site.
 
 ## Resume
 
+An ordinary failed collector does not stop the remaining collection stages.
+They consume their available scoped inputs using their normal validation and
+authorization gates, and Report/Analysis still run on the evidence collected.
+A missing input remains missing; continuation does not make the failed stage
+successful or establish/refresh an incomplete comparison baseline. Collectors
+that return partial evidence already followed this continuation rule.
+
+Explicit target-budget exhaustion still stops subsequent collection, and is
+recorded with its metric, used amount and limit without futile stage retries.
+Runtime is checked before each enabled collector attempt. Report/Analysis may
+still run locally after this stop. Operator interruption still terminates the
+run, and shared HTTP cooldowns continue to defer requests to affected hosts.
+
 Explicit resume rechecks incomplete origin probes and refreshes downstream inputs.
 When a previously restricted origin becomes accessible, its old completed crawl
 receipt cannot suppress a new crawl. A new checkpoint namespace is selected for
@@ -76,3 +89,47 @@ Offline regressions cover restricted roots, mixed healthy/timeout services,
 HEAD/GET differences, fingerprint omissions, multi-target gaps, access-generation
 checkpoints, historical audits, finalization failures, cache invalidation and a
 full orchestrator/report/analysis pipeline with no target traffic.
+
+## Repairing an incomplete historical baseline
+
+Before a new collection restores its comparison state, the active committed
+baseline is reviewed against retained origin evidence, stored collection metrics
+and the frozen HTTP fingerprint snapshot. Proven restricted responses, origin
+failures or incomplete collection exclude that run from baseline comparisons.
+Missing historical metrics, no JavaScript input, and Analysis/report failures
+alone do not revoke an otherwise valid collection baseline.
+
+The review is recorded in `recon_baseline_reviews`; the baseline registry becomes
+`quarantined`. Original stage/lifecycle outcomes, snapshot rows and scan artifacts
+remain available. Quarantined core rows are not restored, derived receipts from
+that run do not produce deltas, and stable-change confirmation cannot reuse its
+observations. Historical change views also exclude it as a comparison reference.
+JavaScript availability and content-hash comparisons also ignore excluded runs.
+Their per-observation comparison flags survive same-ID recovery; only newly
+observed JavaScript evidence clears a flag. Historical rows and blobs are retained.
+Each new committed snapshot keeps a frozen coverage receipt. A later failed
+resume of the same run cannot overwrite that receipt or revoke the healthy
+snapshot using its new working-stage status.
+
+For an explicit local repair after all scans of the target have finished:
+
+```bash
+./recon-monitor.sh platform baseline-repair --run RUN_ID
+```
+
+Alternatively, use `--target TARGET` to review that target's active baseline.
+The command shares the scan lock, refuses running target scans, audits bounded
+local evidence, updates the registry transactionally and refreshes report
+diagnostics. It performs no network requests or notifications. Repeating it is
+safe; reviewing an older run cannot revoke a newer healthy replacement.
+The result lists `baseline_rebuild_required_targets` when a trustworthy
+replacement is still needed.
+`platform finalize` remains a diagnostic-only command and does not quarantine a
+baseline by itself.
+
+Until collection completes, the target remains without an eligible comparison
+baseline. The first complete replacement establishes a fresh baseline identity
+without change alerts. A partial replacement cannot restore the excluded
+reference. Resume preserves observations from its own run while removing inherited
+comparison rows; a verified complete resume may also repair the original run ID.
+Older quarantined derived receipts stay excluded after the core baseline recovers.
