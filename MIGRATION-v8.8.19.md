@@ -6,6 +6,8 @@ Back up the installed program, configuration, database and Run evidence before u
 
 The runtime installs additive baseline-integrity tables, frozen collection-coverage receipts and per-observation JavaScript comparison flags. Their independent metadata key is `recon_baseline_integrity_schema_version`; the core schema stays at 18. No manual SQL conversion is required.
 
+The 8.8.3 updater omits the optional `tools/` directory. Core upgrade validation supports that layout. The full release ZIP contains `tools/`; use the full package layout when you need its pinned Katana installer or developer utilities. Existing source checkouts and newer updater layouts retain their tooling.
+
 ## Review historical baselines
 
 The next target run checks its committed comparison baseline before restoring it. You can also review a finished target explicitly, without target requests:

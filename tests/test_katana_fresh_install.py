@@ -11,8 +11,14 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+LEGACY_WITHOUT_TOOLS = not (ROOT / "tools").exists() and not (ROOT / ".git").exists()
+REQUIRES_HELPER = unittest.skipIf(
+    LEGACY_WITHOUT_TOOLS,
+    "Optional Katana installer helper is not shipped by the legacy updater",
+)
 
 class KatanaFreshInstallTests(unittest.TestCase):
+    @REQUIRES_HELPER
     def test_helper_promotes_only_after_contract_and_acceptance(self):
         for outcome in ("success", "bad-contract", "acceptance-failure"):
             with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as tmp:
@@ -76,12 +82,19 @@ class KatanaFreshInstallTests(unittest.TestCase):
                     self.assertEqual(acceptance.exists(), outcome == "acceptance-failure")
 
     def test_shell_syntax(self):
-        for name in ("install.sh", "tools/install_project_katana.sh"):
-            result = subprocess.run(
-                ["bash", "-n", str(ROOT / name)],
-                capture_output=True, text=True,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
+        result = subprocess.run(
+            ["bash", "-n", str(ROOT / "install.sh")],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    @REQUIRES_HELPER
+    def test_helper_shell_syntax(self):
+        result = subprocess.run(
+            ["bash", "-n", str(ROOT / "tools/install_project_katana.sh")],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_explicit_flag_dispatches_to_helper_without_init(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -115,6 +128,9 @@ class KatanaFreshInstallTests(unittest.TestCase):
         text = (ROOT / "install.sh").read_text(encoding="utf-8")
         self.assertIn('if [[ "${INSTALL_MISSING:-0}" == "1" ]]', text)
         self.assertIn('bash "$ROOT_DIR/tools/install_project_katana.sh"', text)
+
+    @REQUIRES_HELPER
+    def test_helper_pins_source_and_requires_acceptance(self):
         script = (ROOT / "tools/install_project_katana.sh").read_text(encoding="utf-8")
         self.assertIn("35267ac5c8ff1db9694a319d0eb466ed97b0969f", script)
         self.assertIn("katana-v1.8.0-frontier.patch", script)
