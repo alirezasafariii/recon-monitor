@@ -92,6 +92,44 @@ class InstalledReviewLayoutTests(unittest.TestCase):
     def test_current_updater_tracks_tools_for_install_backup_and_rollback(self):
         self.assertIn('tools', UpdateManager._program_items(ROOT))
 
+    def test_katana_installer_checks_distinguish_legacy_and_incomplete_layouts(self):
+        # The old updater omits tools. Keep installer dispatch/syntax coverage,
+        # skip only unavailable helper checks, and reject damaged full/source
+        # layouts rather than hiding a missing shipped installer.
+        cases = (
+            ("legacy", False, ""),
+            ("incomplete-tools", True, ""),
+            ("source-checkout", False, "directory"),
+            ("source-worktree", False, "file"),
+        )
+        for label, tools_present, git_kind in cases:
+            with self.subTest(layout=label), tempfile.TemporaryDirectory() as temp:
+                installed = Path(temp)
+                for name in ("install.sh", "recon-monitor.sh",
+                             "app/katana_runtime_contract.py", "tests/test_katana_fresh_install.py"):
+                    destination = installed / name
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(ROOT / name, destination)
+                if tools_present:
+                    (installed / "tools").mkdir()
+                if git_kind == "directory":
+                    (installed / ".git").mkdir()
+                elif git_kind == "file":
+                    (installed / ".git").write_text("gitdir: /unused/fixture\n")
+                code = (
+                    "import json,unittest;"
+                    "s=unittest.defaultTestLoader.discover('tests',pattern='test_katana_fresh_install.py');"
+                    "r=unittest.TextTestRunner().run(s);"
+                    "print(json.dumps({'tests':r.testsRun,'skipped':len(r.skipped),'success':r.wasSuccessful()}))"
+                )
+                result = subprocess.run([sys.executable, '-I', '-c', code], cwd=installed,
+                                        text=True, capture_output=True, timeout=30)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                summary = json.loads(result.stdout)
+                self.assertEqual(summary['tests'], 7)
+                self.assertEqual(summary['skipped'], 3 if label == "legacy" else 0)
+                self.assertEqual(summary['success'], label == "legacy", result.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()
