@@ -1,0 +1,24 @@
+{
+  "name": "Publish verified Recon Monitor v8.8.19",
+  "on": {
+    "push": {
+      "branches": [
+        "publish/v8.8.19-20261022"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "jobs": {
+    "release": {
+      "uses": "./.github/workflows/verified-release.yml",
+      "with": {
+        "version": "8.8.19",
+        "release_sha": "4514b3bd9a0f89d383c14c2e61d1b28c10b8ba84",
+        "release_tree": "79adb31ec04adc30683cfb032dab7be6af5b7752"
+      }
+    }
+  }
+}
