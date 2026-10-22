@@ -22,7 +22,7 @@ This patch release records the collection, Resume and comparison-baseline fixes 
 
 Core schema 18 is retained. Baseline-integrity tables, frozen coverage receipts and JavaScript comparison flags are installed through additive, independently versioned compatibility metadata. Existing configuration, Run evidence and analyst decisions are preserved.
 
-The 8.8.3 updater layout remains supported when its copy rules omit optional tooling. Installer dispatch and installed-script checks still run; helper-specific regressions distinguish that legacy layout from incomplete source checkouts or damaged full installations.
+The 8.8.3 updater layout remains supported when its copy rules omit optional tooling. Installer dispatch and installed-script checks still run; optional Katana helper and HAR exporter regressions distinguish that legacy layout from incomplete source checkouts or damaged full installations.
 
 Browser JavaScript import remains an offline analysis path with source provenance; it does not change the original scan's collection status. Public GraphQL field names alone do not establish excessive data exposure. The separately reviewed Analysis issues are not repaired by this release.
 

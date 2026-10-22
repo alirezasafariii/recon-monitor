@@ -13,6 +13,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+if not (ROOT / 'tools').exists() and not (ROOT / '.git').exists():
+    raise unittest.SkipTest('Optional HAR exporter is absent in the legacy updater layout')
 sys.path.insert(0, str(ROOT / 'app'))
 sys.path.insert(0, str(ROOT / 'tools'))
 

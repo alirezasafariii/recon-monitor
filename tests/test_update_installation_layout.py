@@ -130,6 +130,38 @@ class InstalledReviewLayoutTests(unittest.TestCase):
                 self.assertEqual(summary['skipped'], 3 if label == "legacy" else 0)
                 self.assertEqual(summary['success'], label == "legacy", result.stderr)
 
+    def test_har_exporter_checks_distinguish_legacy_and_broken_tooling(self):
+        for label in ('legacy', 'incomplete-tools', 'source-checkout', 'source-worktree', 'broken-exporter'):
+            with self.subTest(layout=label), tempfile.TemporaryDirectory() as temp:
+                installed = Path(temp)
+                for name in ('tests/test_export_har_javascript.py', 'app/core.py', 'app/javascript_normalization.py'):
+                    destination = installed / name
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(ROOT / name, destination)
+                if label in ('incomplete-tools', 'broken-exporter'):
+                    (installed / 'tools').mkdir()
+                if label == 'source-checkout':
+                    (installed / '.git').mkdir()
+                elif label == 'source-worktree':
+                    (installed / '.git').write_text('gitdir: /unused/fixture\n')
+                elif label == 'broken-exporter':
+                    (installed / 'tools/export_har_javascript.py').write_text(
+                        'raise RuntimeError("fixture exporter import failure")\n')
+                code = (
+                    "import json,unittest;"
+                    "s=unittest.defaultTestLoader.discover('tests',pattern='test_export_har_javascript.py');"
+                    "r=unittest.TextTestRunner().run(s);"
+                    "print(json.dumps({'tests':r.testsRun,'skipped':len(r.skipped),'errors':len(r.errors),'success':r.wasSuccessful()}))"
+                )
+                result = subprocess.run([sys.executable, '-I', '-c', code], cwd=installed,
+                                        text=True, capture_output=True, timeout=30)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                summary = json.loads(result.stdout)
+                self.assertEqual(summary, {'tests': 1, 'skipped': int(label == 'legacy'),
+                                           'errors': int(label != 'legacy'), 'success': label == 'legacy'}, result.stderr)
+                if label != 'legacy':
+                    self.assertIn('export_har_javascript', result.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()
