@@ -16,8 +16,8 @@
       "uses": "./.github/workflows/verified-release.yml",
       "with": {
         "version": "8.8.19",
-        "release_sha": "ff52787f8359c3cf0b7ea4d3412a9ad1f29e88fa",
-        "release_tree": "153fb4a0ba6e3c75ecff828a456fc88a8a513493"
+        "release_sha": "0cd7760aaa5e3395e8e07e5e7a0531398c06a765",
+        "release_tree": "b898202976f5320c2f82e65fc410b4331f5ccdaa"
       }
     }
   }
