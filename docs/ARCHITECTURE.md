@@ -1,8 +1,8 @@
 # Recon Monitor architecture
 
-<!-- recon-monitor-current: app=8.8.18 schema=18 -->
+<!-- recon-monitor-current: app=8.8.19 schema=18 -->
 
-Recon Monitor is a local-first, authorization-gated attack-surface monitoring and vulnerability-reasoning platform. The canonical application version and core database schema version are defined in `app/core.py` as `APP_VERSION` and `SCHEMA_VERSION`. For the current build they are **8.8.18** and **18**.
+Recon Monitor is a local-first, authorization-gated attack-surface monitoring and vulnerability-reasoning platform. The canonical application version and core database schema version are defined in `app/core.py` as `APP_VERSION` and `SCHEMA_VERSION`. For the current build they are **8.8.19** and **18**.
 
 ```text
 Target / Policy / Authorization
@@ -40,10 +40,10 @@ Recon Change Alerts                  Finding Notifications
 
 `app/core.py` is the source of truth for the release-facing metadata:
 
-- `APP_VERSION = "8.8.18"`
+- `APP_VERSION = "8.8.19"`
 - `SCHEMA_VERSION = 18`
 
-`SCHEMA_VERSION` identifies the **core SQLite schema** created and maintained by `Database.migrate()`. Reliability features added after the core schema-18 migration use additive, independently versioned compatibility schemas rather than pretending to be a new core migration. Their metadata is stored in `schema_meta`, including `successful_snapshot_schema_version`, `stable_confirmation_schema_version`, `finding_notification_schema_version`, and the explicit target-lifecycle metadata key.
+`SCHEMA_VERSION` identifies the **core SQLite schema** created and maintained by `Database.migrate()`. Reliability features added after the core schema-18 migration use additive, independently versioned compatibility schemas rather than pretending to be a new core migration. Their metadata is stored in `schema_meta`, including `successful_snapshot_schema_version`, `recon_baseline_integrity_schema_version`, `stable_confirmation_schema_version`, `finding_notification_schema_version`, and the explicit target-lifecycle metadata key.
 
 This distinction is deliberate: a release may add backward-compatible feature tables without changing the core schema number, but those feature schemas must remain self-versioned and idempotent. A future change that alters the core schema contract must increment `SCHEMA_VERSION` and provide the corresponding migration documentation.
 
@@ -58,6 +58,8 @@ A target run has separate operational truths rather than one overloaded success 
 - **overall status**: `success`, `partial`, `failed`, or `interrupted` derived from those components.
 
 Baseline eligibility is collection-driven. A complete Recon collection can establish or refresh the canonical comparison snapshot even when Analysis, reporting, or notification later makes the overall target partial. An incomplete collection can never advance the baseline.
+
+An ordinary collector failure preserves available inputs and permits later collection stages to run. Target budget exhaustion and operator interruption stop further collection. Proven incomplete historical comparison snapshots are recorded in the baseline-integrity ledger and excluded from comparisons, while source evidence remains retained. See `SCAN_VISIBILITY.md`.
 
 ## Successful snapshot boundary
 
