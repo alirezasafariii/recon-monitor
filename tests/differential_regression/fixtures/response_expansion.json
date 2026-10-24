@@ -1,0 +1,20 @@
+{
+  "name": "response_structure_expansion",
+  "before": {
+    "response_keys": [
+      "error"
+    ]
+  },
+  "after": {
+    "response_keys": [
+      "error",
+      "email",
+      "user_id"
+    ]
+  },
+  "expected": {
+    "signals": [
+      "response_structure_change"
+    ]
+  }
+}

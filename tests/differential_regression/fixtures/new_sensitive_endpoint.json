@@ -1,0 +1,16 @@
+{
+  "name": "new_sensitive_endpoint",
+  "before": {
+    "exists": false
+  },
+  "after": {
+    "exists": true,
+    "path": "/api/export",
+    "classification": "sensitive"
+  },
+  "expected": {
+    "signals": [
+      "new_endpoint_exposure"
+    ]
+  }
+}
