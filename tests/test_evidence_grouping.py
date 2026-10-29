@@ -159,6 +159,8 @@ class EvidenceGroupingTests(unittest.TestCase):
         self.assertNotEqual(support[0]["evidence_id"], against[0]["evidence_id"])
         self.assertEqual(meta["support_roots"], 1)
         self.assertEqual(meta["contradict_roots"], 1)
+        self.assertEqual(meta["independent_evidence"], 1)
+        self.assertEqual(meta["scoring_contributions"], 2)
 
     def test_shared_facts_remain_linked_to_each_candidate(self):
         facts = self.facts()

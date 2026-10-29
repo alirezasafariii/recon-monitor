@@ -462,9 +462,11 @@ def _materialize_evidence(db: Database, candidate: Mapping[str, Any], support: l
         record_excluded_signal(db, candidate, item, polarity, root, reason_code, reason)
     support_groups = len(independent_representatives(out_support))
     contradict_groups = len(independent_representatives(out_contradict))
+    all_groups = {source_group(item) for item in out_support + out_contradict}
     metadata = {
         "raw_signals": raw_count,
-        "independent_evidence": support_groups + contradict_groups,
+        "independent_evidence": len(all_groups),
+        "scoring_contributions": support_groups + contradict_groups,
         "suppressed_correlated_signals": raw_count - support_groups - contradict_groups,
         "duplicate_facts_suppressed": len(excluded),
         "retained_facts": len(selected),
