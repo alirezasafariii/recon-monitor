@@ -58,7 +58,9 @@ class CandidateReliabilityV43Tests(unittest.TestCase):
             {"type": "classification", "source_group": "semantic", "weight": 14},
             {"type": "http", "source": "http", "weight": 8},
         ])
-        self.assertEqual(len(selected), 2)
+        self.assertEqual(len(selected), 3)
+        self.assertEqual(meta["independent_groups"], 2)
+        self.assertEqual({item["type"] for item in selected}, {"admin", "classification", "http"})
         self.assertEqual(meta["double_counted_signals_suppressed"], 1)
 
     def test_schema_and_reliability_metrics(self):
