@@ -10,7 +10,7 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
-from hypothesis_admission import hypothesis_summary, knowledge_for_family
+from hypothesis_admission import candidate_state_constraint, hypothesis_summary, knowledge_for_family
 from evidence_grouping import independent_representatives, source_group
 
 REASONING_ENGINE_VERSION = "5.2.2"
@@ -682,11 +682,13 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
             db.execute("INSERT OR REPLACE INTO family_rankings(analysis_id,candidate_id,rank,bug_family,score,reason_json,created_at) VALUES(?,?,?,?,?,?,?)", (analysis_id, candidate["candidate_id"], rank, value["family"], value["score"], json_dumps(value["reason"]), utc_now()))
         calibration = _calibration_for_family(db, family, str(candidate["target"]))
         raw_likelihood = parse_int(candidate.get("likelihood_score"), 0)
+        state_constraint = candidate_state_constraint(db, candidate)
         cache_payload = {
             "candidate_fingerprint": str(candidate.get("candidate_fingerprint") or ""),
             "family": family,
             "endpoint": str(candidate.get("endpoint") or candidate.get("source_ref") or ""),
             "analyst_decision": str(candidate.get("analyst_decision") or "unreviewed"),
+            "state_constraint": state_constraint,
             "roots": sorted((str(item.get("root_fingerprint") or ""), str(item["polarity"]), parse_int(item.get("trust_score"), 0), parse_int(item.get("observation_quality"), 0)) for item in support + contradict),
             "assessment": assessment,
             "calibration": calibration,
@@ -696,7 +698,7 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
         if cached_row:
             cached = _loads(cached_row["result_json"], {})
             cached_scores = cached.get("scores", {}) if isinstance(cached, Mapping) else {}
-            candidate_state = str(cached.get("candidate_state") or "possible")
+            candidate_state = state_constraint or str(cached.get("candidate_state") or "possible")
             calibrated = parse_int(cached_scores.get("calibrated_likelihood"), raw_likelihood)
             evidence_strength = parse_int(cached_scores.get("evidence_strength"), parse_int(candidate.get("evidence_strength"), 0))
             exploitability = parse_int(cached_scores.get("exploitability_confidence"), 0)
@@ -706,7 +708,7 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
             reachability = str(cached.get("reachability_state") or "unknown")
             unknowns = cached.get("unknowns", []) if isinstance(cached.get("unknowns", []), list) else []
             reasoning = cached.get("reasoning", {}) if isinstance(cached.get("reasoning", {}), Mapping) else {}
-            reasoning = {**reasoning, "evidence_lineage": evidence_meta, "cache": {"reused": True, "evidence_fingerprint": evidence_fingerprint}, "engine_version": REASONING_ENGINE_VERSION, "rule_version": REASONING_RULE_VERSION}
+            reasoning = {**reasoning, "state_constraint": state_constraint, "evidence_lineage": evidence_meta, "cache": {"reused": True, "evidence_fingerprint": evidence_fingerprint}, "engine_version": REASONING_ENGINE_VERSION, "rule_version": REASONING_RULE_VERSION}
             if candidate_state == "strong_candidate": strong += 1
             if candidate_state == "insufficient_evidence": insufficient += 1
             shadow_matches += _shadow_rules(db, candidate, context, support, assessment)
@@ -748,23 +750,25 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
         observation_quality = _clamp(parse_int(candidate.get("observation_quality"), 50) * .55 + trust_avg * .45, 10, 98)
         investigation = _clamp(calibrated * .27 + evidence_strength * .22 + exploitability * .16 + impact * .20 + observation_quality * .10 + assessment["overall_coverage"] * .05, 0, 100)
         if assessment["precondition_state"] == "insufficient":
-            candidate_state = "insufficient_evidence"; insufficient += 1
+            candidate_state = "insufficient_evidence"
         elif calibrated >= 76 and evidence_strength >= 68 and assessment["overall_coverage"] >= 55 and evidence_meta["support_roots"] >= 2:
-            candidate_state = "strong_candidate"; strong += 1
+            candidate_state = "strong_candidate"
         elif calibrated >= 56 and evidence_strength >= 45:
             candidate_state = "plausible"
         elif calibrated >= 34:
             candidate_state = "possible"
         else:
             candidate_state = "weak_signal"
-        if candidate.get("analyst_decision") == "confirmed_by_analyst": candidate_state = "confirmed_by_analyst"
-        elif candidate.get("analyst_decision") == "rejected": candidate_state = "rejected"
+        candidate_state = state_constraint or candidate_state
+        if candidate_state == "strong_candidate": strong += 1
+        if candidate_state == "insufficient_evidence": insufficient += 1
         causal = _causal_chain(candidate, context, support)
         falsification = _falsification(schema, contradict, assessment)
         unknowns = [{"fact": value, "state": "unknown", "security_meaning": "Absence of evidence is not evidence of a secure control."} for value in assessment["unknowns"]]
         reasoning = {
             "engine_version": REASONING_ENGINE_VERSION,
             "rule_version": REASONING_RULE_VERSION,
+            "state_constraint": state_constraint,
             "primary_family": family,
             "top_families": top3,
             "preconditions": assessment,

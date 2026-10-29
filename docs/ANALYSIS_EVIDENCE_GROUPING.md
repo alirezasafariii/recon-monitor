@@ -40,6 +40,12 @@ original hypothesis.
   are `2026.10.29.1` (engine `5.2.2`). Older cached reasoning is retained but
   cannot substitute for results under the new rule version.
   Offline validation's implementation version advances to `6.2.1`.
+- Enrichment, fresh reasoning and cached reasoning all honor current canonical
+  admission. A revoked historical promotion remains `needs_revalidation` until
+  fresh target evidence restores admission through the canonical path. Admission
+  constraints participate in cache identity, and explicit analyst decisions
+  remain authoritative. This also closes the previously reviewed rescoring
+  defect that became actionable once prerequisite facts were retained.
 
 No database migration, network request, baseline update or automatic replay of
 historical analyses is required. The correction applies to new analyses and

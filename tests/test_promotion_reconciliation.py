@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
@@ -12,10 +13,18 @@ sys.path.insert(0, str(ROOT / "app"))
 from analysis_engine import run_analysis
 from bug_candidates import BUG_FAMILIES, _insert_candidate, set_bug_candidate_decision
 from core import AppPaths, Database, utc_now
+from candidate_intelligence import enhance_candidates
 from hypothesis_admission import mark_promoted, record_hypothesis
+from security_reasoning import apply_security_reasoning
 
 
 class PromotionReconciliationTests(unittest.TestCase):
+    def setUp(self):
+        for target in ("socket.getaddrinfo", "socket.socket.connect", "subprocess.Popen"):
+            guard = patch(target, side_effect=AssertionError("offline reconciliation test"))
+            guard.start()
+            self.addCleanup(guard.stop)
+
     def make_analysis(self, td: str):
         paths = AppPaths.from_root(Path(td))
         paths.ensure()
@@ -189,8 +198,67 @@ class PromotionReconciliationTests(unittest.TestCase):
                 self.assertEqual(hypothesis_row["state"], "promoted")
                 candidate = db.one("SELECT candidate_state FROM bug_candidates WHERE candidate_id=?", (candidate_id,))
                 self.assertEqual(candidate["candidate_state"], "strong_candidate")
+                enhance_candidates(db, analysis_id)
+                apply_security_reasoning(db, analysis_id)
+                candidate = db.one("SELECT candidate_state,reasoning_trace_json FROM bug_candidates WHERE candidate_id=?", (candidate_id,))
+                self.assertNotEqual(candidate["candidate_state"], "needs_revalidation")
+                self.assertIsNone(json.loads(candidate["reasoning_trace_json"])["state_constraint"])
             finally:
                 db.close()
+
+    def test_revoked_admission_survives_enrichment_reasoning_and_cache(self):
+        with tempfile.TemporaryDirectory() as td:
+            _, db, analysis_id = self.make_analysis(td)
+            try:
+                endpoint, _, candidate_id = self.promote_ssrf(db, analysis_id)
+                self.add_blocking_contradiction(db, analysis_id, endpoint)
+                enhance_candidates(db, analysis_id)
+                self.assertEqual(db.one("SELECT candidate_state FROM bug_candidates WHERE candidate_id=?", (candidate_id,))[0], "needs_revalidation")
+                first = apply_security_reasoning(db, analysis_id)
+                self.assertEqual(first["strong_candidates"], 0)
+                row = db.one("SELECT candidate_state,reasoning_trace_json FROM bug_candidates WHERE candidate_id=?", (candidate_id,))
+                self.assertEqual(row["candidate_state"], "needs_revalidation")
+                self.assertEqual(json.loads(row["reasoning_trace_json"])["state_constraint"], "needs_revalidation")
+                second = apply_security_reasoning(db, analysis_id)
+                self.assertEqual(second["strong_candidates"], 0)
+                row = db.one("SELECT candidate_state,reasoning_trace_json FROM bug_candidates WHERE candidate_id=?", (candidate_id,))
+                self.assertEqual(row["candidate_state"], "needs_revalidation")
+                self.assertTrue(json.loads(row["reasoning_trace_json"])["cache"]["reused"])
+            finally:
+                db.close()
+
+    def test_changed_admission_invalidates_cached_state_without_changed_facts(self):
+        with tempfile.TemporaryDirectory() as td:
+            _, db, analysis_id = self.make_analysis(td)
+            try:
+                _, _, candidate_id = self.promote_ssrf(db, analysis_id)
+                apply_security_reasoning(db, analysis_id)
+                row = db.one("SELECT admission_json FROM analysis_hypotheses WHERE promoted_candidate_id=?", (candidate_id,))
+                admission = json.loads(row[0])
+                admission["admitted"] = False
+                db.execute("UPDATE analysis_hypotheses SET admission_json=? WHERE promoted_candidate_id=?", (json.dumps(admission), candidate_id))
+                apply_security_reasoning(db, analysis_id)
+                row = db.one("SELECT candidate_state,reasoning_trace_json FROM bug_candidates WHERE candidate_id=?", (candidate_id,))
+                self.assertEqual(row["candidate_state"], "needs_revalidation")
+                self.assertFalse(json.loads(row["reasoning_trace_json"]).get("cache", {}).get("reused", False))
+            finally:
+                db.close()
+
+    def test_automatic_rescoring_preserves_explicit_analyst_decisions(self):
+        for decision in ("confirmed_by_analyst", "rejected", "duplicate", "out_of_scope"):
+            with self.subTest(decision=decision), tempfile.TemporaryDirectory() as td:
+                _, db, analysis_id = self.make_analysis(td)
+                try:
+                    endpoint, _, candidate_id = self.promote_ssrf(db, analysis_id)
+                    set_bug_candidate_decision(db, candidate_id, decision, "Stored analyst review", actor="test")
+                    self.add_blocking_contradiction(db, analysis_id, endpoint)
+                    enhance_candidates(db, analysis_id)
+                    apply_security_reasoning(db, analysis_id)
+                    row = db.one("SELECT candidate_state,analyst_decision FROM bug_candidates WHERE candidate_id=?", (candidate_id,))
+                    self.assertEqual(row["analyst_decision"], decision)
+                    self.assertEqual(row["candidate_state"], decision)
+                finally:
+                    db.close()
 
     def test_analyst_confirmation_is_preserved_but_hypothesis_reflects_contradiction(self):
         with tempfile.TemporaryDirectory() as td:

@@ -13,6 +13,7 @@ from typing import Any, Iterable, Mapping
 
 from core import AppPaths, Database, json_dumps, parse_int, sha256_text, utc_now
 from evidence_grouping import independent_evidence
+from hypothesis_admission import candidate_state_constraint
 
 SEMANTIC_ENGINE_VERSION = "5.1.1"
 SEMANTIC_RULE_VERSION = "2026.10.29.1"
@@ -431,8 +432,7 @@ def enhance_candidates(db: Database, analysis_id: str, profile: str | None = Non
             automatic_state = "plausible"
         else:
             automatic_state = "possible"
-        if item["analyst_decision"] == "confirmed_by_analyst": automatic_state = "confirmed_by_analyst"
-        elif item["analyst_decision"] == "rejected": automatic_state = "rejected"
+        automatic_state = candidate_state_constraint(db, item) or automatic_state
         quality = {
             "profile": profile,
             "independent_support_groups": groups,

@@ -286,6 +286,22 @@ class EvidenceGroupingTests(unittest.TestCase):
         self.assertEqual(observations[0]["direct_observations"], 0)
         self.assertEqual(observations[0]["static_only_observations"], 3)
 
+    def test_full_analysis_keeps_revoked_admission_non_actionable(self):
+        endpoint = "https://example.test/api/preview?url=https://controlled.invalid/"
+        positive = {"server_fetch_observed": True, "user_controlled_destination": True,
+                    "execution_location": "server", "requested_destination": "https://controlled.invalid/"}
+        for name, observations in (("positive", [positive]), ("contradictory", [positive, {"server_fetch_not_observed": True}])):
+            self.db.upsert_alert("example.test", name, "new_endpoint", "HIGH", 90, "Stored preview observation", endpoint,
+                                 {"method": "GET", "status_code": 200, "query_parameters": ["url"], "ssrf_runtime_observations": observations}, "RUN-GROUP")
+        result = run_analysis(self.paths, self.db, "RUN-GROUP", "example.test")
+        row = self.db.one("SELECT c.candidate_state,c.precondition_state,c.contradicting_evidence_json,h.admission_json "
+                          "FROM bug_candidates c JOIN analysis_hypotheses h ON h.promoted_candidate_id=c.candidate_id "
+                          "WHERE c.analysis_id=? AND c.bug_family='ssrf'", (result["analysis_id"],))
+        self.assertFalse(json.loads(row["admission_json"])["admitted"])
+        self.assertEqual(row["precondition_state"], "complete")
+        self.assertEqual(row["candidate_state"], "needs_revalidation")
+        self.assertIn("server_fetch_not_observed", {x["type"] for x in json.loads(row["contradicting_evidence_json"])})
+
     def test_full_analysis_keeps_required_coverage_and_old_analysis_evidence(self):
         endpoint = "https://example.test/api/preview?url=https://controlled.invalid/"
         details = {
