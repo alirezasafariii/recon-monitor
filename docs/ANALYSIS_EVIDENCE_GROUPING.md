@@ -28,6 +28,10 @@ original hypothesis.
   and repeated contradiction penalties use source groups, not the number of
   typed facts. Different types can legitimately satisfy different prerequisites;
   they do not become separate independent confirmations.
+- Offline validation also counts independent supporting source groups, rather
+  than typed fact IDs. Both stored contradiction polarity spellings
+  (`contradict` and `contradicts`) block a strengthened result. Legacy records
+  without source-group metadata fall back to their original root identity.
 - Reasoning lineage distinguishes retained fact counts from independent source
   counts. `double_counted_signals_suppressed` in enrichment and
   `suppressed_correlated_signals` in reasoning describe extra scoring
@@ -35,6 +39,7 @@ original hypothesis.
 - Semantic rules are `2026.10.29.1` (engine `5.1.1`) and final reasoning rules
   are `2026.10.29.1` (engine `5.2.2`). Older cached reasoning is retained but
   cannot substitute for results under the new rule version.
+  Offline validation's implementation version advances to `6.2.1`.
 
 No database migration, network request, baseline update or automatic replay of
 historical analyses is required. The correction applies to new analyses and

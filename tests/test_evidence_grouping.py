@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 import analysis_engine
+import safe_validation_core
 from analysis_audit import build_evidence_dossier
 from analysis_engine import run_analysis
 from candidate_intelligence import enhance_candidates, independent_evidence
@@ -235,6 +236,53 @@ class EvidenceGroupingTests(unittest.TestCase):
         self.assertFalse(json.loads(row["reasoning_trace_json"]).get("cache", {}).get("reused", False))
         self.assertEqual({x[0] for x in self.db.all("SELECT rule_version FROM incremental_reasoning_cache")},
                          {"2026.08.8.4", REASONING_RULE_VERSION})
+
+    def test_offline_validation_does_not_strengthen_correlated_fact_roots(self):
+        candidate = self.candidate(self.facts())
+        _materialize_evidence(self.db, candidate, self.facts(), [])
+        with patch.object(safe_validation_core, "_case", return_value=({}, [candidate])):
+            result, observations, _ = safe_validation_core._offline_validate(self.db, "CASE-GROUP")
+        self.assertEqual(result, "inconclusive")
+        self.assertEqual(observations[0]["independent_roots"], 1)
+        self.assertEqual(observations[0]["direct_observations"], 1)
+
+    def test_offline_validation_requires_independent_support_and_honors_contradictions(self):
+        support = [*self.facts(), dict(self.facts()[0], source_group="independent_stored_observation")]
+        candidate = self.candidate(support)
+        _materialize_evidence(self.db, candidate, support, [])
+        with patch.object(safe_validation_core, "_case", return_value=({}, [candidate])):
+            result, observations, _ = safe_validation_core._offline_validate(self.db, "CASE-GROUP")
+        self.assertEqual(result, "strengthened")
+        self.assertEqual(observations[0]["independent_roots"], 2)
+        negative = {"type": "server_fetch_not_observed", "source_group": "stored_control", "weight": -30}
+        _materialize_evidence(self.db, candidate, support, [negative])
+        for polarity in ("contradict", "contradicts"):
+            self.db.execute("UPDATE candidate_evidence_links SET polarity=? WHERE relation='contradicts'", (polarity,))
+            with self.subTest(polarity=polarity), patch.object(safe_validation_core, "_case", return_value=({}, [candidate])):
+                result, observations, _ = safe_validation_core._offline_validate(self.db, "CASE-GROUP")
+            self.assertEqual(result, "inconclusive")
+            self.assertEqual(observations[0]["contradictions"], 1)
+
+    def test_offline_validation_preserves_legacy_root_fallback(self):
+        support = [self.facts()[0], dict(self.facts()[1], source_group="second_source")]
+        candidate = self.candidate(support)
+        _materialize_evidence(self.db, candidate, support, [])
+        self.db.execute("UPDATE evidence_records SET source_group=''")
+        with patch.object(safe_validation_core, "_case", return_value=({}, [candidate])):
+            result, observations, _ = safe_validation_core._offline_validate(self.db, "CASE-GROUP")
+        self.assertEqual(result, "strengthened")
+        self.assertEqual(observations[0]["independent_roots"], 2)
+
+    def test_offline_validation_keeps_static_only_evidence_weak(self):
+        support = [dict(fact, source="javascript", direct=False, source_group=f"static_{i}")
+                   for i, fact in enumerate(self.facts())]
+        candidate = self.candidate(support)
+        _materialize_evidence(self.db, candidate, support, [])
+        with patch.object(safe_validation_core, "_case", return_value=({}, [candidate])):
+            result, observations, _ = safe_validation_core._offline_validate(self.db, "CASE-GROUP")
+        self.assertEqual(result, "weakened")
+        self.assertEqual(observations[0]["direct_observations"], 0)
+        self.assertEqual(observations[0]["static_only_observations"], 3)
 
     def test_full_analysis_keeps_required_coverage_and_old_analysis_evidence(self):
         endpoint = "https://example.test/api/preview?url=https://controlled.invalid/"

@@ -63,7 +63,7 @@ class SafeValidationV51Tests(unittest.TestCase):
         now = utc_now(); evidence_id = "EVD-"+suffix; root = "root-"+suffix
         db.execute(
             "INSERT INTO evidence_records(evidence_id,analysis_id,source_run_id,target,evidence_type,polarity,source_kind,source_tool,source_artifact,parser_name,parser_version,source_group,root_fingerprint,trust_score,observation_quality,directness,summary,raw_reference,integrity_hash,first_seen,last_seen,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (evidence_id, "AN-1", "RUN-1", "example.com", "http_observation", polarity, "http", "fixture", "fixture", "fixture", "1", "fixture", root, 80, 80, "direct", "fixture evidence", "fixture", root, now, now, now),
+            (evidence_id, "AN-1", "RUN-1", "example.com", "http_observation", polarity, "http", "fixture", "fixture", "fixture", "1", "fixture:"+suffix, root, 80, 80, "direct", "fixture evidence", "fixture", root, now, now, now),
         )
         db.execute("INSERT INTO candidate_evidence_links(candidate_id,evidence_id,polarity,weight,relation,created_at) VALUES(?,?,?,?,?,?)", (candidate_id, evidence_id, polarity, 80, "fixture", now))
 
