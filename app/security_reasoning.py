@@ -10,10 +10,11 @@ from typing import Any, Iterable, Mapping
 
 from core import Database, json_dumps, parse_int, sha256_text, utc_now
 from analysis_audit import build_evidence_dossier, capture_evidence_snapshot, record_analysis_version, record_excluded_signal
-from hypothesis_admission import hypothesis_summary, knowledge_for_family
+from hypothesis_admission import candidate_state_constraint, hypothesis_summary, knowledge_for_family
+from evidence_grouping import independent_representatives, source_group
 
-REASONING_ENGINE_VERSION = "5.2.1"
-REASONING_RULE_VERSION = "2026.08.8.4"
+REASONING_ENGINE_VERSION = "5.2.2"
+REASONING_RULE_VERSION = "2026.10.29.1"
 
 SOURCE_TRUST = {
     "behavioral_diff": 94,
@@ -268,12 +269,18 @@ def _signal_type(item: Mapping[str, Any]) -> str:
 
 
 def _root_fingerprint(candidate: Mapping[str, Any], item: Mapping[str, Any], polarity: str) -> str:
-    source = _source_kind(item)
-    source_group = _norm_type(item.get("source_group") or item.get("source") or item.get("type"))
+    # The legacy schema makes (analysis, root, polarity) unique. Its root must
+    # identify a fact, not merely correlated text: different types, HTTP codes,
+    # identities or raw references can all be needed by downstream reasoning.
+    # Source-group independence is accounted for separately when scoring.
+    derived = {"evidence_id", "root_fingerprint", "trust_score", "source_kind",
+               "correlated_signal_count", "_selection_score", "weight"}
+    fact = {key: value for key, value in item.items() if key not in derived}
     artifact = str(item.get("artifact") or item.get("source_ref") or candidate.get("source_ref") or candidate.get("endpoint") or "")
-    text = str(item.get("text") or item.get("summary") or "")
-    normalized_text = re.sub(r"\b\d{2,}\b", "{n}", text.lower())
-    return sha256_text("|".join([str(candidate.get("target") or ""), source, source_group, artifact, normalized_text, polarity]))
+    return sha256_text(json_dumps({
+        "target": str(candidate.get("target") or ""), "polarity": polarity,
+        "source_kind": _source_kind(item), "artifact": artifact, "fact": fact,
+    }))
 
 
 def _trust(item: Mapping[str, Any]) -> int:
@@ -408,6 +415,7 @@ def _materialize_evidence(db: Database, candidate: Mapping[str, Any], support: l
             item["type"] = _signal_type(item)
             item["source_kind"] = _source_kind(item)
             item["source_group"] = _norm_type(item.get("source_group") or item.get("source") or item.get("type"))
+            item["polarity"] = polarity
             item["trust_score"] = _trust(item)
             item["root_fingerprint"] = _root_fingerprint(candidate, item, polarity)
             key = (polarity, item["root_fingerprint"])
@@ -417,10 +425,10 @@ def _materialize_evidence(db: Database, candidate: Mapping[str, Any], support: l
             if current is None:
                 selected[key] = item
             elif score > current["_selection_score"]:
-                excluded.append((polarity, item["root_fingerprint"], dict(current), "correlated_duplicate", "Suppressed because a stronger signal from the same underlying evidence root was selected."))
+                excluded.append((polarity, item["root_fingerprint"], dict(current), "correlated_duplicate", "An identical fact with a stronger weight was retained; distinct correlated facts are preserved."))
                 selected[key] = item
             else:
-                excluded.append((polarity, item["root_fingerprint"], dict(item), "correlated_duplicate", "Suppressed because an equal or stronger signal from the same underlying evidence root was already selected."))
+                excluded.append((polarity, item["root_fingerprint"], dict(item), "correlated_duplicate", "An identical fact with equal or stronger weight was already retained; distinct correlated facts are preserved."))
     out_support: list[dict[str, Any]] = []
     out_contradict: list[dict[str, Any]] = []
     for (polarity, root), item in selected.items():
@@ -429,11 +437,14 @@ def _materialize_evidence(db: Database, candidate: Mapping[str, Any], support: l
         source_artifact = str(item.get("artifact") or candidate.get("source_ref") or candidate.get("endpoint") or "")
         directness = "direct" if item.get("direct") or item["source_kind"] in {"behavioral_diff", "http", "response_shape"} else "inferred"
         db.execute(
-            """INSERT OR REPLACE INTO evidence_records(
+            """INSERT INTO evidence_records(
             evidence_id,analysis_id,source_run_id,target,evidence_type,polarity,source_kind,source_tool,source_artifact,
             parser_name,parser_version,source_group,root_fingerprint,trust_score,observation_quality,directness,
             summary,raw_reference,integrity_hash,first_seen,last_seen,created_at
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(evidence_id) DO UPDATE SET
+              trust_score=excluded.trust_score,observation_quality=excluded.observation_quality,
+              integrity_hash=excluded.integrity_hash,last_seen=excluded.last_seen""",
             (
                 evidence_id, analysis_id, candidate["source_run_id"], candidate["target"], item["type"], polarity,
                 item["source_kind"], str(item.get("source_tool") or item["source_kind"]), source_artifact,
@@ -449,12 +460,20 @@ def _materialize_evidence(db: Database, candidate: Mapping[str, Any], support: l
         (out_support if polarity == "support" else out_contradict).append(item)
     for polarity, root, item, reason_code, reason in excluded:
         record_excluded_signal(db, candidate, item, polarity, root, reason_code, reason)
+    support_groups = len(independent_representatives(out_support))
+    contradict_groups = len(independent_representatives(out_contradict))
+    all_groups = {source_group(item) for item in out_support + out_contradict}
     metadata = {
         "raw_signals": raw_count,
-        "independent_evidence": len(selected),
-        "suppressed_correlated_signals": len(excluded),
-        "support_roots": len(out_support),
-        "contradict_roots": len(out_contradict),
+        "independent_evidence": len(all_groups),
+        "scoring_contributions": support_groups + contradict_groups,
+        "suppressed_correlated_signals": raw_count - support_groups - contradict_groups,
+        "duplicate_facts_suppressed": len(excluded),
+        "retained_facts": len(selected),
+        "support_facts": len(out_support),
+        "contradict_facts": len(out_contradict),
+        "support_roots": support_groups,
+        "contradict_roots": contradict_groups,
     }
     return out_support, out_contradict, metadata
 
@@ -504,7 +523,7 @@ def _schema_assessment(family: str, support: list[dict[str, Any]], contradict: l
     required_coverage = 100 if not required_groups else round(100 * len(satisfied) / len(required_groups))
     supporting_total = max(1, min(4, len(schema.get("support", set()))))
     supporting_coverage = min(100, round(100 * len(supporting_matches) / supporting_total))
-    contradiction_coverage = min(100, 20 * (len(contradict) + len(contradicting_matches)))
+    contradiction_coverage = min(100, 20 * (len(independent_representatives(contradict)) + len(contradicting_matches)))
     overall = _clamp(required_coverage * .55 + supporting_coverage * .25 + contradiction_coverage * .20)
     unknowns = _dedupe_unknowns([*existing_missing, *schema.get("unknowns", [])])
     return {
@@ -663,12 +682,14 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
             db.execute("INSERT OR REPLACE INTO family_rankings(analysis_id,candidate_id,rank,bug_family,score,reason_json,created_at) VALUES(?,?,?,?,?,?,?)", (analysis_id, candidate["candidate_id"], rank, value["family"], value["score"], json_dumps(value["reason"]), utc_now()))
         calibration = _calibration_for_family(db, family, str(candidate["target"]))
         raw_likelihood = parse_int(candidate.get("likelihood_score"), 0)
+        state_constraint = candidate_state_constraint(db, candidate)
         cache_payload = {
             "candidate_fingerprint": str(candidate.get("candidate_fingerprint") or ""),
             "family": family,
             "endpoint": str(candidate.get("endpoint") or candidate.get("source_ref") or ""),
             "analyst_decision": str(candidate.get("analyst_decision") or "unreviewed"),
-            "roots": sorted((str(item.get("root_fingerprint") or ""), str(item.get("polarity") or "support"), parse_int(item.get("trust_score"), 0), parse_int(item.get("observation_quality"), 0)) for item in support + contradict),
+            "state_constraint": state_constraint,
+            "roots": sorted((str(item.get("root_fingerprint") or ""), str(item["polarity"]), parse_int(item.get("trust_score"), 0), parse_int(item.get("observation_quality"), 0)) for item in support + contradict),
             "assessment": assessment,
             "calibration": calibration,
         }
@@ -677,7 +698,7 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
         if cached_row:
             cached = _loads(cached_row["result_json"], {})
             cached_scores = cached.get("scores", {}) if isinstance(cached, Mapping) else {}
-            candidate_state = str(cached.get("candidate_state") or "possible")
+            candidate_state = state_constraint or str(cached.get("candidate_state") or "possible")
             calibrated = parse_int(cached_scores.get("calibrated_likelihood"), raw_likelihood)
             evidence_strength = parse_int(cached_scores.get("evidence_strength"), parse_int(candidate.get("evidence_strength"), 0))
             exploitability = parse_int(cached_scores.get("exploitability_confidence"), 0)
@@ -687,7 +708,7 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
             reachability = str(cached.get("reachability_state") or "unknown")
             unknowns = cached.get("unknowns", []) if isinstance(cached.get("unknowns", []), list) else []
             reasoning = cached.get("reasoning", {}) if isinstance(cached.get("reasoning", {}), Mapping) else {}
-            reasoning = {**reasoning, "evidence_lineage": evidence_meta, "cache": {"reused": True, "evidence_fingerprint": evidence_fingerprint}, "engine_version": REASONING_ENGINE_VERSION, "rule_version": REASONING_RULE_VERSION}
+            reasoning = {**reasoning, "state_constraint": state_constraint, "evidence_lineage": evidence_meta, "cache": {"reused": True, "evidence_fingerprint": evidence_fingerprint}, "engine_version": REASONING_ENGINE_VERSION, "rule_version": REASONING_RULE_VERSION}
             if candidate_state == "strong_candidate": strong += 1
             if candidate_state == "insufficient_evidence": insufficient += 1
             shadow_matches += _shadow_rules(db, candidate, context, support, assessment)
@@ -715,35 +736,39 @@ def apply_security_reasoning(db: Database, analysis_id: str) -> dict[str, Any]:
                     calibrated = cap
                     maturity_limiter = "BOLA capped until direct identity/object, cross-context, or response evidence exists"
         reachability, reach_conf = _reachability(candidate, support, contradict, context)
-        direct_groups = len({str(x.get("root_fingerprint")) for x in support if x.get("direct") or x.get("source_kind") in {"behavioral_diff", "http", "response_shape"}})
-        exploitability = _clamp(12 + direct_groups * 12 + reach_conf * .22 + assessment["required_coverage"] * .18 + assessment["supporting_coverage"] * .08 - len(assessment["required_missing"]) * 12 - len(contradict) * 5, 5, 85)
+        scoring_support = independent_representatives(support)
+        contradict_groups = evidence_meta["contradict_roots"]
+        direct_groups = len({source_group(x) for x in support if x.get("direct") or x.get("source_kind") in {"behavioral_diff", "http", "response_shape"}})
+        exploitability = _clamp(12 + direct_groups * 12 + reach_conf * .22 + assessment["required_coverage"] * .18 + assessment["supporting_coverage"] * .08 - len(assessment["required_missing"]) * 12 - contradict_groups * 5, 5, 85)
         if candidate.get("analyst_decision") == "confirmed_by_analyst": exploitability = max(exploitability, 86)
         elif reachability in {"static_only", "unknown"}: exploitability = min(exploitability, 45)
         if maturity_limiter:
             exploitability = min(exploitability, 40)
-        trust_avg = sum(parse_int(x.get("trust_score"), 30) for x in support) / max(1, len(support))
-        evidence_strength = _clamp(parse_int(candidate.get("evidence_strength"), 0) * .45 + trust_avg * .30 + assessment["overall_coverage"] * .25 - len(contradict) * 2, 5, 96)
+        trust_avg = sum(parse_int(x.get("trust_score"), 30) for x in scoring_support) / max(1, len(scoring_support))
+        evidence_strength = _clamp(parse_int(candidate.get("evidence_strength"), 0) * .45 + trust_avg * .30 + assessment["overall_coverage"] * .25 - contradict_groups * 2, 5, 96)
         impact = parse_int(candidate.get("impact_potential"), 0)
         observation_quality = _clamp(parse_int(candidate.get("observation_quality"), 50) * .55 + trust_avg * .45, 10, 98)
         investigation = _clamp(calibrated * .27 + evidence_strength * .22 + exploitability * .16 + impact * .20 + observation_quality * .10 + assessment["overall_coverage"] * .05, 0, 100)
         if assessment["precondition_state"] == "insufficient":
-            candidate_state = "insufficient_evidence"; insufficient += 1
-        elif calibrated >= 76 and evidence_strength >= 68 and assessment["overall_coverage"] >= 55 and len({x.get('root_fingerprint') for x in support}) >= 2:
-            candidate_state = "strong_candidate"; strong += 1
+            candidate_state = "insufficient_evidence"
+        elif calibrated >= 76 and evidence_strength >= 68 and assessment["overall_coverage"] >= 55 and evidence_meta["support_roots"] >= 2:
+            candidate_state = "strong_candidate"
         elif calibrated >= 56 and evidence_strength >= 45:
             candidate_state = "plausible"
         elif calibrated >= 34:
             candidate_state = "possible"
         else:
             candidate_state = "weak_signal"
-        if candidate.get("analyst_decision") == "confirmed_by_analyst": candidate_state = "confirmed_by_analyst"
-        elif candidate.get("analyst_decision") == "rejected": candidate_state = "rejected"
+        candidate_state = state_constraint or candidate_state
+        if candidate_state == "strong_candidate": strong += 1
+        if candidate_state == "insufficient_evidence": insufficient += 1
         causal = _causal_chain(candidate, context, support)
         falsification = _falsification(schema, contradict, assessment)
         unknowns = [{"fact": value, "state": "unknown", "security_meaning": "Absence of evidence is not evidence of a secure control."} for value in assessment["unknowns"]]
         reasoning = {
             "engine_version": REASONING_ENGINE_VERSION,
             "rule_version": REASONING_RULE_VERSION,
+            "state_constraint": state_constraint,
             "primary_family": family,
             "top_families": top3,
             "preconditions": assessment,

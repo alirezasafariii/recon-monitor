@@ -408,6 +408,32 @@ def _persist_classification_tags(
 
 
 
+def candidate_state_constraint(db: Database, candidate: Mapping[str, Any]) -> str | None:
+    """Keep automatic rescoring inside current canonical admission and review.
+
+    A historical promotion is not permission to restore an actionable state
+    after admission is revoked. Fresh target evidence must first restore the
+    linked canonical hypothesis. Legacy candidates without a hypothesis remain
+    readable, but an existing revalidation requirement cannot be cleared without
+    a current admission receipt. Explicit analyst decisions remain authoritative.
+    """
+    decision = str(candidate.get("analyst_decision") or "unreviewed")
+    if decision in {"confirmed_by_analyst", "rejected", "duplicate", "out_of_scope"}:
+        return decision
+    rows = db.all(
+        "SELECT admission_json FROM analysis_hypotheses "
+        "WHERE promoted_candidate_id=? AND analysis_id=? AND target=?",
+        (candidate["candidate_id"], candidate["analysis_id"], candidate["target"]),
+    )
+    for row in rows:
+        admission = _loads(row["admission_json"], {})
+        if not isinstance(admission, Mapping) or admission.get("admitted") is not True:
+            return "needs_revalidation"
+    if not rows and str(candidate.get("candidate_state") or "") == "needs_revalidation":
+        return "needs_revalidation"
+    return None
+
+
 def _candidate_auto_state(likelihood_score: Any, evidence_strength: Any) -> str:
     try:
         likelihood = int(likelihood_score or 0)

@@ -12,9 +12,11 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from core import AppPaths, Database, json_dumps, parse_int, sha256_text, utc_now
+from evidence_grouping import independent_evidence
+from hypothesis_admission import candidate_state_constraint
 
-SEMANTIC_ENGINE_VERSION = "5.1.0"
-SEMANTIC_RULE_VERSION = "2026.09.18.1"
+SEMANTIC_ENGINE_VERSION = "5.1.1"
+SEMANTIC_RULE_VERSION = "2026.10.29.1"
 PROFILES = {
     "quiet": {"minimum_sources": 3, "minimum_evidence": 62, "minimum_likelihood": 50, "stale_days": 21},
     "balanced": {"minimum_sources": 2, "minimum_evidence": 42, "minimum_likelihood": 32, "stale_days": 30},
@@ -44,34 +46,6 @@ def _clamp(value: float, low: int = 0, high: int = 100) -> int:
 def analysis_profile() -> str:
     value = str(os.environ.get("ANALYSIS_PROFILE", "balanced") or "balanced").strip().lower()
     return value if value in PROFILES else "balanced"
-
-
-def _source_group(item: Mapping[str, Any]) -> str:
-    return str(item.get("source_group") or item.get("source") or item.get("type") or "rule").strip().lower()
-
-
-def independent_evidence(items: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Keep the strongest item in each source group to avoid double counting."""
-    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for raw in items:
-        item = dict(raw)
-        group = _source_group(item)
-        item["source_group"] = group
-        grouped[group].append(item)
-    selected: list[dict[str, Any]] = []
-    for group, values in grouped.items():
-        values.sort(key=lambda value: abs(parse_int(value.get("weight"), 0)), reverse=True)
-        strongest = values[0]
-        strongest["correlated_signal_count"] = len(values)
-        selected.append(strongest)
-    selected.sort(key=lambda value: abs(parse_int(value.get("weight"), 0)), reverse=True)
-    metadata = {
-        "independent_groups": len(grouped),
-        "raw_signals": sum(len(values) for values in grouped.values()),
-        "groups": {group: len(values) for group, values in grouped.items()},
-        "double_counted_signals_suppressed": sum(max(0, len(values) - 1) for values in grouped.values()),
-    }
-    return selected, metadata
 
 
 def _json_shape(value: Any, prefix: str = "", depth: int = 0) -> tuple[list[str], dict[str, str]]:
@@ -458,8 +432,7 @@ def enhance_candidates(db: Database, analysis_id: str, profile: str | None = Non
             automatic_state = "plausible"
         else:
             automatic_state = "possible"
-        if item["analyst_decision"] == "confirmed_by_analyst": automatic_state = "confirmed_by_analyst"
-        elif item["analyst_decision"] == "rejected": automatic_state = "rejected"
+        automatic_state = candidate_state_constraint(db, item) or automatic_state
         quality = {
             "profile": profile,
             "independent_support_groups": groups,

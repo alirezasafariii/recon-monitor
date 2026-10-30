@@ -32,7 +32,7 @@ from core import (
 from family_reasoning import FAMILY_REASONING, validation_level_for_family
 from safe_transport import perform_pinned_request
 
-VALIDATION_VERSION = "6.2.0"
+VALIDATION_VERSION = "6.2.1"
 VALIDATION_LEVELS = ["offline", "passive_live", "controlled", "manual_only"]
 PLAN_STATES = ["plan_ready", "awaiting_approval", "approved", "running", "completed", "stopped_for_safety", "failed", "not_eligible"]
 VALIDATION_RESULTS = ["strengthened", "weakened", "inconclusive", "manual_only", "offline_only", "blocked_by_scope", "stopped_for_safety"]
@@ -662,21 +662,31 @@ def _offline_validate(db: Database, case_id: str) -> tuple[str, list[dict[str, A
     candidate_results: list[str] = []
     for candidate in candidates:
         roots: set[str] = set()
-        direct = 0
-        static_only = 0
-        contradictions = 0
+        direct: set[str] = set()
+        static_only: set[str] = set()
+        contradictions: set[str] = set()
         rows = db.all(
-            "SELECT e.root_fingerprint,e.directness,e.polarity,e.source_kind,e.integrity_hash,e.summary FROM candidate_evidence_links l JOIN evidence_records e ON e.evidence_id=l.evidence_id WHERE l.candidate_id=?",
+            "SELECT e.root_fingerprint,e.source_group,e.directness,l.polarity,e.source_kind,e.integrity_hash,e.summary FROM candidate_evidence_links l JOIN evidence_records e ON e.evidence_id=l.evidence_id WHERE l.candidate_id=?",
             (candidate["candidate_id"],),
         )
         for row in rows:
-            roots.add(str(row["root_fingerprint"]))
-            direct += 1 if str(row["directness"]) == "direct" else 0
-            static_only += 1 if str(row["source_kind"]) in {"javascript", "source_map", "static_inference"} else 0
-            contradictions += 1 if str(row["polarity"]) == "contradicts" else 0
-        if len(roots) >= 2 and direct >= 1 and contradictions == 0:
+            # A fact ID is not an independent source. Legacy records without
+            # source-group metadata retain their original root as a fallback.
+            group = str(row["source_group"] or row["root_fingerprint"]).strip().lower()
+            polarity = str(row["polarity"]).strip().lower()
+            if polarity in {"contradict", "contradicts"}:
+                contradictions.add(group)
+                continue
+            if polarity not in {"support", "supports"}:
+                continue
+            roots.add(group)
+            if str(row["directness"]) == "direct":
+                direct.add(group)
+            if str(row["source_kind"]) in {"javascript", "source_map", "static_inference"}:
+                static_only.add(group)
+        if len(roots) >= 2 and direct and not contradictions:
             candidate_result = "strengthened"
-        elif roots and static_only >= max(1, len(roots)) and direct == 0:
+        elif roots and len(static_only) >= len(roots) and not direct:
             candidate_result = "weakened"
         else:
             candidate_result = "inconclusive"
@@ -688,9 +698,9 @@ def _offline_validate(db: Database, case_id: str) -> tuple[str, list[dict[str, A
             "candidate_endpoint": str(candidate.get("endpoint") or ""),
             "validation_result": candidate_result,
             "independent_roots": len(roots),
-            "direct_observations": direct,
-            "static_only_observations": static_only,
-            "contradictions": contradictions,
+            "direct_observations": len(direct),
+            "static_only_observations": len(static_only),
+            "contradictions": len(contradictions),
             "raw_body_stored": False,
         })
     if "strengthened" in candidate_results:
