@@ -5,6 +5,7 @@ import ipaddress
 import re
 import time
 import uuid
+from itertools import zip_longest
 
 from core import normalize_host, tool_path, valid_domain, json_dumps, safe_json_loads, sha256_bytes, sha256_text
 from execution import BudgetExceeded, WorkQueue
@@ -153,21 +154,37 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state, *, resumab
             values[host] = cached['observation']
             outcomes.append(cached)
             continue
-        if not dig or state['used'] >= MAX_QUERIES or ctx.next_requested():
+        if not dig:
+            state['stop_reason'] = 'dig_unavailable'
             continue
+        if ctx.next_requested():
+            state['stop_reason'] = 'operator_next'
+            continue
+        if state.get('blocked') or state['used'] >= state.get('query_limit', MAX_QUERIES):
+            continue
+        interval = 1 / max(1, ctx.policy.limits.dns_rate)
+        delay = max(0, interval - (time.monotonic() - state.get('last', 0)))
+        timeout = min(5, ctx.policy.limits.timeout_seconds)
+        if state.get('deadline') is not None:
+            remaining = state['deadline'] - time.monotonic() - delay
+            if remaining <= 0:
+                state.update(blocked=True, stop_reason='deadline')
+                continue
+            timeout = min(timeout, remaining)
         if (not ctx.budget and ctx.policy.limits.max_dns_queries
                 and state['reserved'] >= ctx.policy.limits.max_dns_queries):
+            state.update(blocked=True, stop_reason='query_budget')
             break
         try:
             if ctx.budget:
                 ctx.budget.consume('dns_queries', 1)
-        except BudgetExceeded:
+        except BudgetExceeded as exc:
+            state.update(blocked=True, stop_reason=(
+                'runtime_budget' if exc.metric == 'runtime_seconds' else 'query_budget'))
             break
         state['used'] += 1
         state['reserved'] += 1
         used += 1
-        interval = 1 / max(1, ctx.policy.limits.dns_rate)
-        delay = interval - (time.monotonic() - state.get('last', 0))
         if delay > 0:
             time.sleep(delay)
         state['last'] = time.monotonic()
@@ -178,7 +195,7 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state, *, resumab
         result = ctx.runner.run(
             [dig, '@' + RESOLVER, host, rrtype, '-p', str(RESOLVER_PORT), '+tries=1', '+timeout=2',
              '+ignore', '+noall', '+comments', '+question', '+answer', '+authority', '+stats'],
-            timeout=min(5, ctx.policy.limits.timeout_seconds), output_path=output,
+            timeout=timeout, output_path=output,
             # BIND/Apple dig reads ~/.digrc only when HOME is present. Remove
             # it in the child environment, without touching the parent or file.
             env_unset=('HOME',),
@@ -205,3 +222,28 @@ def fill_missing(ctx, expected, rrtype, values, index, repeat, state, *, resumab
             queue.finish(work_id, outcome)
         outcomes.append(outcome)
     return outcomes, used
+
+
+def fill_missing_round_robin(ctx, queries, state):
+    """Resolve ordinary omissions fairly under the policy budget and one deadline.
+
+    The 128-query safety cap belongs to auxiliary wildcard probes. Ordinary
+    collection instead admits at most one query per missing host/type pair,
+    with durable verified receipts reusable even after time/quota is exhausted.
+    ``queries`` contains (rrtype, expected_hosts, values, artifact_index).
+    """
+    pending = [sorted(expected - values.keys()) for _, expected, values, _ in queries]
+    state['query_limit'] = state['used'] + sum(map(len, pending))
+    state['deadline'] = time.monotonic() + ctx.policy.limits.timeout_seconds
+    outcomes = {rrtype: [] for rrtype, _, _, _ in queries}
+    for row in zip_longest(*pending):
+        for host, (rrtype, _, values, index) in zip(row, queries):
+            if host is None:
+                continue
+            extra, _ = fill_missing(ctx, {host}, rrtype, values, index, 1, state, resumable=True)
+            outcomes[rrtype].extend(extra)
+    if not state.get('stop_reason') and any(
+        row.get('observation') is None for rows in outcomes.values() for row in rows
+    ):
+        state['stop_reason'] = 'unknown_response'
+    return outcomes

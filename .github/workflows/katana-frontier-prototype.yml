@@ -13,6 +13,7 @@ on:
       - 'tools/katana_frontier*'
       - 'tools/katana_filtered_frontier*'
       - 'tools/katana_stage_local_acceptance.py'
+      - 'tools/katana_budget_local_acceptance.py'
       - 'tools/collection_scale_local_acceptance.py'
       - '.github/workflows/katana-frontier-prototype.yml'
 permissions:
@@ -56,6 +57,7 @@ jobs:
           cd ..
           python tools/katana_frontier_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier.json
           python tools/katana_frontier_stage_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/frontier-stage.json
+          python tools/katana_budget_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/budget-stage.json
           python tools/katana_bundle_modules_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/bundle-modules.json
           python tools/katana_script_body_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/script-body.json
           python tools/katana_gtm_event_local_acceptance.py --binary /tmp/katana-frontier --output /tmp/gtm-event.json
