@@ -45,7 +45,24 @@ from a subprocess timeout; it does not invent return code 124.
 Invocations are sequential, with at most five exact authorized live origins per
 batch. Scope remains restricted by `-cs`; configured credentials are not passed
 to Katana. A timed-out batch stays pending while later batches may proceed
-within the existing shared deadline and budget. There is no automatic retry.
+within the existing shared deadline and budget.
+
+With the validated project checkpoint contract, batches contain one origin.
+Initial turns for multiple origins reserve at most ten seconds each, within
+their fair share. A validated deadline receipt with attempted requests and
+pending items can enqueue a longer turn after all initial turns, including when
+the first short turn cancelled a slow initial request. Further turns require
+successful requests. Continuations
+share remaining wall time and the unspent request envelope, with at most 120
+seconds per invocation. Unknown receipts, process failures, request-error stops,
+page limits, HTTP 429 and operator Next cannot trigger this continuation.
+Stock Katana retains its ordinary finite batches.
+
+Batch `scheduling_phase` distinguishes `initial` and `continuation`. Metrics
+include continuation counts and unique attempted origins. Earlier deadline
+slices remain historical evidence when a later receipt verifies queue exhaustion;
+they no longer force that finished origin to remain partial. A genuine unresolved
+failure remains pending and blocks a complete collection baseline.
 
 The collector envelope is bounded by configured rate, timeout, remaining HTTP
 budget and URL cap. Each invocation reserves only its own bounded share before
@@ -87,6 +104,7 @@ diagnosis remain `unknown`.
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_katana_*.py' -q
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_javascript*.py' -q
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_collection_quality.py' -q
+PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_collection_budget_progress.py' -q
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -p 'test_report_failure_lifecycle.py' -q
 ```
 
@@ -94,3 +112,9 @@ The new execution-quality and lifecycle tests reject subprocess launches, DNS
 resolution and socket connections. Timeouts and batch progression are simulated
 without waiting. A real-target Run and dashboard/browser validation remain
 separate follow-up work.
+
+`tools/katana_budget_local_acceptance.py --binary PATH --output REPORT` exercises
+the real project producer against six loopback origins, including one frontier
+that needs a longer turn. It verifies fair admission, queue exhaustion, durable
+continuation without repeating roots, and conservative quota accounting. CI runs
+this fixture alongside the existing real producer and large-origin acceptance.

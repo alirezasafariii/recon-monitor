@@ -60,7 +60,7 @@ class CollectionResumeRepairs(unittest.TestCase):
                 patch('dns_explicit.time.sleep'):
             yield
 
-    def test_dns_129_hosts_advance_after_reopen_with_bounded_queries(self):
+    def test_dns_129_hosts_finish_and_reuse_proof_after_reopen(self):
         f = self.fixture(dns_fixture.DNSCollectionQualityTests)
         ctx = f._context(None)
         hosts = [f'h{i:03}.example.test' for i in range(129)]
@@ -80,8 +80,8 @@ class CollectionResumeRepairs(unittest.TestCase):
                 result = stage_dns(ctx)
                 statuses.append(result['collection_status'])
                 queries.append(result['dns_explicit_queries'])
-        self.assertEqual(statuses, ['partial', 'partial', 'completed', 'completed'])
-        self.assertEqual(queries, [128, 128, 2, 0])
+        self.assertEqual(statuses, ['completed'] * 4)
+        self.assertEqual(queries, [258, 0, 0, 0])
         self.assertEqual(len(calls), len(set(calls)))
         self.assertEqual(len(calls), 258)
         self.assertEqual(result['dns_explicit_reused_queries'], 258)

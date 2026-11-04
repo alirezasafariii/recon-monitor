@@ -23,3 +23,14 @@ Only complete responses with the matching question, resolver, non-truncated QR f
 Each fallback attempt consumes one additional DNS budget unit, respects scope, runtime/operator interruption and DNS rate, and has a shared cap of 128 attempts per detector invocation. Cap/budget exhaustion remains optional wildcard coverage loss, never primary DNS failure. Raw dig replies, resolver, query, exit status and normalized observations are recorded in dns_wildcard_outcomes and per-query artifacts.
 
 Configuration isolation follows the BIND 9.10.6 implementation: `bin/dig/dig.c` reads `.digrc` only inside the `getenv("HOME") != NULL` branch. Source: https://github.com/isc-projects/bind9/blob/v9.10.6/bin/dig/dig.c
+
+## Ordinary DNS omissions
+
+Primary DNS collection also uses strict `dig` proof when dnsx omits an answer.
+Its fallback alternates A, AAAA, CNAME and root NS work, using the configured DNS
+budget and one shared fallback deadline. The detector's auxiliary 128-attempt
+cap does not apply to these ordinary observations. Each missing host/type pair
+receives at most one new fallback attempt per invocation. Verified same-Run,
+same-policy receipts survive resumes; missing or changed raw proof is queried
+again. Invalid responses and failures preserve prior records and keep collection
+partial. See [collection visibility](SCAN_VISIBILITY.md) for coverage artifacts.

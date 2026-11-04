@@ -55,6 +55,26 @@ Old successful URL receipts with retained origin failures are rechecked on an
 explicit resume. Healthy completed origins and verified JavaScript receipts keep
 their usual reuse rules. Budgets remain cumulative; no ceiling is reset.
 
+Ordinary DNS fallback alternates missing A, AAAA, CNAME and root NS observations
+under the remaining DNS quota and one `timeout_seconds` fallback deadline.
+It can verify more than 128 omitted RRsets in one attempt. Same-Run receipts
+require matching policy, raw reply hash and a fresh strict parse before reuse.
+`expected_pairs`, `observed_pairs`, `unobserved_pairs` and
+`dns-unobserved-rrsets.jsonl` describe host/type coverage; observing one type for
+every host does not imply every required RRset was observed. Budget, deadline,
+missing dig and unknown-response stops remain visible in `dns_explicit_stop_reason`.
+Auxiliary wildcard probes keep their separate diagnostic limits.
+
+With the project Katana checkpoint contract, every eligible origin receives an
+initial turn before busy frontiers use longer continuation turns. Only a valid
+deadline receipt with attempted requests and retained pending work can receive
+a longer turn, allowing a slow first request to finish. Further turns require
+successful requests. Continuations share the original wall deadline and conservative
+request envelope, scope and host cooldowns. Every slice remains in batch history;
+a later verified queue exhaustion resolves the earlier deadline for that origin.
+Request-error stops, unknown and process-timeout outcomes remain pending for explicit
+resume. Such unresolved visibility gaps still block baseline promotion.
+
 ## Final reports
 
 While Report is running, its state is provisional, not failed or already successful.

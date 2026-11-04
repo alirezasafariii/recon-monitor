@@ -11,6 +11,7 @@ import re
 import socket
 import time
 import urllib.parse
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -58,7 +59,7 @@ from core import (
     write_jsonl,
 )
 from dns_wildcard import detect as detect_dns_wildcards
-from dns_explicit import fill_missing as fill_missing_dns_explicit
+from dns_explicit import fill_missing_round_robin as fill_missing_dns_explicit
 from intelligence import build_js_diff, classify_endpoint, technology_confidence
 from execution import BudgetManager, WorkQueue, BudgetExceeded, DatabaseWriter
 from storage import ContentAddressedStore
@@ -329,6 +330,11 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     if not hosts:
         hosts = list(ctx.policy.roots)
     all_input_hosts = list(hosts)
+    dnsx_available = bool(tool_path("dnsx"))
+    required_pairs = {(host, rrtype) for host in hosts for rrtype in
+                      (("A", "AAAA", "CNAME") if dnsx_available else ("A", "AAAA"))}
+    if dnsx_available:
+        required_pairs.update((root, "NS") for root in ctx.policy.roots)
     dns_budget_pending_hosts: list[str] = []
     input_path = ctx.current / "dns-input.txt"
 
@@ -343,8 +349,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
     wildcard_outcomes: list[dict[str, Any]] = []
     fallback_failures: list[dict[str, Any]] = []
     explicit_dns_outcomes: list[dict[str, Any]] = []
-    # dnsx may silently omit NXDOMAIN/NODATA. Use a shared, bounded fallback
-    # budget; omission by itself must never retire a previously observed record.
+    # dnsx may silently omit NXDOMAIN/NODATA. Ordinary omissions share the
+    # configured budget and deadline, without starving later record types.
     resolved_hosts: set[str] = set()
     wildcard_candidates: set[str] = set()
     wildcard_classification_complete = False
@@ -378,7 +384,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "".join(f"{host}\n" for host in dns_budget_pending_hosts),
     )
 
-    if hosts and tool_path("dnsx"):
+    if hosts and dnsx_available:
         # Omission from dnsx filtering is not classification. Explicit controls
         # are evaluated separately after ordinary DNS collection.
         filtered_path = ctx.current / "dns-filtered-hosts.txt"
@@ -388,6 +394,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
 
         root_query_input = ctx.current / "dns-root-hosts.txt"
         atomic_write_text(root_query_input, "".join(f"{root}\n" for root in ctx.policy.roots))
+        dns_batches = []
         for rrtype, flag in (("A", "-a"), ("AAAA", "-aaaa"), ("CNAME", "-cname"), ("NS", "-ns")):
             out = ctx.current / f"dns-{rrtype.lower()}.jsonl"
             rr_input = root_query_input if rrtype == "NS" else query_input
@@ -457,10 +464,19 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             # NXDOMAIN/NODATA or validated positive RRset) may close that gap.
             # Malformed/contradictory dnsx rows remain unknown, not deletions.
             explicit_values: dict[str, tuple[str, ...]] = {host: () for host in observed}
-            explicit, _ = fill_missing_dns_explicit(
-                ctx, expected_hosts - unknown, rrtype, explicit_values,
-                len(query_outcomes), 1, explicit_dns_state, resumable=True,
-            )
+            dns_batches.append((rrtype, expected_hosts, observed, positive, warnings,
+                                outcome, explicit_values, unknown))
+
+        # Collect all primary results first, then alternate the missing RRsets.
+        # A limited fallback budget must not all go to A/AAAA while CNAME/NS
+        # get no opportunity. Valid cached proof is consulted even at the limit.
+        explicit_by_type = fill_missing_dns_explicit(ctx, [
+            (rrtype, expected_hosts - unknown, values, index)
+            for index, (rrtype, expected_hosts, _, _, _, _, values, unknown)
+            in enumerate(dns_batches, 1)
+        ], explicit_dns_state)
+        for rrtype, expected_hosts, observed, positive, warnings, outcome, explicit_values, _ in dns_batches:
+            explicit = explicit_by_type[rrtype]
             explicit_dns_outcomes.extend(explicit)
             verified = set(explicit_values) - observed
             for host in verified:
@@ -474,6 +490,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             if missing or warnings:
                 failed_rrtypes.add(rrtype)
                 collection_reasons.add("dns_zero_observation" if not observed else "dns_unobserved_hosts")
+                if missing and explicit_dns_state.get("stop_reason"):
+                    collection_reasons.add("dns_explicit_" + explicit_dns_state["stop_reason"])
             else:
                 successful_rrtypes.add(rrtype)
             for host, _, value in positive:
@@ -540,7 +558,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
 
     wildcard_probe_queries = 0
     wildcard_reports = []
-    if hosts and tool_path("dnsx"):
+    if hosts and dnsx_available:
         try:
             wildcard_reports, wildcard_outcomes, wildcard_probe_queries = detect_dns_wildcards(ctx, hosts)
         except BudgetExceeded as exc:
@@ -565,6 +583,9 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
 
     rows = [{"host": h, "type": t, "value": v} for h, t, v in sorted(current_records)]
     write_jsonl(ctx.current / "dns-records.jsonl", rows)
+    write_jsonl(ctx.current / "dns-unobserved-rrsets.jsonl", (
+        {"host": host, "rrtype": rrtype} for host, rrtype in sorted(required_pairs - observed_pairs)
+    ))
     atomic_write_text(ctx.current / "resolved-hosts.txt", "".join(f"{host}\n" for host in sorted(resolved_hosts)))
     atomic_write_text(ctx.current / "wildcard-candidates.txt", "".join(f"{host}\n" for host in sorted(wildcard_candidates)))
     atomic_write_text(
@@ -585,6 +606,8 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "observed_hosts": len({host for host, _ in observed_pairs}),
         "unobserved_hosts": len(set(all_input_hosts) - {host for host, _ in observed_pairs}),
         "observed_pairs": len(observed_pairs),
+        "expected_pairs": len(required_pairs),
+        "unobserved_pairs": len(required_pairs - observed_pairs),
         "valid_json_rows": sum(outcome.get("valid_json_rows", 0) for outcome in query_outcomes),
         "resolved": len(resolved_hosts),
         "fresh_resolved_hosts": len(fresh_resolved_hosts & set(hosts)),
@@ -606,6 +629,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
         "dns_explicit_query_outcomes": explicit_dns_outcomes,
         "dns_explicit_queries": explicit_dns_state["used"],
         "dns_explicit_reused_queries": sum(bool(row.get("reused")) for row in explicit_dns_outcomes),
+        "dns_explicit_stop_reason": explicit_dns_state.get("stop_reason", "completed"),
     }
 
 
@@ -1263,11 +1287,15 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
             requests_per_origin, extra_requests = divmod(
                 katana_request_envelope, len(katana_origins),
             )
-            for batch_offset in range(0, len(katana_origins), batch_width):
+            scheduled_batches = deque(
+                (katana_origins[offset:offset + batch_width], False, offset)
+                for offset in range(0, len(katana_origins), batch_width)
+            )
+            while scheduled_batches:
+                batch_origins, continuation, batch_offset = scheduled_batches.popleft()
                 if operator_next_requested():
                     operator_next = True
                     break
-                batch_origins = katana_origins[batch_offset:batch_offset + batch_width]
                 # A prior batch can throttle another scheme of the same host.
                 # Skip it without charging another reservation or launching Katana.
                 newly_throttled = set(load_shared_throttle_state(ctx.db))
@@ -1290,13 +1318,26 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                     batch_reservation = 0
                     batch_crawl_seconds = 0
                 else:
-                    # The finite mode retains its existing conservative
-                    # envelope. An unfinished origin must remain pending.
-                    batch_allowance = requests_per_origin * len(batch_origins) + min(
-                        len(batch_origins), max(0, extra_requests - batch_offset),
-                    )
+                    if continuation:
+                        # Initial turns precede continuations. Redistribute the
+                        # unspent envelope fairly among checkpointed frontiers;
+                        # never refund a reservation using producer counters.
+                        batch_allowance = (
+                            katana_request_envelope - katana_reserved_requests
+                        ) // (len(scheduled_batches) + 1)
+                    else:
+                        batch_allowance = requests_per_origin * len(batch_origins) + min(
+                            len(batch_origins), max(0, extra_requests - batch_offset),
+                        )
+                        if checkpoint_supported and len(katana_origins) > 1:
+                            # Short origins need a first turn, not a full fixed
+                            # slice of the global budget. Busy origins retain
+                            # their durable queue and get longer later turns.
+                            batch_allowance = min(batch_allowance, 10 * katana_rate_limit)
                     batch_timeout = min(120.0, remaining_seconds, batch_allowance / katana_rate_limit)
-                    if checkpoint_supported:
+                    if continuation:
+                        batch_timeout = min(batch_timeout, remaining_seconds / (len(scheduled_batches) + 1))
+                    if checkpoint_supported and not continuation:
                         # One origin needs only its finite crawl duration plus
                         # shutdown margin, within the original shared envelope.
                         batch_timeout = min(batch_timeout, katana_crawl_seconds + 5.0)
@@ -1312,9 +1353,8 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                         katana_budget_exhausted = True
                         katana_budget_metric = "katana_batch_runtime"
                         break
-                    batch_crawl_seconds = min(
-                        katana_crawl_seconds, affordable_crawl_seconds,
-                    )
+                    batch_crawl_seconds = (affordable_crawl_seconds if continuation else
+                                           min(katana_crawl_seconds, affordable_crawl_seconds))
                     if ctx.budget:
                         try:
                             ctx.budget.consume("http_requests", batch_reservation)
@@ -1323,7 +1363,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                             katana_budget_metric = exc.metric
                             break
                 katana_reserved_requests += batch_reservation
-                batch_number = len(previous_outcomes) + (batch_offset // batch_width) + 1
+                batch_number = len(batch_outcomes) + 1
                 batch_input = ctx.current / f"katana-batch-{batch_number:03d}-base-urls.txt"
                 batch_output = ctx.current / f"katana-batch-{batch_number:03d}-urls.txt"
                 atomic_write_text(
@@ -1450,6 +1490,7 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 )
                 batch_outcomes.append({
                     "batch": batch_number,
+                    "scheduling_phase": "continuation" if continuation else "initial",
                     "origins": len(batch_origins),
                     "origin_urls": batch_origins,
                     "started_at": batch_started_at,
@@ -1522,11 +1563,33 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 )
                 if operator_next:
                     break
+                if checkpoint_supported and not uncapped_katana and not batch_timed_out and batch_exit == 0:
+                    completion = origin_completion.get(origin_key(batch_origins[0]), {})
+                    counters = completion.get("counters", {})
+                    # A short first turn may cancel even its first slow
+                    # request. Give a valid attempted deadline one longer
+                    # turn; further turns require useful work. Genuine
+                    # request_errors/unknown/process outcomes stay pending.
+                    if (completion.get("status") == "partial"
+                            and completion.get("stop_reason") == "deadline"
+                            and (counters.get("attempted_requests", 0) > counters.get("failed_requests", 0)
+                                 or (not continuation and counters.get("attempted_requests", 0) > 0))
+                            and counters.get("pending_items", 0) + counters.get("active_items", 0) > 0
+                            and counters.get("limited_requests", 0) == 0
+                            and katana_host(batch_origins[0]) not in throttled_hosts):
+                        scheduled_batches.append((batch_origins, True, batch_offset))
 
             successful = set(katana_origin_successes)
             katana_pending_origins = [
                 origin for origin in katana_pending_origins if origin not in successful
             ]
+            # Earlier deadline slices remain in the audit history. A later
+            # verified exhaustion of that same durable frontier resolves them.
+            katana_completion_unverified = any(
+                not row.get("completion_verified")
+                and any(origin not in successful for origin in row.get("origin_urls", []))
+                for row in batch_outcomes[len(previous_outcomes):]
+            )
             katana_status = (
                 "operator_next" if operator_next else
                 "timeout" if katana_timed_out else
@@ -1540,9 +1603,10 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
                 "operator_next" if operator_next else
                 "batch_timeout" if katana_timed_out else
                 "nonzero_exit" if katana_nonzero_exit else
-                "crawl_completion_unverified" if katana_completion_unverified else
                 "global_deadline" if katana_deadline_exhausted else
                 "runtime_budget" if katana_budget_metric == "runtime_seconds" else
+                "request_budget" if katana_budget_exhausted else
+                "crawl_completion_unverified" if katana_completion_unverified else
                 "request_budget" if katana_pending_origins else
                 "completed"
             )
@@ -1736,6 +1800,14 @@ def stage_urls(ctx: StageContext) -> dict[str, Any]:
         "katana_duration_seconds": round(katana_duration_seconds, 3),
         "katana_batches_attempted": len(batch_outcomes),
         "katana_batches_this_attempt": katana_batches_attempted,
+        "katana_continuation_batches_this_attempt": sum(
+            row.get("scheduling_phase") == "continuation"
+            for row in batch_outcomes[len(previous_outcomes):]
+        ),
+        "katana_unique_origins_attempted_this_attempt": len({
+            origin for row in batch_outcomes[len(previous_outcomes):]
+            for origin in row.get("origin_urls", [])
+        }),
         "katana_batches_completed": sum(
             row.get("status") == "completed" for row in batch_outcomes
         ),

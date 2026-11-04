@@ -71,7 +71,7 @@ def main():
             logger = Logger(paths, verbose=False)
             run = db.create_run(policy.name, 1, 'loopback')
             db.create_run_target(run, policy, paths.output / run, True)
-            hosts = [f'h{index:03}.example.test' for index in range(129)] + ['missing.example.test']
+            hosts = [f'h{index:03}.example.test' for index in range(165)] + ['missing.example.test']
             try:
                 ctx = StageContext(paths, Config(paths), policy, db, logger, Runner(logger, db), Progress(False),
                                    run, paths.output / run, False)
@@ -89,14 +89,19 @@ def main():
                                'queries': metrics['dns_explicit_queries'],
                                'reused_queries': metrics['dns_explicit_reused_queries']}
                         report['attempts'].append(row); print(json.dumps(row), flush=True)
-                        assert row['queries'] <= 128
+                        assert row['queries'] <= 3 * len(hosts) + 1
                         if row['status'] == 'completed':
-                            final = stage_dns(ctx)
-                            assert final['dns_explicit_queries'] == 0 and final['collection_status'] == 'completed'
                             break
                     else:
                         raise AssertionError('DNS did not complete within bounded attempts')
-                    assert len(report['attempts']) > 1
+                    # A healthy target can now finish beyond 128 omissions in
+                    # one attempt. Verify durable reuse after reopening SQLite
+                    # regardless of how many bounded attempts were necessary.
+                    db.close(); db = Database(paths.db); ctx.db = db
+                    ctx.runner = Runner(logger, db)
+                    ctx.budget = BudgetManager.create(db, run, policy.name, policy)
+                    final = stage_dns(ctx)
+                    assert final['dns_explicit_queries'] == 0 and final['collection_status'] == 'completed'
                     assert db.one("SELECT COUNT(*) FROM dns_records WHERE target=? AND rrtype='NS' AND value='ns.example.test' AND is_current=1", (policy.name,))[0] == 1, [dict(row) for row in db.all("SELECT host,rrtype,value,is_current FROM dns_records WHERE rrtype='NS' LIMIT 5")]
                     assert db.one("SELECT COUNT(*) FROM dns_records WHERE target=? AND host='missing.example.test' AND is_current=1", (policy.name,))[0] == 0
                     report.update(passed=True, wire_queries=len(queries), reused_after_completion=final['dns_explicit_reused_queries'])
