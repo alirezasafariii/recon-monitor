@@ -191,6 +191,34 @@ class DNSCollectionQualityTests(unittest.TestCase):
         self.assertEqual(metrics["successful_rrtypes"], ["A", "AAAA", "CNAME", "NS"])
         self.assertEqual(metrics["collection_status"], "completed")
 
+    def test_each_rrtype_keeps_its_own_primary_row_count(self) -> None:
+        hosts = [self.TARGET, 'one.' + self.TARGET, 'two.' + self.TARGET]
+        (self.current / 'subdomains.txt').write_text('\n'.join(hosts) + '\n')
+        values = {'A': ['192.0.2.10'], 'AAAA': ['2001:db8::10'],
+                  'CNAME': ['edge.example.test'], 'NS': ['ns.example.test']}
+        for ns_result in ('positive', 'empty', 'failed'):
+            with self.subTest(ns_result=ns_result):
+                inputs = {'A': hosts, 'AAAA': hosts[:2], 'CNAME': hosts[:1],
+                          'NS': [] if ns_result == 'empty' else hosts[:1]}
+
+                def run(args, **kwargs):
+                    rrtype = next(value for flag, value in self.FLAGS.items() if flag in args)
+                    rows = [{'host': host, rrtype.lower(): values[rrtype]} for host in inputs[rrtype]]
+                    Path(kwargs['output_path']).write_text(''.join(json.dumps(r) + '\n' for r in rows))
+                    return SimpleNamespace(
+                        returncode=1 if rrtype == 'NS' and ns_result == 'failed' else 0,
+                        timed_out=False, operator_next=False, duration=.1, lines=len(rows),
+                    )
+
+                with patch('stages.tool_path', return_value='dnsx'):
+                    metrics = stage_dns(self._context(run))
+                expected = {'A': 3, 'AAAA': 2, 'CNAME': 1,
+                            'NS': 1 if ns_result == 'positive' else 0}
+                actual = {r['rrtype']: r.get('valid_json_rows', 0) for r in metrics['dns_query_outcomes']}
+                self.assertEqual(actual, expected)
+                self.assertEqual(metrics['valid_json_rows'], sum(expected.values()))
+                self.assertEqual(metrics['observed_pairs'], sum(expected.values()))
+
     def test_explicit_empty_rrtypes_preserve_previous_records(self) -> None:
         for rrtypes in ([], set(), iter(())):
             with self.subTest(rrtypes=type(rrtypes).__name__):

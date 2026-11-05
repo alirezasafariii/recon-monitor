@@ -459,6 +459,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
                 else:
                     unknown.add(host)
             observed -= unknown
+            outcome["valid_json_rows"] = valid_json_rows
             # dnsx v1.2.3 can exit 0 while omitting genuine negative answers.
             # Only an independently verified dig response (SOA-backed
             # NXDOMAIN/NODATA or validated positive RRset) may close that gap.
@@ -486,7 +487,7 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             outcome["explicit_verified_hosts"] = len(verified)
             observed_pairs.update((host, rrtype) for host in observed)
             missing = expected_hosts - observed
-            outcome.update(valid_json_rows=valid_json_rows, observed_hosts=len(observed), unobserved_hosts=len(missing), collector_warnings=warnings)
+            outcome.update(observed_hosts=len(observed), unobserved_hosts=len(missing), collector_warnings=warnings)
             if missing or warnings:
                 failed_rrtypes.add(rrtype)
                 collection_reasons.add("dns_zero_observation" if not observed else "dns_unobserved_hosts")
