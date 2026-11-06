@@ -2299,14 +2299,38 @@ class Database:
         )
         return row is None
 
-    def finalize_dns_observed(self, target: str, run_id: str, observed_pairs: Iterable[tuple[str, str]]) -> None:
-        """Retire only host/type pairs supported by explicit DNS observations."""
+    def finalize_dns_observed(
+        self, target: str, run_id: str, observed_pairs: Iterable[tuple[str, str]], *,
+        current_records: Iterable[tuple[str, str, str]] | None = None,
+    ) -> None:
+        """Retire stale values only for explicitly observed host/type pairs.
+
+        Exact RRsets distinguish attempts inside the same Run. Without them,
+        retain the legacy Run-marker behavior for callers finalizing older data.
+        Rows remain available as history when their current flag is cleared.
+        """
+        exact: dict[tuple[str, str], set[str]] | None = None
+        if current_records is not None:
+            exact = {}
+            for host, rrtype, value in current_records:
+                exact.setdefault((str(host), str(rrtype).upper()), set()).add(str(value))
         with self.transaction():
             for host, rrtype in sorted({(str(h), str(t).upper()) for h, t in observed_pairs}):
+                if exact is None:
+                    self.execute(
+                        "UPDATE dns_records SET is_current=0 WHERE target=? AND host=? AND rrtype=? AND COALESCE(last_run_id,'')<>?",
+                        (target, host, rrtype, run_id),
+                    )
+                    continue
                 self.execute(
-                    "UPDATE dns_records SET is_current=0 WHERE target=? AND host=? AND rrtype=? AND COALESCE(last_run_id,'')<>?",
-                    (target, host, rrtype, run_id),
+                    "UPDATE dns_records SET is_current=0 WHERE target=? AND host=? AND rrtype=?",
+                    (target, host, rrtype),
                 )
+                for value in sorted(exact.get((host, rrtype), ())):
+                    self.execute(
+                        "UPDATE dns_records SET is_current=1 WHERE target=? AND host=? AND rrtype=? AND value=? AND last_run_id=?",
+                        (target, host, rrtype, value, run_id),
+                    )
 
     def finalize_dns_current(self, target: str, run_id: str, rrtypes: Iterable[str] | None = None) -> None:
         """Retire stale records only for successfully collected record types.

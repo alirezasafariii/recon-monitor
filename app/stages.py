@@ -533,7 +533,9 @@ def stage_dns(ctx: StageContext) -> dict[str, Any]:
             destination_type = "ip" if rrtype in {"A", "AAAA"} else "host"
             relation = {"A": "resolves_to", "AAAA": "resolves_to", "CNAME": "aliases_to", "NS": "uses_nameserver"}.get(rrtype, "dns_record")
             ctx.db.upsert_edge(ctx.policy.name, "host", host, relation, destination_type, value, ctx.run_id, {"rrtype": rrtype})
-    ctx.db.finalize_dns_observed(ctx.policy.name, ctx.run_id, observed_pairs)
+    ctx.db.finalize_dns_observed(
+        ctx.policy.name, ctx.run_id, observed_pairs, current_records=current_records,
+    )
 
     # Downstream input uses the surviving DNS projection, including preserved
     # observations, restricted to this invocation's discovered in-scope hosts.

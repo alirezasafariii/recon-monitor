@@ -65,6 +65,13 @@ every host does not imply every required RRset was observed. Budget, deadline,
 missing dig and unknown-response stops remain visible in `dns_explicit_stop_reason`.
 Auxiliary wildcard probes keep their separate diagnostic limits.
 
+For a host/type pair with a fresh verified DNS observation, Resume reconciles
+the current projection against that observation's exact RRset, even when the
+old values have the same Run ID. Superseded values lose only their current flag;
+their historical rows remain. An observed empty RRset clears current values,
+while missing, failed or conflicting observations preserve the previous values.
+Downstream resolved-host inputs and removal deltas use this reconciled state.
+
 With the project Katana checkpoint contract, every eligible origin receives an
 initial turn before busy frontiers use longer continuation turns. Only a valid
 deadline receipt with attempted requests and retained pending work can receive
