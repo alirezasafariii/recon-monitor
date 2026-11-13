@@ -191,6 +191,34 @@ class DNSCollectionQualityTests(unittest.TestCase):
         self.assertEqual(metrics["successful_rrtypes"], ["A", "AAAA", "CNAME", "NS"])
         self.assertEqual(metrics["collection_status"], "completed")
 
+    def test_each_rrtype_keeps_its_own_primary_row_count(self) -> None:
+        hosts = [self.TARGET, 'one.' + self.TARGET, 'two.' + self.TARGET]
+        (self.current / 'subdomains.txt').write_text('\n'.join(hosts) + '\n')
+        values = {'A': ['192.0.2.10'], 'AAAA': ['2001:db8::10'],
+                  'CNAME': ['edge.example.test'], 'NS': ['ns.example.test']}
+        for ns_result in ('positive', 'empty', 'failed'):
+            with self.subTest(ns_result=ns_result):
+                inputs = {'A': hosts, 'AAAA': hosts[:2], 'CNAME': hosts[:1],
+                          'NS': [] if ns_result == 'empty' else hosts[:1]}
+
+                def run(args, **kwargs):
+                    rrtype = next(value for flag, value in self.FLAGS.items() if flag in args)
+                    rows = [{'host': host, rrtype.lower(): values[rrtype]} for host in inputs[rrtype]]
+                    Path(kwargs['output_path']).write_text(''.join(json.dumps(r) + '\n' for r in rows))
+                    return SimpleNamespace(
+                        returncode=1 if rrtype == 'NS' and ns_result == 'failed' else 0,
+                        timed_out=False, operator_next=False, duration=.1, lines=len(rows),
+                    )
+
+                with patch('stages.tool_path', return_value='dnsx'):
+                    metrics = stage_dns(self._context(run))
+                expected = {'A': 3, 'AAAA': 2, 'CNAME': 1,
+                            'NS': 1 if ns_result == 'positive' else 0}
+                actual = {r['rrtype']: r.get('valid_json_rows', 0) for r in metrics['dns_query_outcomes']}
+                self.assertEqual(actual, expected)
+                self.assertEqual(metrics['valid_json_rows'], sum(expected.values()))
+                self.assertEqual(metrics['observed_pairs'], sum(expected.values()))
+
     def test_explicit_empty_rrtypes_preserve_previous_records(self) -> None:
         for rrtypes in ([], set(), iter(())):
             with self.subTest(rrtypes=type(rrtypes).__name__):
@@ -257,6 +285,63 @@ class DNSCollectionQualityTests(unittest.TestCase):
         self.assertEqual(metrics["successful_rrtypes"], [])
         self.assertEqual(metrics["removed_records"], 0)
         self.assertIn("dns_zero_observation", metrics["collection_reasons"])
+
+    def test_same_run_positive_refresh_retires_only_superseded_rrset_values(self):
+        self._seed(run_id='current-run')
+        self.db.upsert_dns(self.TARGET, 'unqueried.example.test', 'A', '192.0.2.30', 'current-run')
+        self.db.upsert_dns('other.test', self.TARGET, 'A', '192.0.2.40', 'current-run')
+        metrics = self._dnsx_stage(outcomes={'A': (0, False, ['192.0.2.20'])})
+        self.assertEqual(self._current_records(),
+                         (self.RECORDS - {('A', '192.0.2.10')}) | {('A', '192.0.2.20'), ('A', '192.0.2.30')})
+        old = self.db.one(
+            "SELECT is_current,last_run_id FROM dns_records WHERE target=? AND rrtype='A' AND value='192.0.2.10'",
+            (self.TARGET,),
+        )
+        self.assertEqual(tuple(old), (0, 'current-run'))
+        self.assertEqual(metrics['removed_records'], 1)
+        self.assertEqual(self.db.one('SELECT COUNT(*) FROM dns_records')[0], 7)
+        self.assertEqual(self.db.one("SELECT is_current FROM dns_records WHERE target='other.test'")[0], 1)
+        repeated = self._dnsx_stage(outcomes={'A': (0, False, ['192.0.2.20'])})
+        self.assertEqual(repeated['new_records'], 0)
+        self.assertEqual(repeated['removed_records'], 0)
+
+    def test_same_run_verified_negatives_clear_current_resolution_but_keep_history(self):
+        self._seed(run_id='current-run')
+        negative = lambda _rrtype: json.dumps({'host': self.TARGET, 'status_code': 'NOERROR'}) + '\n'
+        metrics = self._raw_stage(negative)
+        self.assertEqual(self._current_records(), set())
+        self.assertEqual(metrics['collection_status'], 'completed')
+        self.assertEqual(metrics['removed_records'], 4)
+        self.assertEqual(metrics['effective_resolved_hosts'], 0)
+        self.assertEqual((self.current / 'resolved-hosts.txt').read_text(), '')
+        self.assertEqual(self.db.one('SELECT resolved FROM assets WHERE host=?', (self.TARGET,))[0], 0)
+        self.assertEqual(self.db.one('SELECT COUNT(*) FROM dns_records')[0], 4)
+        self.assertEqual(self._raw_stage(negative)['removed_records'], 0)
+
+    def test_same_run_missing_observations_preserve_current_resolution(self):
+        self._seed(run_id='current-run')
+        metrics = self._dnsx_stage()
+        self.assertEqual(self._current_records(), self.RECORDS)
+        self.assertEqual(metrics['collection_status'], 'partial')
+        self.assertEqual(metrics['removed_records'], 0)
+        self.assertEqual(metrics['preserved_resolved_hosts'], 1)
+
+    def test_exact_dns_reconciliation_rolls_back_on_failure(self):
+        self._seed(run_id='current-run')
+        original_execute = self.db.execute
+
+        def fail_during_restore(sql, params=()):
+            if 'UPDATE dns_records SET is_current=1' in sql:
+                raise RuntimeError('injected write failure')
+            return original_execute(sql, params)
+
+        with patch.object(self.db, 'execute', side_effect=fail_during_restore):
+            with self.assertRaisesRegex(RuntimeError, 'injected write failure'):
+                self.db.finalize_dns_observed(
+                    self.TARGET, 'current-run', [(self.TARGET, 'A')],
+                    current_records=[(self.TARGET, 'A', '192.0.2.10')],
+                )
+        self.assertEqual(self._current_records(), self.RECORDS)
 
     def _raw_stage(self, query_output, wildcard_output=None):
         base = self._tool()
