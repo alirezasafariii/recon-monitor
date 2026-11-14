@@ -20,8 +20,8 @@ from family_specs.registry import get_detection_spec
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
 
-DOM_XSS_FAMILY_ANALYZER_VERSION = "1.1.0"
-DOM_XSS_FAMILY_ANALYZER_RULE_VERSION = "2026.08.15.4"
+DOM_XSS_FAMILY_ANALYZER_VERSION = "1.1.1"
+DOM_XSS_FAMILY_ANALYZER_RULE_VERSION = "2026.11.15.1"
 DOM_XSS_SPEC = get_detection_spec("dom_xss")
 
 DOM_SOURCE_MARKERS = {
@@ -32,11 +32,12 @@ DOM_SOURCE_MARKERS = {
 POSTMESSAGE_MARKERS = {"postmessage", "message_event", "event_data"}
 HTML_SINKS = {
     "innerhtml", "outerhtml", "insertadjacenthtml", "document_write",
-    "document_writeln", "v_html", "dangerouslysetinnerhtml",
+    "document_writeln", "shadow_innerhtml", "iframe_srcdoc", "contextual_fragment",
+    "domparser_html", "sethtmlunsafe", "v_html", "dangerouslysetinnerhtml",
 }
 EXECUTION_SINKS = {
     "eval", "function", "function_constructor", "settimeout_string",
-    "setinterval_string", "script_text", "script_src_javascript",
+    "setinterval_string", "browser_execution_callback", "script_text", "script_src_javascript",
 }
 SAFE_SINKS = {"textcontent", "innertext", "createTextNode", "create_text_node"}
 

@@ -16,7 +16,7 @@ def _canonical_methodology_grounding_test(self):
     result = self.analyze()
     self.assertIsNotNone(result)
     meta = result["family_analyzer"]
-    self.assertEqual(DOM_XSS_FAMILY_ANALYZER_VERSION, "1.1.0")
+    self.assertEqual(DOM_XSS_FAMILY_ANALYZER_VERSION, "1.1.1")
     self.assertEqual(DOM_XSS_SPEC.family, "dom_xss")
     self.assertEqual(meta["family_spec_version"], DOM_XSS_SPEC.version)
     self.assertIn("CWE-79", meta["taxonomy"]["cwe"])

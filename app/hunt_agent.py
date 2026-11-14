@@ -95,7 +95,7 @@ def create_mission(paths: AppPaths, db: Database, *, target: str, source_run: st
         source = Path(browser_plan).resolve()
         plan = read_plan(source)
         validate_plan(plan, policy)
-        if any(t['input']['kind'] == 'form' or t.get('cleanup') for t in plan['tests']) and not browser_write:
+        if any(t['input']['kind'] == 'form' or t.get('cleanup') or any(s['action'] == 'request' for s in t.get('steps', [])) for t in plan['tests']) and not browser_write:
             raise ReconError("Browser form workflows require --allow-browser-write")
         options["browser"] = {"path": str(source), "sha256": hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest(),
                               "verify": browser_verify, "write": browser_write,

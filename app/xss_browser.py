@@ -12,6 +12,7 @@ import json
 import os
 import re
 import secrets
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,18 +21,31 @@ from pathlib import Path
 from core import AppPaths, Config, Database, PolicySet, ReconError, atomic_write_text, utc_now
 from family_analyzers.dom_xss import analyze_dom_xss_signal
 from family_analyzers.phase2_expansion import PHASE2_ANALYZER_TYPES, analyze_phase2_family
+from xss_browser_probes import PROBE_NAMES, INPUT_SOURCES, CLIENT_ONLY, probes as build_probes, source_script
 from safe_transport import build_pinned_opener, resolve_public_addresses
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 FAMILIES = {'reflected_xss', 'stored_xss', 'dom_xss'}
 LIMIT = 1024 * 1024
 
 
 def origin(url):
-    p = urllib.parse.urlsplit(url)
-    if p.scheme not in {'http', 'https'} or not p.hostname or p.username or p.password:
-        raise ReconError('Browser plan requires HTTP(S) URLs without embedded credentials')
-    return p.scheme, p.hostname, p.port or (443 if p.scheme == 'https' else 80)
+    try:
+        p = urllib.parse.urlsplit(url)
+        if p.scheme not in {'http', 'https'} or not p.hostname or p.username is not None or p.password is not None:
+            raise ValueError()
+        port = p.port if p.port is not None else (443 if p.scheme == 'https' else 80)
+        if not 1 <= port <= 65535:
+            raise ValueError()
+        return p.scheme, p.hostname.encode('idna').decode().lower(), port
+    except (TypeError, ValueError, UnicodeError):
+        raise ReconError('Browser plan requires a valid HTTP(S) URL without embedded credentials') from None
+
+
+def origin_text(url):
+    scheme, host, port = origin(url)
+    host = '[' + host + ']' if ':' in host else host
+    return scheme + '://' + host + ((':' + str(port)) if port != (443 if scheme == 'https' else 80) else '')
 
 
 def public_url(url):
@@ -49,36 +63,54 @@ def validate_plan(plan, policy):
     if not isinstance(tests, list) or not tests:
         raise ReconError('Browser plan requires at least one test')
     for test in tests:
-        if not isinstance(test, dict) or set(test) - {'id', 'family', 'url', 'input', 'steps', 'cleanup', 'probes'}:
+        if not isinstance(test, dict) or set(test) - {'id', 'family', 'url', 'input', 'steps', 'cleanup', 'probes', 'settle_ms', 'resource_origins'}:
             raise ReconError('Invalid browser test fields')
         if not isinstance(test.get('id'), str) or not test['id'] or test.get('family') not in FAMILIES:
             raise ReconError('Each test needs an ID and supported XSS family')
         origin(test.get('url', ''))
         if not policy.url_in_scope(test['url']):
             raise ReconError('Browser test URL outside policy')
+        resources = test.get('resource_origins', [])
+        if not isinstance(resources, list):
+            raise ReconError('resource_origins must be a list')
+        for resource in resources:
+            origin(resource)
+            parsed = urllib.parse.urlsplit(resource)
+            if parsed.path not in {'', '/'} or parsed.query or parsed.fragment or not policy.url_in_scope(resource):
+                raise ReconError('Resource origin must already be authorized by the target scope')
         field = test.get('input', {})
-        if not isinstance(field, dict) or set(field) != {'kind', 'name'} or field['kind'] not in {'query', 'hash', 'form'} or not isinstance(field['name'], str) or not field['name']:
-            raise ReconError('Input requires kind=query/hash/form and name')
+        if not isinstance(field, dict) or set(field) != {'kind', 'name'} or field['kind'] not in INPUT_SOURCES or not isinstance(field['name'], str) or not field['name']:
+            raise ReconError('Input requires a supported source kind and name')
+        if field['kind'] in CLIENT_ONLY and test['family'] != 'dom_xss':
+            raise ReconError('Browser-only sources require the DOM XSS family')
         if test['family'] == 'stored_xss' and field['kind'] != 'form':
             raise ReconError('Stored XSS requires an explicit write/read form workflow')
-        probes = test.get('probes', ['html', 'attribute', 'js_single', 'js_double', 'js_expression'])
-        if not isinstance(probes, list) or not probes or any(p not in {'html', 'attribute', 'js_single', 'js_double', 'js_expression'} for p in probes):
+        probes = test.get('probes', list(PROBE_NAMES))
+        if not isinstance(probes, list) or not probes or any(p not in PROBE_NAMES for p in probes):
             raise ReconError('Invalid execution probes')
+        if type(test.get('settle_ms', 350)) is not int or test.get('settle_ms', 350) < 0:
+            raise ReconError('settle_ms must be a nonnegative integer observation wait')
         for stage in ('steps', 'cleanup'):
             steps = test.get(stage, [])
             if not isinstance(steps, list):
                 raise ReconError('Browser workflow steps must be a list')
             for step in steps:
-                if not isinstance(step, dict) or step.get('action') not in {'goto', 'fill', 'click', 'wait_for'}:
-                    raise ReconError('Only goto/fill/click/wait_for steps are supported')
+                if not isinstance(step, dict) or step.get('action') not in {'goto', 'fill', 'click', 'wait_for', 'request'}:
+                    raise ReconError('Unsupported browser workflow action')
+                if step['action'] == 'request':
+                    if set(step) != {'action', 'url', 'method', 'json'} or step['method'] not in {'POST', 'PUT', 'PATCH', 'DELETE'} or not isinstance(step['json'], dict):
+                        raise ReconError('Request step requires an explicit write method and JSON object')
+                    if origin(step['url']) != origin(test['url']) or not policy.url_in_scope(step['url']):
+                        raise ReconError('API write URL outside test origin or scope')
+                    continue
                 expected = {'action', 'url'} if step['action'] == 'goto' else {'action', 'selector', 'value'} if step['action'] == 'fill' else {'action', 'selector'}
                 if set(step) != expected or any(not isinstance(v, str) or len(v) > 4096 for v in step.values()):
                     raise ReconError('Invalid browser workflow step')
                 if step['action'] == 'goto':
                     if origin(step['url']) != origin(test['url']) or not policy.url_in_scope(step['url']):
                         raise ReconError('Workflow navigation must stay in the test origin and scope')
-        if field['kind'] == 'form' and not any(s['action'] == 'fill' and '{probe}' in s['value'] for s in test.get('steps', [])):
-            raise ReconError('Form workflows need an explicit fill value containing {probe}')
+        if field['kind'] == 'form' and not any((s['action'] == 'fill' and '{probe}' in s['value']) or (s['action'] == 'request' and '{probe}' in json.dumps(s['json'])) for s in test.get('steps', [])):
+            raise ReconError('Form/API workflows need an explicit value containing {probe}')
     if len({t['id'] for t in tests}) != len(tests):
         raise ReconError('Duplicate test IDs')
     # Legacy max_requests/max_seconds fields are accepted and ignored.
@@ -86,9 +118,11 @@ def validate_plan(plan, policy):
 
 
 class Broker:
-    def __init__(self, policy, plan, allowed_origin, allow_write, check):
+    def __init__(self, policy, plan, allowed_origin, allow_write, check, declared_writes=(), resource_origins=()):
         self.policy, self.plan, self.allowed_origin = policy, plan, allowed_origin
         self.allow_write, self.check = allow_write, check
+        self.declared_writes = set(declared_writes)
+        self.resource_origins = {self.allowed_origin, *(origin(u) for u in resource_origins)}
         self.records, self.documents = [], []
         self.bytes = 0
         self.error = ''
@@ -100,15 +134,19 @@ class Broker:
         try:
             self.check()
             url, method = request.url, request.method
-            if (origin(url) != self.allowed_origin or not self.policy.url_in_scope(url)
-                    or method not in ({'GET', 'HEAD', 'OPTIONS', 'POST'} if self.allow_write else {'GET', 'HEAD', 'OPTIONS'})):
+            requested_origin = origin(url)
+            if (requested_origin not in self.resource_origins or not self.policy.url_in_scope(url)
+                    or (request.is_navigation_request() and requested_origin != self.allowed_origin)
+                    or (requested_origin != self.allowed_origin and method not in {'GET', 'HEAD', 'OPTIONS'})
+                    or (method not in {'GET', 'HEAD', 'OPTIONS'} and not (self.allow_write and (method == 'POST' or (method, url) in self.declared_writes)))):
                 raise ReconError('outside_scope_or_unapproved_method')
             parsed = urllib.parse.urlsplit(url)
-            public, addresses = resolve_public_addresses(parsed.hostname, parsed.port or self.allowed_origin[2])
+            public, addresses = resolve_public_addresses(parsed.hostname, parsed.port or (443 if parsed.scheme == 'https' else 80))
             if not public or not addresses:
                 raise ReconError('non_public_or_missing_dns')
             rid = 'REQ-' + secrets.token_hex(8)
-            rec = {'id': rid, 'url': public_url(url), 'method': method, 'phase': self.phase}
+            rec = {'id': rid, 'url': public_url(url), 'method': method, 'phase': self.phase,
+                   'probe_sent': self.marker in url or self.marker in (request.post_data or '')}
             self.records.append(rec)  # Reserve before connecting, including failed requests.
             headers = request.all_headers()
             headers.pop('accept-encoding', None)
@@ -133,7 +171,7 @@ class Broker:
                 location = response.headers.get('Location')
                 if 300 <= response.code < 400 and location:
                     redirected = urllib.parse.urljoin(url, location)
-                    if origin(redirected) != self.allowed_origin or not self.policy.url_in_scope(redirected):
+                    if origin(redirected) not in self.resource_origins or not self.policy.url_in_scope(redirected) or (request.is_navigation_request() and origin(redirected) != self.allowed_origin):
                         raise ReconError('redirect_outside_scope')
                 cookies = response.headers.get_all('Set-Cookie')
                 if cookies:
@@ -152,7 +190,7 @@ class Broker:
                     self.documents.append({'request_id': rid, 'request_url': url, 'response_url': url,
                         'response_text': raw.decode('utf-8', errors='replace'),
                         'content_type': response.headers.get('Content-Type', ''),
-                        'csp': response.headers.get('Content-Security-Policy', ''),
+                        'csp': response.headers.get('Content-Security-Policy', ''), 'phase': self.phase,
                         'body_has_probe': self.marker in (request.post_data or '') or self.marker in url})
                 route.fulfill(status=response.code, headers=out_headers, body=raw)
         except Exception as exc:
@@ -181,6 +219,11 @@ def _steps(page, steps, probe, marker, check, broker):
             page.goto(step['url'], wait_until='domcontentloaded')
         elif action == 'fill':
             page.locator(step['selector']).fill(step['value'].replace('{probe}', probe).replace('{marker}', marker))
+        elif action == 'request':
+            body = json.loads(json.dumps(step['json']).replace('{probe}', json.dumps(probe)[1:-1]).replace('{marker}', marker))
+            status = page.evaluate('''async ({url, method, body}) => {const r = await fetch(url, {method, credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); return r.status;}''', {'url': step['url'], 'method': step['method'], 'body': body})
+            if status >= 400:
+                raise ReconError('API workflow HTTP failure')
         elif action == 'click':
             page.locator(step['selector']).click()
         else:
@@ -191,36 +234,52 @@ def _steps(page, steps, probe, marker, check, broker):
 def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_state=None, check=lambda: None):
     marker = 'RMXSS_' + secrets.token_hex(16)
     capture = 'XB-' + secrets.token_hex(12)
-    results, events, executions = [], [], []
-    broker = Broker(policy, plan, origin(test['url']), allow_write, check)
+    results, events, executions, controls = [], [], [], []
+    writes = [(s['method'], s['url']) for s in test.get('steps', []) + test.get('cleanup', []) if s['action'] == 'request']
+    broker = Broker(policy, plan, origin(test['url']), allow_write, check, writes, test.get('resource_origins', []))
     broker.marker = marker
     context = browser.new_context(service_workers='block', accept_downloads=False, storage_state=storage_state)
     context.route('**/*', broker.route)
     context.route_web_socket('**/*', lambda ws: ws.close())
-    context.expose_binding('__rmSink', lambda source, item: events.append({'sink': item['sink'],
-        'url': public_url(source['frame'].url), 'phase': broker.phase})
-        if isinstance(item, dict) and item.get('marker') == marker and len(events) < 100 else None)
+    def sink_event(source, item):
+        if not isinstance(item, dict) or item.get('marker') != marker:
+            return
+        if source['frame'] == source['page'].main_frame or source['frame'].url == 'about:srcdoc':
+            events.append({'sink': item['sink'], 'url': public_url(source['page'].url), 'phase': broker.phase})
+    context.expose_binding('__rmSink', sink_event)
     def executed(source, token):
-        if token == marker and origin(source['frame'].url) == origin(test['url']) and len(executions) < 20:
-            executions.append({'phase': broker.phase, 'url': source['frame'].url})
+        if token != marker:
+            return
+        frame = source['frame']
+        main = source['page'].main_frame
+        # Attribute srcdoc execution only to an unsandboxed child of this scoped page.
+        srcdoc = frame.url == 'about:srcdoc' and frame.parent_frame == main
+        if frame == main and origin(frame.url) == origin(test['url']) or srcdoc:
+            executions.append({'phase': broker.phase, 'url': main.url,
+                               'frame_kind': 'srcdoc' if srcdoc else 'main'})
     context.expose_binding('__rmXss', executed)
+    def control_event(source, item):
+        if isinstance(item, dict) and item.get('directive') in {'script-src', 'script-src-elem', 'script-src-attr', 'require-trusted-types-for', 'trusted-types'}:
+            controls.append({'phase': broker.phase, 'directive': item['directive'],
+                'disposition': 'enforce' if item.get('disposition') == 'enforce' else 'report',
+                'marker_related': item.get('marker_related') is True})
+    context.expose_binding('__rmControl', control_event)
     hook = (Path(__file__).with_name('xss_browser_hooks.js')).read_text()
-    context.add_init_script('(' + hook + ')(' + json.dumps({'marker': marker}) + ')')
+    context.add_init_script('(' + hook + ')(' + json.dumps({'marker': marker, 'allowedOrigin': origin_text(test['url'])}) + ')')
     page = context.new_page()
+    cdp = context.new_cdp_session(page)
+    cdp.send('Page.enable')
+    source_init = None
     page.set_default_timeout(10000)  # Per-operation stall timeout, not a total runtime quota.
     page.on('dialog', lambda dialog: dialog.dismiss())
     errors = []
     cleanup = 'not_requested'
     try:
-        probes = test.get('probes', ['html', 'attribute', 'js_single', 'js_double', 'js_expression'])
+        probes = test.get('probes', list(PROBE_NAMES))
         for phase in (['probe'] + ['execution:' + p for p in probes] if verify else ['probe']):
             check()
             broker.phase = phase
-            callback = 'window.__rmXss(' + json.dumps(marker) + ')'
-            html_probe = f"""<img src="/.__recon_xss_missing_{marker}" onerror='{callback}'>"""
-            variants = {'html': html_probe, 'attribute': '\'">' + html_probe,
-                        'js_single': "';" + callback + '//', 'js_double': '\";' + callback + '//',
-                        'js_expression': callback}
+            variants = build_probes(marker)
             probe = marker if phase == 'probe' else variants[phase.split(':', 1)[1]]
             field = test['input']
             url = test['url']
@@ -230,25 +289,54 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
                 url = urllib.parse.urlunsplit(p._replace(query=urllib.parse.urlencode(query + [(field['name'], probe)])))
             elif field['kind'] == 'hash':
                 url = urllib.parse.urldefrag(url)[0] + '#' + urllib.parse.quote(probe, safe='')
+            if source_init:
+                cdp.send('Page.removeScriptToEvaluateOnNewDocument', {'identifier': source_init})
+                source_init = None
+            if field['kind'] in {'local_storage', 'session_storage', 'window_name'}:
+                source_init = cdp.send('Page.addScriptToEvaluateOnNewDocument', {'source': source_script(field['kind'], field['name'], probe)})['identifier']
             page.goto('about:blank')
             page.goto(url, wait_until='domcontentloaded')
             _follow_redirects(page, broker, check)
+            if field['kind'] == 'post_message':
+                message = probe if field['name'] == '$' else {field['name']: probe}
+                target = origin_text(test['url'])
+                sender = page.evaluate_handle('''() => {
+                  const frame = document.createElement('iframe');
+                  frame.setAttribute('sandbox','allow-scripts');
+                  document.body.append(frame);
+                  return frame;
+                }''').as_element()
+                sender_frame = sender.content_frame() if sender else None
+                if sender_frame is None:
+                    raise ReconError('postmessage_source_unavailable')
+                sent_from = sender_frame.evaluate('''({message, target}) => {
+                  parent.postMessage(message, target); return self.origin;
+                }''', {'message': message, 'target': target})
+                if sent_from != 'null':
+                    raise ReconError('postmessage_source_origin_mismatch')
             _steps(page, test.get('steps', []), probe, marker, check, broker)
-            page.wait_for_timeout(350)
+            observation_end = time.monotonic() + test.get('settle_ms', 350) / 1000
+            while time.monotonic() < observation_end:
+                check()
+                page.wait_for_timeout(min(100, max(0, (observation_end - time.monotonic()) * 1000)))
+            check()
             # Snapshot only marker location/contexts; never export the live DOM/body.
-            documents = [d for d in broker.documents if marker in d['response_text']]
-            document = documents[-1] if documents else (broker.documents[-1] if broker.documents else {})
-            writes = [r for r in broker.records if r['method'] == 'POST' and r['phase'] == phase]
+            documents = [d for d in broker.documents if d['phase'] == phase and marker in d['response_text']]
+            document = documents[-1] if documents else (next((d for d in reversed(broker.documents) if d['phase'] == phase), {}))
+            writes = [r for r in broker.records if r['method'] in {'POST', 'PUT', 'PATCH'} and r['phase'] == phase and r.get('probe_sent')]
             executed_here = any(e['phase'] == phase and e['url'] == page.url for e in executions)
             if test['family'] == 'dom_xss':
                 phase_events = [e for e in events if e['phase'] == phase]
-                details = {'dom_runtime_observations': [{'source_kind': 'location_hash' if field['kind'] == 'hash' else 'urlsearchparams' if field['kind'] == 'query' else 'input_value',
+                unattributed = bool(executed_here and not phase_events and field['kind'] in CLIENT_ONLY)
+                if unattributed:
+                    phase_events = [{'sink': 'browser_execution_callback'}]
+                details = {'unsanitized_dom_flow': executed_here, 'dom_runtime_observations': [{'source_kind': INPUT_SOURCES[field['kind']],
                     'sink_kind': e['sink'], 'runtime_dom_sink_reached': True,
                     **({'sanitized': False, 'execution_context_reached': True} if executed_here else {})}
                     for e in phase_events]}
                 dedicated = analyze_dom_xss_signal(None, analysis_id=capture, target=policy.name,
-                    endpoint=public_url(test['url']), source_kind='location_hash' if field['kind'] == 'hash' else 'urlsearchparams' if field['kind'] == 'query' else 'input_value',
-                    sink_kind=phase_events[0]['sink'] if phase_events else 'innerhtml', details=details)
+                    endpoint=public_url(test['url']), source_kind=INPUT_SOURCES[field['kind']],
+                    sink_kind=phase_events[0]['sink'], details=details) if phase_events else None
             else:
                 observation = {**document, 'marker': marker, 'input_marker': marker,
                     'input_name': field['name'], 'browser_capture_id': capture,
@@ -273,10 +361,20 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
                             evidence['source_group'] = capture + ':' + evidence['source']
                             evidence['text'] = 'Controlled browser input and instrumented DOM sink observation; no static dataflow is claimed.'
                     dedicated['family_analyzer']['static_source_and_sink_are_one_evidence_root'] = False
+                preconditions = []
+                if field['kind'] in {'local_storage', 'session_storage', 'window_name'}:
+                    preconditions = ['Independently establish that an attacker can set this operator-seeded browser source in the real workflow.']
+                    dedicated['missing'] = list(dict.fromkeys(dedicated['missing'] + preconditions))
+                    dedicated['direct'] = False
+                    dedicated['support'] = [s for s in dedicated['support'] if s['type'] != 'unsanitized_dom_flow']
+                    dedicated['variant'] = 'operator_seeded_browser_execution'
+                    dedicated['family_analyzer']['confirmation_ready_from_stored_target_evidence'] = False
+                    dedicated['family_analyzer']['confirmation_missing'] = preconditions
+                dedicated['family_analyzer']['source_control_preconditions'] = preconditions
                 dedicated['family_analyzer'].update(active_validation_performed=True, active_request_performed=True,
                     payload_generated=phase != 'probe', safe_runtime_marker_only=phase == 'probe',
-                    state_changing_action_performed=bool(writes), browser_capture_id=capture)
-            results.append({'phase': phase, 'execution_observed': executed_here, 'analysis': dedicated})
+                    state_changing_action_performed=bool(writes), browser_capture_id=capture, exact_sink_attribution=not (test['family'] == 'dom_xss' and unattributed))
+            results.append({'phase': phase, 'execution_observed': executed_here, 'analysis': dedicated, 'coverage': {'source': field['kind'], 'probe': phase, 'settle_ms': test.get('settle_ms', 350), 'observed_controls': [c for c in controls if c['phase'] == phase], 'executing_frames': sorted({e['frame_kind'] for e in executions if e['phase'] == phase})}})
             if executed_here:
                 break
     except Exception as exc:
@@ -312,7 +410,7 @@ def _run(paths, db, plan, *, analysis_id, allow_active=False, verify=False, allo
     validate_plan(plan, policy)
     if not policy.active_allowed(Config(paths), allow_active):
         raise ReconError('Browser testing requires installation authorization, active enablement, target confirmation and --allow-active')
-    if any(t['input']['kind'] == 'form' or t.get('cleanup') for t in plan['tests']) and not allow_write:
+    if any(t['input']['kind'] == 'form' or t.get('cleanup') or any(s['action'] == 'request' for s in t.get('steps', [])) for t in plan['tests']) and not allow_write:
         raise ReconError('Form workflows/cleanup require explicit --allow-write')
     row = db.one('SELECT source_run_id,status FROM analysis_runs WHERE id=? AND target=?', (analysis_id, policy.name))
     if not row or row[1] != 'success':
@@ -344,6 +442,8 @@ def _run(paths, db, plan, *, analysis_id, allow_active=False, verify=False, allo
             try:
                 report['browser_version'] = browser.version
                 report['hook_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_hooks.js').read_bytes()).hexdigest()
+                report['probe_module_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_probes.py').read_bytes()).hexdigest()
+                report['coverage_profile'] = {'version': VERSION, 'sources': list(INPUT_SOURCES), 'probes': list(PROBE_NAMES)}
                 for test in plan['tests']:
                     check()
                     result = execute_test(browser, policy, plan, test, verify=verify,

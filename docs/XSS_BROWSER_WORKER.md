@@ -65,20 +65,34 @@ Each test names `family` (`reflected_xss`, `stored_xss`, `dom_xss`), `url`, and
 only the named parameter. Hash injection replaces the fragment. Form injection
 uses the explicit workflow below. Plan steps do not accept arbitrary JavaScript.
 
-With `--verify-execution`, the worker tries a finite set of callback-only HTML,
-attribute, single-quoted JS string, double-quoted JS string and JS expression
-probes, stopping at first observed execution. Restrict a test with, for example,
-`"probes": ["html", "attribute"]`. No payload performs credential collection or
-external callback requests. A unique per-test marker must reach the worker's
-browser binding from the current final document. Marker presence in HTML or a
-sink event alone never counts as execution.
+With `--verify-execution`, the worker tries the named callback-only probes
+listed in [the coverage matrix](XSS_COVERAGE.md), stopping at the first observed
+execution. Restrict a test with, for example, `"probes": ["html", "attribute"]`.
+No probe performs credential collection or external callback requests. A unique
+per-test marker must reach the worker binding in the target origin. Marker
+presence in HTML or a sink event alone never counts as execution.
 
-DOM hooks record `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`
-and `document.writeln` before page scripts run. They do not replace `eval` or
-`Function`, whose wrapping changes JavaScript scope/semantics. Execution without
-a recorded DOM sink is still reported but may require manual attribution before
-candidate promotion. These finite probes do not cover every JavaScript grammar,
-framework, browser, mutation-XSS or sanitizer bypass. Hooks can affect timing.
+Browser-only input kinds include `local_storage`, `session_storage`, `window_name`
+and `post_message`; they require `dom_xss`. Storage/window values are seeded
+before application scripts with a removable CDP init script. They are isolated
+to this test context. Their attacker-controllability is not assumed: observations
+retain a missing source-control prerequisite and do not emit direct vulnerability
+condition evidence. Use disposable keys rather than authentication keys.
+`post_message` sends from a sandboxed opaque-origin iframe, not from the receiver
+itself. `name: "$"` sends a scalar, otherwise `name` is the object property.
+
+DOM hooks cover the HTML APIs in the matrix, Shadow DOM, srcdoc and event/URL
+attribute assignment. Native calls and exceptions are preserved. `eval` and
+`Function` are not wrapped. For browser-only sources, a real execution callback
+can establish an unattributed execution condition without naming a sink;
+`exact_sink_attribution` remains false. Query-only execution is not relabeled
+DOM XSS without a corresponding runtime flow. Sandboxed opaque-origin execution
+is not counted as execution in the target origin.
+
+`settle_ms` sets an explicit post-workflow observation wait (default 350 ms,
+nonnegative with no quota ceiling). Use `wait_for` workflow steps for application
+readiness and increase `settle_ms` for delayed rendering. This is an observation
+window, not a mission timeout; no finite test proves absence of all later behavior.
 
 ## Stored XSS and form flows
 
@@ -107,15 +121,17 @@ controlled record and explicit cleanup steps, for example:
 }
 ```
 
-The worker requires a separate observed POST and marker-free read whose response
+The worker requires a separate observed POST/PUT/PATCH carrying the marker and a marker-free read whose response
 contains the marker. Execution must be observed on the final read page; execution
 on an immediate write response does not establish stored execution. The worker
 never infers persistence from a single echo. Cleanup is attempted in `finally`;
 cleanup failure or revoked scope can prevent cleanup and is
 recorded explicitly. Missing cleanup is recorded as `not_requested`. Existing
 content is not automatically restored; configure appropriate cleanup for your
-controlled record. POST is the supported write method; PUT/PATCH/DELETE are not
-sent. Non-GET 307/308 redirects are stopped rather than replaying writes.
+controlled record. POST form submission remains supported. Explicit `request` steps also support
+POST/PUT/PATCH/DELETE JSON workflows with `--allow-write`; non-POST methods must
+match the exact method/URL declared in the reviewed plan. Request bodies are not
+exported. DELETE is supported for explicit cleanup, not persistence proof. Non-GET 307/308 redirects are stopped rather than replaying writes.
 
 ## Authenticated pages
 
@@ -141,15 +157,18 @@ The worker starts its own context; it does not attach to personal browser tabs/C
 
 ## Scope and transport
 
-Each test is limited to its exact scheme/host/port and target policy scope.
+Navigation and writes remain limited to the test's exact scheme/host/port and
+current target policy. Optional `resource_origins` permits read-only assets/APIs
+from explicitly listed origins already inside that target policy. It cannot grant
+new scope, authorize cross-origin navigation/writes or enable WebSockets.
 Requests use fresh public-address resolution, reject mixed/private DNS answers,
 and connect through the existing pinned HTTP(S) transport, preserving Host/TLS
-SNI. HTTP requests are fulfilled into Chromium; proxies, redirects to other
+SNI. HTTP requests are fulfilled into Chromium; proxies, redirects to unapproved
 origins, service workers, WebSockets and unapproved write methods are blocked.
 Same-origin GET/303 navigation redirects are followed explicitly when fulfilled
 Chromium responses expose a redirect document. Redirects are checked at every hop; cycles are stopped without a hop quota.
 
-Applications requiring cross-origin APIs/CDNs, WebSockets, non-UTF-8 response
+Applications requiring unapproved origins, WebSockets, non-UTF-8 response
 semantics, browser client certificates or unsupported streaming semantics may therefore
 produce incomplete results. This is not a general browser sandbox against a
 hostile browser exploit; keep Chromium current. Response 401/403/429/5xx on the
@@ -177,6 +196,7 @@ automatically. Incomplete browser results produce `completed_with_gaps`.
 
 ```bash
 python -m unittest discover -s tests -p 'test_xss_browser.py' -v
+python -m unittest discover -s tests -p 'test_xss_browser_coverage.py' -v
 python -m unittest discover -s tests -p 'test_hunt_browser_integration.py' -v
 ```
 

@@ -73,7 +73,7 @@ class BrowserWorkerTests(unittest.TestCase):
         except Exception:
             cls.pw.stop()
             raise unittest.SkipTest('Chromium unavailable; install optional browser dependencies')
-        cls.server = ThreadingHTTPServer(('127.0.0.1', 0), Fixture)
+        cls.server = ThreadingHTTPServer(('127.0.0.1', 0), getattr(cls, 'handler', Fixture))
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True); cls.thread.start()
         cls.base = 'http://fixture.test:' + str(cls.server.server_port)
     @classmethod
