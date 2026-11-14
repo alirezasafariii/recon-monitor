@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "target": "example.com",
+  "max_requests": 100,
+  "max_seconds": 120,
+  "tests": [
+    {
+      "id": "search-reflection",
+      "family": "reflected_xss",
+      "url": "https://example.com/search",
+      "input": {"kind": "query", "name": "q"}
+    },
+    {
+      "id": "hash-rendering",
+      "family": "dom_xss",
+      "url": "https://example.com/viewer",
+      "input": {"kind": "hash", "name": "location.hash"}
+    }
+  ]
+}

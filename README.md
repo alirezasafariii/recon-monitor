@@ -6,6 +6,12 @@ access restrictions, origin failures and finalized report states. See
 
 <!-- recon-monitor-current: app=8.8.19 schema=18 -->
 
+## Browser XSS verification
+
+Optional Playwright support captures real Chromium evidence for Reflected,
+Stored and DOM XSS and links it to existing Analysis/candidate workflows.
+See [setup, plans, authentication and Agent integration](docs/XSS_BROWSER_WORKER.md).
+
 ## Autonomous Hunt Agent
 
 Run persistent AI-directed research missions with collection, stored-evidence

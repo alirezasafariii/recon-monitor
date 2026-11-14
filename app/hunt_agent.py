@@ -66,7 +66,8 @@ def save(db: Database, data: dict, status: str) -> None:
 def create_mission(paths: AppPaths, db: Database, *, target: str, source_run: str = "",
                    offline: bool = False, allow_live: bool = False, planner: str = "ai",
                    max_steps: int = 24, max_cases: int = 6, max_runtime: int = 1800,
-                   max_live_requests: int = 24) -> dict:
+                   max_live_requests: int = 24, browser_plan: str = "",
+                   browser_active: bool = False, browser_verify: bool = False, browser_write: bool = False, browser_storage_state: str = "", browser_chromium: str = "") -> dict:
     install(db)
     policy = policy_for(paths, target)
     if planner not in {"ai", "rules"} or not (1 <= max_steps <= 500 and 1 <= max_cases <= 100 and 1 <= max_runtime <= 86400 and 0 <= max_live_requests <= 1000):
@@ -87,6 +88,18 @@ def create_mission(paths: AppPaths, db: Database, *, target: str, source_run: st
     options = dict(offline=offline, allow_live=allow_live, planner=planner,
                    max_steps=max_steps, max_cases=max_cases, max_runtime=max_runtime,
                    max_live_requests=max_live_requests)
+    if browser_plan:
+        if offline or not browser_active or not policy.active_allowed(Config(paths), True):
+            raise ReconError("Browser mission requires explicit browser active gates and a network mission")
+        from xss_browser import read_plan, validate_plan
+        source = Path(browser_plan).resolve()
+        plan = read_plan(source)
+        validate_plan(plan, policy)
+        if any(t['input']['kind'] == 'form' or t.get('cleanup') for t in plan['tests']) and not browser_write:
+            raise ReconError("Browser form workflows require --allow-browser-write")
+        options["browser"] = {"path": str(source), "sha256": hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest(),
+                              "verify": browser_verify, "write": browser_write,
+                              "storage_state": browser_storage_state or None, "chromium": browser_chromium or None}
     state = {"source_run": source_run, "analysis_id": "", "cases": {}, "live_requests_reserved": 0,
              "collection_complete": bool(source_run and row[0] == "success")}
     mid = "HUNT-" + uuid.uuid4().hex[:16].upper()
@@ -126,6 +139,8 @@ def actions_for(db: Database, data: dict) -> list[dict]:
         return [] if "analysis" in done else [{"id": "analysis", "tool": "analysis", "priority": 100}]
     from correlation_engine import investigation_queue
     actions = []
+    if options.get("browser") and "browser" not in done:
+        actions.append({"id": "browser", "tool": "browser", "priority": 120})
     if len(state["cases"]) < options["max_cases"]:
         for item in investigation_queue(db, state["analysis_id"], target=data["target"], limit=100):
             aid = "investigate:" + str(item["cluster_id"])
@@ -214,6 +229,23 @@ def execute_action(paths: AppPaths, db: Database, data: dict, action: dict, rema
                                "coverage": result["evidence"]["coverage"]}
         return {"case_id": cid, "coverage": result["evidence"]["coverage"],
                 "validation_level": result["validation"]["recommended_level"]}
+    if tool == "browser":
+        from xss_browser import read_plan, run as run_browser
+        settings = data["options"]["browser"]
+        source = Path(settings["path"])
+        plan = read_plan(source)
+        if hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest() != settings["sha256"]:
+            raise ReconError("Browser plan changed; create a new mission")
+        plan["max_seconds"] = max(1, min(plan.get("max_seconds", 120), int(remaining)))
+        def control():
+            if mission(db, data["mission_id"])["stop_requested"]:
+                raise InterruptedError("Browser mission stopped")
+        result = run_browser(paths, db, plan, analysis_id=state["analysis_id"],
+            allow_active=True, verify=settings["verify"], allow_write=settings["write"], control=control,
+            storage_state=settings.get("storage_state"), executable=settings.get("chromium"))
+        if result["status"] != "completed":
+            return {**result, "browser_incomplete": True}
+        return result
     cid = action["case_id"]
     row = db.one("SELECT target FROM security_cases WHERE case_id=?", (cid,))
     if not row or row[0] != data["target"] or cid not in state["cases"]:
@@ -288,7 +320,7 @@ def run_mission(paths: AppPaths, db: Database, mid: str, *, planner=None, progre
         db.execute("UPDATE hunt_missions SET started_at=?,stop_requested=0 WHERE mission_id=?", (started, mid))
         # A crashed live request is never automatically replayed. Other tools
         # are idempotent/offline, or resume the existing collection budget.
-        db.execute("UPDATE hunt_steps SET status=CASE WHEN tool='live' THEN 'uncertain' ELSE 'interrupted' END,finished_at=? WHERE mission_id=? AND status='running'", (utc_now(), mid))
+        db.execute("UPDATE hunt_steps SET status=CASE WHEN tool IN ('live','browser') THEN 'uncertain' ELSE 'interrupted' END,finished_at=? WHERE mission_id=? AND status='running'", (utc_now(), mid))
         save(db, data, "running")
         try:
             while True:
@@ -342,10 +374,10 @@ def run_mission(paths: AppPaths, db: Database, mid: str, *, planner=None, progre
                 db.execute("INSERT INTO hunt_steps(mission_id,step_number,action_id,tool,status,started_at) VALUES(?,?,?,?,'running',?)", (mid, number, action["id"], action["tool"], utc_now()))
                 try:
                     result = execute_action(paths, db, data, action, remaining)
-                    status = "partial" if action["tool"] == "recon" and not result.get("collection_complete") else "completed"
+                    status = "partial" if (action["tool"] == "recon" and not result.get("collection_complete")) or result.get("browser_incomplete") else "completed"
                 except (KeyboardInterrupt, InterruptedError):
                     db.execute("UPDATE hunt_steps SET status=?,finished_at=? WHERE mission_id=? AND step_number=?",
-                               ("uncertain" if action["tool"] == "live" else "interrupted", utc_now(), mid, number))
+                               ("uncertain" if action["tool"] in {"live", "browser"} else "interrupted", utc_now(), mid, number))
                     save(db, data, "paused")
                     break
                 except Exception as exc:
@@ -368,6 +400,12 @@ def run_mission(paths: AppPaths, db: Database, mid: str, *, planner=None, progre
 def add_parser(subparsers):
     parser = subparsers.add_parser("agent", help="Run persistent autonomous bug bounty research missions")
     parser.add_argument("action", choices=["run", "resume", "status", "list", "stop", "report"])
+    parser.add_argument("--browser-storage-state", default="")
+    parser.add_argument("--browser-chromium", default="")
+    parser.add_argument("--browser-plan", default="", help="Reviewed XSS browser plan; frozen by hash")
+    parser.add_argument("--allow-browser-active", action="store_true")
+    parser.add_argument("--verify-browser-execution", action="store_true")
+    parser.add_argument("--allow-browser-write", action="store_true")
     parser.add_argument("--target", default="")
     parser.add_argument("--mission", default="")
     parser.add_argument("--run", dest="source_run", default="")
@@ -392,7 +430,10 @@ def cli(paths: AppPaths, args) -> dict | list:
             data = create_mission(paths, db, target=args.target, source_run=args.source_run,
                                   offline=args.offline, allow_live=args.allow_live, planner=args.planner,
                                   max_steps=args.max_steps, max_cases=args.max_cases, max_runtime=args.max_runtime,
-                                  max_live_requests=args.max_live_requests)
+                                  max_live_requests=args.max_live_requests, browser_plan=args.browser_plan,
+                                  browser_active=args.allow_browser_active,
+                                  browser_verify=args.verify_browser_execution, browser_write=args.allow_browser_write,
+                                  browser_storage_state=args.browser_storage_state, browser_chromium=args.browser_chromium)
             print("Hunt mission: " + data["mission_id"], flush=True)
             return run_mission(paths, db, data["mission_id"], progress=lambda value: print(value, file=sys.stderr, flush=True))
         if args.action == "list":

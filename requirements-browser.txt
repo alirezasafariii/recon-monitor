@@ -1,0 +1,2 @@
+# Optional browser evidence worker; core CLI remains usable without Playwright.
+playwright>=1.48,<2
