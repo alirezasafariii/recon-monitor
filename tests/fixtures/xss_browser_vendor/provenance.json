@@ -1,0 +1,42 @@
+[
+  {
+    "package": "react",
+    "version": "18.3.1",
+    "registry": "https://registry.npmjs.org/react/18.3.1",
+    "tarball_integrity": "sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==",
+    "files": {
+      "react.js": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+      "react.LICENSE": "52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85"
+    }
+  },
+  {
+    "package": "react-dom",
+    "version": "18.3.1",
+    "registry": "https://registry.npmjs.org/react-dom/18.3.1",
+    "tarball_integrity": "sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==",
+    "files": {
+      "react-dom.js": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+      "react-dom.LICENSE": "52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85"
+    }
+  },
+  {
+    "package": "vue",
+    "version": "3.5.13",
+    "registry": "https://registry.npmjs.org/vue/3.5.13",
+    "tarball_integrity": "sha512-wmeiSMxkZCSc+PM2w2VRsOYAZC8GdipNFRTsLSfodVqI9mbejKeXEGr8SckuLnrQPGe3oJN5c3K0vpoU9q/wCQ==",
+    "files": {
+      "vue.js": "c459ba7cc8db65c982589fa5d64c7ff478877e8e5b0fd75683207cec6a4e89e8",
+      "vue.LICENSE": "1bb85cc9b13b81ef41c81c51866172fc345e0503c86726a6755b796590b70175"
+    }
+  },
+  {
+    "package": "dompurify",
+    "version": "3.3.0",
+    "registry": "https://registry.npmjs.org/dompurify/3.3.0",
+    "tarball_integrity": "sha512-r+f6MYR1gGN1eJv0TVQbhA7if/U7P87cdPl3HN5rikqaBSBxLiCb/b9O+2eG0cxz0ghyU+mU1QkbsOwERMYlWQ==",
+    "files": {
+      "purify.js": "e7cb1db3d3bb7f1bbcdea1ca8377690d4002a952f781ba6e8831c8067edec8e0",
+      "purify.LICENSE": "1b02e03c3fb4f87d476c128f0eb9def1f5a1709d28b180465228bd41574623b7"
+    }
+  }
+]

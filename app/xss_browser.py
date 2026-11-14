@@ -21,10 +21,11 @@ from pathlib import Path
 from core import AppPaths, Config, Database, PolicySet, ReconError, atomic_write_text, utc_now
 from family_analyzers.dom_xss import analyze_dom_xss_signal
 from family_analyzers.phase2_expansion import PHASE2_ANALYZER_TYPES, analyze_phase2_family
+from xss_browser_encodings import DEFAULT_ENCODINGS, ENCODINGS, encode, carries, reflected
 from xss_browser_probes import PROBE_NAMES, INPUT_SOURCES, CLIENT_ONLY, probes as build_probes, source_script
 from safe_transport import build_pinned_opener, resolve_public_addresses
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 FAMILIES = {'reflected_xss', 'stored_xss', 'dom_xss'}
 LIMIT = 1024 * 1024
 
@@ -63,7 +64,7 @@ def validate_plan(plan, policy):
     if not isinstance(tests, list) or not tests:
         raise ReconError('Browser plan requires at least one test')
     for test in tests:
-        if not isinstance(test, dict) or set(test) - {'id', 'family', 'url', 'input', 'steps', 'cleanup', 'probes', 'settle_ms', 'resource_origins'}:
+        if not isinstance(test, dict) or set(test) - {'id', 'family', 'url', 'input', 'steps', 'cleanup', 'probes', 'settle_ms', 'resource_origins', 'encodings', 'read_session'}:
             raise ReconError('Invalid browser test fields')
         if not isinstance(test.get('id'), str) or not test['id'] or test.get('family') not in FAMILIES:
             raise ReconError('Each test needs an ID and supported XSS family')
@@ -85,6 +86,24 @@ def validate_plan(plan, policy):
             raise ReconError('Browser-only sources require the DOM XSS family')
         if test['family'] == 'stored_xss' and field['kind'] != 'form':
             raise ReconError('Stored XSS requires an explicit write/read form workflow')
+        reader = test.get('read_session')
+        if reader is not None:
+            if (test['family'] != 'stored_xss' or not isinstance(reader, dict)
+                    or set(reader) - {'url', 'steps', 'storage_state'} or not isinstance(reader.get('url'), str)
+                    or (reader.get('storage_state') is not None and not isinstance(reader['storage_state'], str))):
+                raise ReconError('read_session requires a Stored read URL and optional session file/steps')
+            if origin(reader['url']) != origin(test['url']) or not policy.url_in_scope(reader['url']):
+                raise ReconError('Reader URL outside the authorized test origin')
+            reader_steps = reader.get('steps', [])
+            if not isinstance(reader_steps, list) or any(not isinstance(step, dict) or step.get('action') == 'request'
+                    or '{probe}' in json.dumps(step) or '{marker}' in json.dumps(step) for step in reader_steps):
+                raise ReconError('Reader steps must be read-only and must not inject the probe')
+            validate_plan({'version': 1, 'target': policy.name, 'tests': [{'id': 'reader',
+                'family': 'reflected_xss', 'url': reader['url'], 'input': {'kind': 'query', 'name': 'unused'},
+                'steps': reader_steps, 'encodings': [[]]}]}, policy)
+        encodings = test.get('encodings', DEFAULT_ENCODINGS)
+        if not isinstance(encodings, list) or not encodings or any(not isinstance(chain, list) or any(not isinstance(e, str) or e not in ENCODINGS for e in chain) for chain in encodings):
+            raise ReconError('encodings must be named transformation chains')
         probes = test.get('probes', list(PROBE_NAMES))
         if not isinstance(probes, list) or not probes or any(p not in PROBE_NAMES for p in probes):
             raise ReconError('Invalid execution probes')
@@ -127,9 +146,12 @@ class Broker:
         self.bytes = 0
         self.error = ''
         self.phase = 'probe'
-        self.redirect = None
+        self.redirects = {}
+        self.probe_value = ''
+        self.role = 'writer'
 
-    def route(self, route):
+    def route(self, route, *, role=None):
+        role = role or self.role
         request = route.request
         try:
             self.check()
@@ -138,6 +160,7 @@ class Broker:
             if (requested_origin not in self.resource_origins or not self.policy.url_in_scope(url)
                     or (request.is_navigation_request() and requested_origin != self.allowed_origin)
                     or (requested_origin != self.allowed_origin and method not in {'GET', 'HEAD', 'OPTIONS'})
+                    or (role == 'reader' and method not in {'GET', 'HEAD', 'OPTIONS'})
                     or (method not in {'GET', 'HEAD', 'OPTIONS'} and not (self.allow_write and (method == 'POST' or (method, url) in self.declared_writes)))):
                 raise ReconError('outside_scope_or_unapproved_method')
             parsed = urllib.parse.urlsplit(url)
@@ -146,7 +169,7 @@ class Broker:
                 raise ReconError('non_public_or_missing_dns')
             rid = 'REQ-' + secrets.token_hex(8)
             rec = {'id': rid, 'url': public_url(url), 'method': method, 'phase': self.phase,
-                   'probe_sent': self.marker in url or self.marker in (request.post_data or '')}
+                   'probe_sent': carries(url, request.post_data or '', self.probe_value), 'role': role}
             self.records.append(rec)  # Reserve before connecting, including failed requests.
             headers = request.all_headers()
             headers.pop('accept-encoding', None)
@@ -184,14 +207,15 @@ class Broker:
                     if 300 <= response.code < 400 and location:
                         if response.code in {307, 308} and method not in {'GET', 'HEAD'}:
                             raise ReconError('redirect_requires_non_get_replay')
-                        self.redirect = redirected
+                        self.redirects[id(request.frame.page)] = redirected
                     if response.code >= 400:
                         self.error = 'main_document_http_' + str(response.code)
-                    self.documents.append({'request_id': rid, 'request_url': url, 'response_url': url,
+                if request.is_navigation_request() or request.resource_type in {'fetch', 'xhr'}:
+                    self.documents.append({'page_id': id(request.frame.page), 'role': role, 'request_id': rid, 'request_url': url, 'response_url': url,
                         'response_text': raw.decode('utf-8', errors='replace'),
                         'content_type': response.headers.get('Content-Type', ''),
                         'csp': response.headers.get('Content-Security-Policy', ''), 'phase': self.phase,
-                        'body_has_probe': self.marker in (request.post_data or '') or self.marker in url})
+                        'body_has_probe': carries(url, request.post_data or '', self.probe_value)})
                 route.fulfill(status=response.code, headers=out_headers, body=raw)
         except Exception as exc:
             self.error = str(exc) if isinstance(exc, ReconError) else type(exc).__name__
@@ -202,9 +226,9 @@ def _follow_redirects(page, broker, check):
     # Fulfilled Chromium navigations can expose a 3xx as a document. Follow
     # logged same-origin GET/303 destinations explicitly; never replay a POST.
     visited = set()
-    while broker.redirect:
+    while id(page) in broker.redirects:
         check()
-        url, broker.redirect = broker.redirect, None
+        url = broker.redirects.pop(id(page))
         if url in visited:
             raise ReconError('redirect_cycle')
         visited.add(url)
@@ -238,15 +262,11 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
     writes = [(s['method'], s['url']) for s in test.get('steps', []) + test.get('cleanup', []) if s['action'] == 'request']
     broker = Broker(policy, plan, origin(test['url']), allow_write, check, writes, test.get('resource_origins', []))
     broker.marker = marker
-    context = browser.new_context(service_workers='block', accept_downloads=False, storage_state=storage_state)
-    context.route('**/*', broker.route)
-    context.route_web_socket('**/*', lambda ws: ws.close())
     def sink_event(source, item):
         if not isinstance(item, dict) or item.get('marker') != marker:
             return
         if source['frame'] == source['page'].main_frame or source['frame'].url == 'about:srcdoc':
             events.append({'sink': item['sink'], 'url': public_url(source['page'].url), 'phase': broker.phase})
-    context.expose_binding('__rmSink', sink_event)
     def executed(source, token):
         if token != marker:
             return
@@ -256,17 +276,29 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
         srcdoc = frame.url == 'about:srcdoc' and frame.parent_frame == main
         if frame == main and origin(frame.url) == origin(test['url']) or srcdoc:
             executions.append({'phase': broker.phase, 'url': main.url,
-                               'frame_kind': 'srcdoc' if srcdoc else 'main'})
-    context.expose_binding('__rmXss', executed)
+                               'frame_kind': 'srcdoc' if srcdoc else 'main', 'page_id': id(source['page'])})
     def control_event(source, item):
         if isinstance(item, dict) and item.get('directive') in {'script-src', 'script-src-elem', 'script-src-attr', 'require-trusted-types-for', 'trusted-types'}:
             controls.append({'phase': broker.phase, 'directive': item['directive'],
                 'disposition': 'enforce' if item.get('disposition') == 'enforce' else 'report',
                 'marker_related': item.get('marker_related') is True})
-    context.expose_binding('__rmControl', control_event)
     hook = (Path(__file__).with_name('xss_browser_hooks.js')).read_text()
-    context.add_init_script('(' + hook + ')(' + json.dumps({'marker': marker, 'allowedOrigin': origin_text(test['url'])}) + ')')
+    session_hashes = {}
+    def new_context(state, role='writer'):
+        snapshot = json.loads(Path(state).read_text()) if isinstance(state, (str, Path)) else state
+        state_hash = hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
+        ctx = browser.new_context(service_workers='block', accept_downloads=False, storage_state=snapshot)
+        session_hashes[id(ctx)] = state_hash
+        ctx.route('**/*', lambda route: broker.route(route, role=role))
+        ctx.route_web_socket('**/*', lambda ws: ws.close())
+        ctx.expose_binding('__rmSink', sink_event)
+        ctx.expose_binding('__rmXss', executed)
+        ctx.expose_binding('__rmControl', control_event)
+        ctx.add_init_script('(' + hook + ')(' + json.dumps({'marker': marker, 'allowedOrigin': origin_text(test['url'])}) + ')')
+        return ctx
+    context = new_context(storage_state)
     page = context.new_page()
+    writer_page, reader_context = page, None
     cdp = context.new_cdp_session(page)
     cdp.send('Page.enable')
     source_init = None
@@ -276,11 +308,20 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
     cleanup = 'not_requested'
     try:
         probes = test.get('probes', list(PROBE_NAMES))
-        for phase in (['probe'] + ['execution:' + p for p in probes] if verify else ['probe']):
+        attempts = [(chain, name) for chain in test.get('encodings', DEFAULT_ENCODINGS)
+                    for name in (['probe'] + list(probes) if verify else ['probe'])]
+        for attempt, (chain, probe_name) in enumerate(attempts):
+            if reader_context is not None:
+                reader_context.close()
+                reader_context = None
+            page = writer_page
+            broker.role = 'writer'
             check()
+            phase = str(attempt) + ':' + ('probe' if probe_name == 'probe' else 'execution:' + probe_name) + ':encoding:' + (','.join(chain) or 'identity')
             broker.phase = phase
             variants = build_probes(marker)
-            probe = marker if phase == 'probe' else variants[phase.split(':', 1)[1]]
+            probe = encode(marker if probe_name == 'probe' else variants[probe_name], chain)
+            broker.probe_value = probe
             field = test['input']
             url = test['url']
             if field['kind'] == 'query':
@@ -315,16 +356,27 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
                 if sent_from != 'null':
                     raise ReconError('postmessage_source_origin_mismatch')
             _steps(page, test.get('steps', []), probe, marker, check, broker)
+            reader = test.get('read_session')
+            if reader is not None:
+                broker.role = 'reader'
+                broker.redirects.clear()
+                reader_context = new_context(reader.get('storage_state'), role='reader')
+                page = reader_context.new_page()
+                page.set_default_timeout(10000)
+                page.on('dialog', lambda dialog: dialog.dismiss())
+                page.goto(reader['url'], wait_until='domcontentloaded')
+                _follow_redirects(page, broker, check)
+                _steps(page, reader.get('steps', []), '', '', check, broker)
             observation_end = time.monotonic() + test.get('settle_ms', 350) / 1000
             while time.monotonic() < observation_end:
                 check()
                 page.wait_for_timeout(min(100, max(0, (observation_end - time.monotonic()) * 1000)))
             check()
             # Snapshot only marker location/contexts; never export the live DOM/body.
-            documents = [d for d in broker.documents if d['phase'] == phase and marker in d['response_text']]
-            document = documents[-1] if documents else (next((d for d in reversed(broker.documents) if d['phase'] == phase), {}))
+            documents = [d for d in broker.documents if d['phase'] == phase and d['page_id'] == id(page) and (marker in d['response_text'] or reflected(d['response_text'], probe))]
+            document = documents[-1] if documents else (next((d for d in reversed(broker.documents) if d['phase'] == phase and d['page_id'] == id(page)), {}))
             writes = [r for r in broker.records if r['method'] in {'POST', 'PUT', 'PATCH'} and r['phase'] == phase and r.get('probe_sent')]
-            executed_here = any(e['phase'] == phase and e['url'] == page.url for e in executions)
+            executed_here = any(e['phase'] == phase and e['url'] == page.url and e['page_id'] == id(page) for e in executions)
             if test['family'] == 'dom_xss':
                 phase_events = [e for e in events if e['phase'] == phase]
                 unattributed = bool(executed_here and not phase_events and field['kind'] in CLIENT_ONLY)
@@ -339,7 +391,10 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
                     sink_kind=phase_events[0]['sink'], details=details) if phase_events else None
             else:
                 observation = {**document, 'marker': marker, 'input_marker': marker,
-                    'input_name': field['name'], 'browser_capture_id': capture,
+                    'input_name': field['name'], 'encoding_chain': chain,
+                    'encoded_input_reflected': reflected(document.get('response_text', ''), probe),
+                    'request_carried_input': bool(writes or document.get('body_has_probe')),
+                    'browser_capture_id': capture,
                     'controlled_test_context': True, 'benign_test_marker': True,
                     'execution_marker': marker, 'execution_url': page.url,
                     test['family'].replace('_xss', '_script_execution_observed'): executed_here}
@@ -372,14 +427,17 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
                     dedicated['family_analyzer']['confirmation_missing'] = preconditions
                 dedicated['family_analyzer']['source_control_preconditions'] = preconditions
                 dedicated['family_analyzer'].update(active_validation_performed=True, active_request_performed=True,
-                    payload_generated=phase != 'probe', safe_runtime_marker_only=phase == 'probe',
+                    payload_generated=probe_name != 'probe', safe_runtime_marker_only=probe_name == 'probe',
                     state_changing_action_performed=bool(writes), browser_capture_id=capture, exact_sink_attribution=not (test['family'] == 'dom_xss' and unattributed))
-            results.append({'phase': phase, 'execution_observed': executed_here, 'analysis': dedicated, 'coverage': {'source': field['kind'], 'probe': phase, 'settle_ms': test.get('settle_ms', 350), 'observed_controls': [c for c in controls if c['phase'] == phase], 'executing_frames': sorted({e['frame_kind'] for e in executions if e['phase'] == phase})}})
+            results.append({'phase': phase, 'execution_observed': executed_here, 'analysis': dedicated, 'coverage': {'source': field['kind'], 'probe': probe_name, 'encoding_chain': chain, 'input_sha256': hashlib.sha256(probe.encode()).hexdigest(), 'writer_session_sha256': session_hashes[id(context)], 'reader_session_sha256': session_hashes[id(reader_context)] if reader_context else None, 'read_session': 'separate_read_only' if test.get('read_session') else 'writer', 'settle_ms': test.get('settle_ms', 350), 'observed_controls': [c for c in controls if c['phase'] == phase], 'executing_frames': sorted({e['frame_kind'] for e in executions if e['phase'] == phase})}})
             if executed_here:
                 break
     except Exception as exc:
         errors.append(str(exc) if isinstance(exc, ReconError) else type(exc).__name__)
     finally:
+        broker.role = 'writer'
+        page = writer_page
+        broker.redirects.clear()
         try:
             if test.get('cleanup'):
                 broker.phase = 'cleanup'
@@ -388,6 +446,8 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
         except Exception:
             cleanup = 'failed'
             errors.append('cleanup_failed')
+        if reader_context is not None:
+            reader_context.close()
         context.close()
     if broker.error:
         errors.append(broker.error)
@@ -443,7 +503,8 @@ def _run(paths, db, plan, *, analysis_id, allow_active=False, verify=False, allo
                 report['browser_version'] = browser.version
                 report['hook_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_hooks.js').read_bytes()).hexdigest()
                 report['probe_module_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_probes.py').read_bytes()).hexdigest()
-                report['coverage_profile'] = {'version': VERSION, 'sources': list(INPUT_SOURCES), 'probes': list(PROBE_NAMES)}
+                report['encoding_module_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_encodings.py').read_bytes()).hexdigest()
+                report['coverage_profile'] = {'version': VERSION, 'sources': list(INPUT_SOURCES), 'probes': list(PROBE_NAMES), 'default_encodings': DEFAULT_ENCODINGS}
                 for test in plan['tests']:
                     check()
                     result = execute_test(browser, policy, plan, test, verify=verify,

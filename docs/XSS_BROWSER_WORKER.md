@@ -60,6 +60,12 @@ checks remain active. The JSON configuration file retains its 1 MiB parser limit
 this does not limit collected responses. Individual connection timeouts (8 s)
 and browser-operation timeouts (10 s) detect stalls without limiting total runtime.
 
+Each test may specify ordered `encodings` chains. By default the worker tries
+identity, URL, double URL, HTML entities, double entities, Base64, JSON, JS Unicode
+and a composed HTML/Base64/URL profile. The same chain is recorded for inert and
+execution attempts. These are supported transformations, not claims of exhaustive
+encoding coverage. See the matrix for examples.
+
 Each test names `family` (`reflected_xss`, `stored_xss`, `dom_xss`), `url`, and
 `input` with `kind` (`query`, `hash`, `form`) and `name`. Query injection replaces
 only the named parameter. Hash injection replaces the fragment. Form injection
@@ -120,6 +126,12 @@ controlled record and explicit cleanup steps, for example:
   ]
 }
 ```
+
+Optional `read_session` supplies a separate read URL, storage-state file and
+readiness steps. It is restricted to the same authorized origin and read-only
+HTTP operations. It cannot fill the probe into the reader again; cleanup uses
+the original writer context. HTML or JSON/fetch responses can provide read evidence
+when actual execution is established in that reader. See XSS_COVERAGE.md.
 
 The worker requires a separate observed POST/PUT/PATCH carrying the marker and a marker-free read whose response
 contains the marker. Execution must be observed on the final read page; execution
@@ -197,6 +209,7 @@ automatically. Incomplete browser results produce `completed_with_gaps`.
 ```bash
 python -m unittest discover -s tests -p 'test_xss_browser.py' -v
 python -m unittest discover -s tests -p 'test_xss_browser_coverage.py' -v
+python -m unittest discover -s tests -p 'test_xss_browser_multistage.py' -v
 python -m unittest discover -s tests -p 'test_hunt_browser_integration.py' -v
 ```
 

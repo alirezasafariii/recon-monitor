@@ -1,4 +1,4 @@
-# Browser XSS coverage 1.1
+# Browser XSS coverage 1.2
 
 This matrix names supported paths and their real-Chromium acceptance controls.
 It is a testable coverage contract, not an assertion of exhaustive XSS detection.
@@ -6,6 +6,11 @@ No request, byte, test-count or mission-time quota is added.
 
 | Path | Mechanism | Acceptance control |
 | --- | --- | --- |
+| Encoded input | identity, URL, double URL, HTML entities, double entities, Base64, JSON, JS Unicode and composed chains | decoding to text-only sinks stays negative |
+| Real renderer fixtures | React 18.3.1 and Vue 3.5.13 unsafe HTML versus escaped rendering | real libraries, not simulated framework names |
+| Sanitize/decode chain | DOMPurify 3.3.0 followed by unsafe decoding/reinsertion | DOMPurify-only safe rendering remains negative |
+| Parse/serialize cycles | multiple template parsing/text extraction stages | final text-only rendering |
+| Stored reader context | separate read-only session and HTML or JSON response evidence | writer-only execution does not establish reader execution; reader writes blocked |
 | Reflected HTML | callback-only image event | encoded text |
 | Quoted/unquoted attribute | explicit HTML/attribute probes | quoted encoded attribute |
 | textarea/title/comment/style | context-closing probes | encoded context delimiters |
@@ -81,8 +86,8 @@ reviewed form/session steps; arbitrary JavaScript is not accepted in a plan.
 ## Limits that remain explicit
 
 Finite probes do not establish the absence of all XSS. Browser-specific parsing,
-mutation-XSS, complete sanitizer-bypass coverage, every framework gadget,
-all encoded/nested grammars, every storage provenance chain, popup workflows,
+all mutation/namespace-XSS variants, every sanitizer bypass or framework gadget,
+all possible encoded grammars, every storage provenance chain, popup workflows,
 WebSockets and exploitability across all CSP/Trusted Types configurations are
 not exhaustively covered. setTimeout/function execution is reported without
 pretending to know the exact sink if no hook observed it. Styling or parsing a
@@ -91,3 +96,39 @@ marker is not execution. Operator-seeded sources retain their prerequisites.
 Named source/context/sink pairs are exercised against both executable and secure
 controls in tests/test_xss_browser_coverage.py. Native macOS/browser-matrix and
 production-application acceptance remain separate from Linux Chromium fixtures.
+
+## Encoding chains and multi-stage Stored reads
+
+The default encoding profiles are the nine named chains in
+`xss_browser_encodings.DEFAULT_ENCODINGS`. A plan can explicitly select ordered
+chains with `"encodings": [[], ["url", "url"], ["html_entities", "base64", "url"]]`.
+Each transformation is applied in order before the normal URL/form/JSON transport
+encoding. No encoding-depth or execution quota is imposed. An encoded reflection
+alone does not establish XSS: encoded or JSON response evidence requires a bound
+real browser callback before direct condition evidence is accepted.
+
+A Stored test can declare an isolated reader:
+
+```json
+"read_session": {
+  "url": "https://example.com/test-note/view",
+  "storage_state": "reader-session.json",
+  "steps": [{"action": "wait_for", "selector": "#note-loaded"}]
+}
+```
+
+Use the normal `--storage-state writer-session.json` for writing. Omitting reader
+storage state creates an anonymous reader. The reader cannot issue state-changing
+HTTP requests, even when the writer has `--allow-write`; reader steps cannot inject
+the marker again. Cleanup runs in the writer context. Execution and response
+records are matched to the actual reader page, so execution at the write page is
+insufficient. HTML and JSON/fetch read responses can establish persistence when
+the same controlled value is really rendered/executed by the reader. Session-state
+and input fingerprints are recorded without exporting cookies or payloads. Two
+contexts are not automatically proof of two different users; account ownership and
+impact remain analyst-reviewed prerequisites.
+
+Framework and sanitizer fixtures are vendored under tests/fixtures/xss_browser_vendor
+with licenses, npm tarball integrity and selected-file SHA-256 provenance. They
+exercise application rendering mistakes and unsafe processing order. These tests
+do not claim a vulnerability in the pinned libraries, nor coverage of every version.

@@ -106,6 +106,17 @@ class XssObservationTests(unittest.TestCase):
                     "controlled_test_context": True, "benign_test_marker": True}]})
             self.assertNotIn(direct, data[family + "_observations"][0])
 
+    def test_encoded_or_json_claim_needs_bound_browser_execution(self):
+        observation = self.capture(response_text='{"value":"encoded"}', content_type='application/json',
+            encoded_input_reflected=True, request_carried_input=True, controlled_test_context=True,
+            benign_test_marker=True, reflected_script_execution_observed=True)
+        for missing in ('browser_capture_id', 'execution_marker'):
+            bound = {**observation, 'browser_capture_id': 'capture', 'execution_marker': self.marker, 'execution_url': self.endpoint}
+            bound.pop(missing)
+            data, meta = normalize_xss_observations('reflected_xss', self.endpoint, {'reflected_xss_observations':[bound]})
+            self.assertFalse(meta['xss_capture_summaries'][0]['execution_established'])
+            self.assertNotIn('reflected_script_execution_observed', data['reflected_xss_observations'][0])
+
     def test_dom_conflicting_sanitization_is_not_direct(self):
         result = analyze_dom_xss_signal(None, analysis_id="a", target="example.test",
             source_kind="location.hash", sink_kind="eval", details={

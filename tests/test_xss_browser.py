@@ -88,7 +88,7 @@ class BrowserWorkerTests(unittest.TestCase):
         self.pinning = patch.object(worker, 'resolve_public_addresses', return_value=(True, ['127.0.0.1']))
         self.pinning.start(); self.addCleanup(self.pinning.stop)
     def spec(self, path, family='reflected_xss', kind='query'):
-        return {'id': 'test', 'family': family, 'url': self.base + path, 'input': {'kind': kind, 'name': 'q'}}
+        return {'id': 'test', 'encodings': [[]], 'family': family, 'url': self.base + path, 'input': {'kind': kind, 'name': 'q'}}
     def execute(self, test, **kwargs):
         plan = {'version': 1, 'target': 'fixture.test', 'tests': [test], 'max_seconds': 20, 'max_requests': 30}
         worker.validate_plan(plan, self.policy)

@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 
 from .remaining_common import observations, truth
 
-XSS_OBSERVATION_VERSION = "1.0.0"
+XSS_OBSERVATION_VERSION = "1.1.0"
 
 
 class _Contexts(HTMLParser):
@@ -89,6 +89,17 @@ def normalize_xss_observations(family: str, endpoint: str, details: Mapping[str,
                 parser = _Contexts(marker)
                 parser.feed(body)
                 contexts = parser.contexts
+            runtime_bound = (valid and item.get("execution_marker") == marker
+                             and bool(item.get("browser_capture_id"))
+                             and _origin(str(item.get("execution_url") or "")) == _origin(endpoint)
+                             and any(truth(item.get(k)) is True for k in ("controlled_test_context", "authorized_test_context", "controlled_observation"))
+                             and any(truth(item.get(k)) is True for k in ("benign_test_marker", "safe_test_marker", "non_destructive_test", "harmless_test"))
+                             and truth(item.get(direct)) is True)
+            # Encoded or JSON response data may be decoded/rendered by the browser.
+            # These flags alone never establish execution without the bound callback.
+            if (not contexts and runtime_bound and truth(item.get("encoded_input_reflected")) is True
+                    and truth(item.get("request_carried_input")) is True):
+                contexts.add("browser_rendered_value")
             persisted = (bool(item.get("write_request_id"))
                          and item.get("write_request_id") != item.get("request_id")
                          and item.get("write_marker") == marker
