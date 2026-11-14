@@ -268,7 +268,9 @@ def _runtime_evidence(
 
         context_is_dangerous = sink_context == "execution" or executable_context is True
         neutralization_absent = explicit_unsanitized is True or sanitized is False
-        if runtime_reached is True and context_is_dangerous and neutralization_absent and trusted_types is not True and safe_api is not True:
+        if (source and runtime_reached is True and context_is_dangerous
+                and neutralization_absent and sanitized is not True
+                and trusted_types is not True and safe_api is not True):
             _add_unique(support, {
                 "type": "unsanitized_dom_flow",
                 "source": "stored_dom_runtime",
