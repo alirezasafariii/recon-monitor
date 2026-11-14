@@ -14,7 +14,7 @@ records. Structured capture fields are:
 | `marker` | Inert unique marker, 12–128 ASCII letters, numbers, `_` or `-` |
 | `input_marker`, `input_name` | Exact source marker and input name |
 | `request_id`, `request_url` | Stored request identifier and exact analyzed endpoint |
-| `response_url`, `content_type`, `response_text` | Stored response; at most 1 MiB UTF-8 |
+| `response_url`, `content_type`, `response_text` | Stored response without a capture-byte quota |
 | `write_request_id`, `write_marker` | Separate write capture and its marker, for Stored |
 | `read_request_contains_marker` | Must explicitly be false to establish persistence |
 

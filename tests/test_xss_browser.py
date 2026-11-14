@@ -46,6 +46,7 @@ class Fixture(BaseHTTPRequestHandler):
             self.send_response(302); self.send_header('Location', '/reflect?' + p.query); self.end_headers(); return
         elif p.path == '/denied':
             self.send_response(403); self.end_headers(); return
+        elif p.path == '/large': body = 'x' * (2 * 1024 * 1024) + '<p>' + q + '</p>'
         elif p.path == '/safe': body = '<p>' + html.escape(q) + '</p>'
         elif p.path == '/csp':
             body = q; csp = "script-src 'none'"
@@ -137,14 +138,25 @@ class BrowserWorkerTests(unittest.TestCase):
         self.assertTrue(result['phases'][-1]['analysis']['direct'], result)
         self.assertEqual(result['cleanup'], 'completed')
         self.assertEqual(Fixture.stored, '')
-    def test_redirect_scope_block_and_budget_are_incomplete(self):
+    def test_redirect_scope_block_and_legacy_budgets_are_ignored(self):
         result = self.execute(self.spec('/redirect'))
         self.assertEqual(result['status'], 'incomplete', result)
-        plan = {'max_requests': 1, 'max_seconds': 20}
+        plan = {'max_requests': 1, 'max_seconds': 0}
         test = self.spec('/reflect')
         result = worker.execute_test(self.browser, self.policy, plan, test, verify=True, allow_write=False)
-        self.assertEqual(result['status'], 'incomplete', result)
-        self.assertLessEqual(len(result['requests']), 1)
+        self.assertEqual(result['status'], 'execution_observed', result)
+        self.assertGreater(len(result['requests']), 1)
+        large = worker.execute_test(self.browser, self.policy, plan, self.spec('/large'), verify=True, allow_write=False)
+        self.assertEqual(large['status'], 'execution_observed', large)
+        self.assertGreater(sum(r.get('bytes', 0) for r in large['requests']), 2 * 1024 * 1024)
+        calls = [0]
+        def stop_during_stream():
+            calls[0] += 1
+            if calls[0] >= 5:
+                raise InterruptedError('synthetic stop')
+        stopped = worker.execute_test(self.browser, self.policy, plan, self.spec('/large'),
+            verify=False, allow_write=False, check=stop_during_stream)
+        self.assertEqual(stopped['status'], 'incomplete')
     def test_storage_state_authentication_and_secret_redaction(self):
         test = self.spec('/session')
         denied = self.execute(test)

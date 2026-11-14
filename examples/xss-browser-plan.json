@@ -1,8 +1,6 @@
 {
   "version": 1,
   "target": "example.com",
-  "max_requests": 100,
-  "max_seconds": 120,
   "tests": [
     {
       "id": "search-reflection",

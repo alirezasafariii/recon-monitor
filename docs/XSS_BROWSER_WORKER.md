@@ -35,7 +35,7 @@ Analysis ID for that target:
 # Inert marker collection only; still runs the application's own JavaScript.
 ./recon-monitor.sh xss-browser --plan my-plan.json --analysis AN-ID --allow-active
 
-# Also attempt bounded callback-only JavaScript execution probes.
+# Also attempt callback-only JavaScript execution probes.
 ./recon-monitor.sh xss-browser --plan my-plan.json --analysis AN-ID \
   --allow-active --verify-execution
 ```
@@ -51,10 +51,14 @@ requests; an in-flight operation can take up to the bounded browser timeout.
 
 ## Plan and probe contract
 
-`version` is 1, `target` is an exact policy name, `tests` contains 1–30 unique IDs.
-`max_requests` is 1–1000 (default 100) across the complete plan; `max_seconds` is
-1–900 (default 120). Policy limits may reduce these budgets. Responses are
-limited to 1 MiB each and 16 MiB total or the tighter target download limit.
+`version` is 1, `target` is an exact policy name, and `tests` is a nonempty list
+of unique IDs. There are no execution quotas on test count, workflow steps,
+requests, total runtime or response bytes. Legacy `max_requests` and
+`max_seconds` plan fields are accepted but ignored. The browser worker does not
+apply collector request/download quotas. Manual stop and scope/authorization
+checks remain active. The JSON configuration file retains its 1 MiB parser limit;
+this does not limit collected responses. Individual connection timeouts (8 s)
+and browser-operation timeouts (10 s) detect stalls without limiting total runtime.
 
 Each test names `family` (`reflected_xss`, `stored_xss`, `dom_xss`), `url`, and
 `input` with `kind` (`query`, `hash`, `form`) and `name`. Query injection replaces
@@ -107,7 +111,7 @@ The worker requires a separate observed POST and marker-free read whose response
 contains the marker. Execution must be observed on the final read page; execution
 on an immediate write response does not establish stored execution. The worker
 never infers persistence from a single echo. Cleanup is attempted in `finally`;
-cleanup failure, revoked scope or exhausted budget can prevent cleanup and is
+cleanup failure or revoked scope can prevent cleanup and is
 recorded explicitly. Missing cleanup is recorded as `not_requested`. Existing
 content is not automatically restored; configure appropriate cleanup for your
 controlled record. POST is the supported write method; PUT/PATCH/DELETE are not
@@ -143,13 +147,13 @@ and connect through the existing pinned HTTP(S) transport, preserving Host/TLS
 SNI. HTTP requests are fulfilled into Chromium; proxies, redirects to other
 origins, service workers, WebSockets and unapproved write methods are blocked.
 Same-origin GET/303 navigation redirects are followed explicitly when fulfilled
-Chromium responses expose a redirect document. Budgets cover each redirect hop.
+Chromium responses expose a redirect document. Redirects are checked at every hop; cycles are stopped without a hop quota.
 
 Applications requiring cross-origin APIs/CDNs, WebSockets, non-UTF-8 response
-semantics, browser client certificates or streamed/large resources may therefore
+semantics, browser client certificates or unsupported streaming semantics may therefore
 produce incomplete results. This is not a general browser sandbox against a
 hostile browser exploit; keep Chromium current. Response 401/403/429/5xx on the
-main document, blocked resources, timeouts and byte/request limits remain visible
+main document, blocked resources, and per-operation timeouts remain visible
 as incomplete coverage. CSP is preserved; its mere presence is not proof that
 execution was blocked. The execution callback is the decisive observation.
 

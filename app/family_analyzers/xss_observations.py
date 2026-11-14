@@ -13,7 +13,6 @@ from urllib.parse import urlsplit
 from .remaining_common import observations, truth
 
 XSS_OBSERVATION_VERSION = "1.0.0"
-MAX_CAPTURE_BYTES = 1_048_576
 
 
 class _Contexts(HTMLParser):
@@ -77,7 +76,7 @@ def normalize_xss_observations(family: str, endpoint: str, details: Mapping[str,
         if marker is not None or body is not None:
             # Captures use inert unique alphanumeric markers, not executable payloads.
             valid = (isinstance(marker, str) and re.fullmatch(r"[A-Za-z0-9_-]{12,128}", marker)
-                     and isinstance(body, str) and len(body.encode("utf-8")) <= MAX_CAPTURE_BYTES
+                     and isinstance(body, str)
                      and bool(item.get("request_id")) and bool(item.get("input_name"))
                      and item.get("request_url") == endpoint
                      and _origin(endpoint) is not None

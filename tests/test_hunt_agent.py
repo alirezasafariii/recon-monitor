@@ -114,17 +114,13 @@ class HuntAgentTests(unittest.TestCase):
             self.assertIn(first["source_run"], command)
             self.assertNotIn("--allow-active", command)
 
-    def test_step_budget_stops_pending_work_and_exact_completion_is_success(self):
+    def test_legacy_step_limit_does_not_stop_pending_work(self):
         data = self.create(max_steps=1)
-        result = agent.run_mission(self.paths, self.db, data["mission_id"])
+        actions = [[{"id": "first", "tool": "analysis"}], [{"id": "second", "tool": "analysis"}], []]
+        with patch.object(agent, "actions_for", side_effect=actions), patch.object(agent, "execute_action", return_value={}):
+            result = agent.run_mission(self.paths, self.db, data["mission_id"])
         self.assertEqual(result["status"], "completed")
-        another = self.create(max_steps=1)
-        def incomplete(paths, db, data, action, remaining):
-            return {"analysis_id": "not-committed"}
-        with patch.object(agent, "execute_action", side_effect=incomplete), patch.object(agent, "actions_for", return_value=[{"id": "analysis", "tool": "analysis", "priority": 100}]):
-            result = agent.run_mission(self.paths, self.db, another["mission_id"])
-        self.assertEqual(result["status"], "budget_exhausted")
-        self.assertEqual(len(agent.mission(self.db, another["mission_id"])["steps"]), 1)
+        self.assertEqual(len(agent.mission(self.db, data["mission_id"])["steps"]), 2)
 
     def test_scope_change_blocks_resume_before_any_tool(self):
         data = self.create()
@@ -157,16 +153,34 @@ class HuntAgentTests(unittest.TestCase):
         execute.assert_not_called()
         self.assertEqual(agent.mission(self.db, data["mission_id"])["status"], "paused")
 
-    def test_deadline_and_step_budget_survive_resume(self):
+    def test_old_exhausted_mission_resumes_without_lifetime_quota(self):
         data = self.create(max_runtime=1)
-        self.db.execute("UPDATE hunt_missions SET started_at=?", (time.time() - 10,))
-        with patch.object(agent, "execute_action") as execute:
-            self.assertEqual(agent.run_mission(self.paths, self.db, data["mission_id"])["status"], "budget_exhausted")
-        execute.assert_not_called()
+        legacy = {**data["options"], "max_steps": 1, "max_cases": 1, "max_runtime": 1, "max_live_requests": 0}
+        self.db.execute("UPDATE hunt_missions SET started_at=?,status='budget_exhausted',options_json=?", (time.time() - 100000, json.dumps(legacy)))
+        self.assertEqual(agent.run_mission(self.paths, self.db, data["mission_id"])["status"], "completed")
         with agent.target_lock(self.paths, "example.test"):
             with self.assertRaisesRegex(ReconError, "already running"):
                 with agent.target_lock(self.paths, "example.test"):
                     self.fail("lock unexpectedly acquired")
+
+    def test_case_queue_has_no_first_hundred_or_legacy_case_quota(self):
+        data = self.create(max_cases=1)
+        data["state"]["analysis_id"] = "AN-1"
+        data["state"]["cases"] = {"existing": {}}
+        data["steps"] = [{"action_id": "investigate:" + str(i), "status": "completed"} for i in range(100)]
+        items = [{"cluster_id": str(i), "queue_score": 50} for i in range(101)]
+        with patch("correlation_engine.investigation_queue", return_value=items) as queue:
+            actions = agent.actions_for(self.db, data)
+        self.assertIn("investigate:100", [a["id"] for a in actions])
+        self.assertIsNone(queue.call_args.kwargs["limit"])
+
+    def test_failed_unallocated_collection_is_not_retried_forever(self):
+        self.paths.config.write_text('I_HAVE_AUTHORIZATION="yes"\n')
+        data = agent.create_mission(self.paths, self.db, target="example.test", planner="rules")
+        with patch.object(agent, "execute_action", side_effect=RuntimeError("fixture")) as execute:
+            result = agent.run_mission(self.paths, self.db, data["mission_id"])
+        self.assertEqual(result["status"], "completed_with_gaps")
+        self.assertEqual(execute.call_count, 1)
 
     def test_partial_collection_cannot_be_reported_as_complete(self):
         self.paths.config.write_text('I_HAVE_AUTHORIZATION="yes"\n')
@@ -213,7 +227,7 @@ class InvestigationIntegrationTests(unittest.TestCase):
         report = json.loads(Path(result["json"]).read_text())
         self.assertIn("claims", report["cases"][0]["draft"])
 
-    def test_live_reservation_survives_executor_failure_and_budget_blocks_retry(self):
+    def test_live_tracking_has_no_cumulative_mission_request_quota(self):
         temp, db = investigation_fixture.InvestigationCaseWorkflowV866Tests().project()
         self.addCleanup(temp.cleanup)
         self.addCleanup(db.close)
@@ -235,10 +249,10 @@ class InvestigationIntegrationTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 agent.execute_action(paths, db, data, action, 1000)
         self.assertEqual(agent.mission(db, data["mission_id"])["state"]["live_requests_reserved"], 2)
-        with patch("safe_validation.execute_validation_plan") as execute:
-            with self.assertRaisesRegex(ReconError, "budget"):
-                agent.execute_action(paths, db, data, action, 1000)
-        execute.assert_not_called()
+        with patch("safe_validation.execute_validation_plan", return_value={"run_id": "fixture", "result": "inconclusive", "network_requests": 2}) as execute:
+            agent.execute_action(paths, db, data, action, 0)
+        execute.assert_called_once()
+        self.assertEqual(agent.mission(db, data["mission_id"])["state"]["live_requests_reserved"], 4)
 
 
 class PlannerTests(unittest.TestCase):

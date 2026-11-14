@@ -12,7 +12,6 @@ import json
 import os
 import re
 import secrets
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -47,8 +46,8 @@ def validate_plan(plan, policy):
     if plan.get('version') != 1 or plan.get('target') != policy.name:
         raise ReconError('Browser plan version/target mismatch')
     tests = plan.get('tests')
-    if not isinstance(tests, list) or not 1 <= len(tests) <= 30:
-        raise ReconError('Browser plan requires 1–30 tests')
+    if not isinstance(tests, list) or not tests:
+        raise ReconError('Browser plan requires at least one test')
     for test in tests:
         if not isinstance(test, dict) or set(test) - {'id', 'family', 'url', 'input', 'steps', 'cleanup', 'probes'}:
             raise ReconError('Invalid browser test fields')
@@ -63,12 +62,12 @@ def validate_plan(plan, policy):
         if test['family'] == 'stored_xss' and field['kind'] != 'form':
             raise ReconError('Stored XSS requires an explicit write/read form workflow')
         probes = test.get('probes', ['html', 'attribute', 'js_single', 'js_double', 'js_expression'])
-        if not isinstance(probes, list) or not probes or len(probes) > 5 or any(p not in {'html', 'attribute', 'js_single', 'js_double', 'js_expression'} for p in probes):
-            raise ReconError('Invalid bounded execution probes')
+        if not isinstance(probes, list) or not probes or any(p not in {'html', 'attribute', 'js_single', 'js_double', 'js_expression'} for p in probes):
+            raise ReconError('Invalid execution probes')
         for stage in ('steps', 'cleanup'):
             steps = test.get(stage, [])
-            if not isinstance(steps, list) or len(steps) > 30:
-                raise ReconError('Too many browser workflow steps')
+            if not isinstance(steps, list):
+                raise ReconError('Browser workflow steps must be a list')
             for step in steps:
                 if not isinstance(step, dict) or step.get('action') not in {'goto', 'fill', 'click', 'wait_for'}:
                     raise ReconError('Only goto/fill/click/wait_for steps are supported')
@@ -82,10 +81,7 @@ def validate_plan(plan, policy):
             raise ReconError('Form workflows need an explicit fill value containing {probe}')
     if len({t['id'] for t in tests}) != len(tests):
         raise ReconError('Duplicate test IDs')
-    for key, default, maximum in [('max_requests', 100, 1000), ('max_seconds', 120, 900)]:
-        value = plan.get(key, default)
-        if type(value) is not int or not 1 <= value <= maximum:
-            raise ReconError('Invalid browser budget')
+    # Legacy max_requests/max_seconds fields are accepted and ignored.
     return plan
 
 
@@ -95,7 +91,6 @@ class Broker:
         self.allow_write, self.check = allow_write, check
         self.records, self.documents = [], []
         self.bytes = 0
-        self.started = time.monotonic()
         self.error = ''
         self.phase = 'probe'
         self.redirect = None
@@ -108,11 +103,6 @@ class Broker:
             if (origin(url) != self.allowed_origin or not self.policy.url_in_scope(url)
                     or method not in ({'GET', 'HEAD', 'OPTIONS', 'POST'} if self.allow_write else {'GET', 'HEAD', 'OPTIONS'})):
                 raise ReconError('outside_scope_or_unapproved_method')
-            if len(self.records) >= min(self.plan.get('max_requests', 100), self.policy.limits.max_http_requests):
-                raise ReconError('request_budget_exhausted')
-            remaining = self.plan.get('max_seconds', 120) - (time.monotonic() - self.started)
-            if remaining <= 0:
-                raise ReconError('runtime_budget_exhausted')
             parsed = urllib.parse.urlsplit(url)
             public, addresses = resolve_public_addresses(parsed.hostname, parsed.port or self.allowed_origin[2])
             if not public or not addresses:
@@ -125,14 +115,20 @@ class Broker:
             headers.pop('content-length', None)
             req = urllib.request.Request(url, data=request.post_data_buffer, headers=headers, method=method)
             try:
-                response = build_pinned_opener(addresses[0]).open(req, timeout=min(8, remaining))
+                response = build_pinned_opener(addresses[0]).open(req, timeout=8)
             except urllib.error.HTTPError as exc:
                 response = exc  # Redirects are returned to Chromium and re-intercepted.
             with response:
-                raw = response.read(LIMIT + 1)
+                chunks = []
+                read = getattr(response, 'read1', response.read)
+                while True:
+                    self.check()
+                    chunk = read(64 * 1024)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                raw = b''.join(chunks)
                 self.bytes += len(raw)
-                if len(raw) > LIMIT or self.bytes > min(self.plan.get('_max_bytes', 16 * LIMIT), self.policy.limits.max_download_mb * LIMIT):
-                    raise ReconError('response_byte_budget_exhausted')
                 out_headers = {k.lower(): v for k, v in response.headers.items()}
                 location = response.headers.get('Location')
                 if 300 <= response.code < 400 and location:
@@ -167,14 +163,14 @@ class Broker:
 def _follow_redirects(page, broker, check):
     # Fulfilled Chromium navigations can expose a 3xx as a document. Follow
     # logged same-origin GET/303 destinations explicitly; never replay a POST.
-    for _ in range(8):
-        if not broker.redirect:
-            return
+    visited = set()
+    while broker.redirect:
         check()
         url, broker.redirect = broker.redirect, None
+        if url in visited:
+            raise ReconError('redirect_cycle')
+        visited.add(url)
         page.goto(url, wait_until='domcontentloaded')
-    if broker.redirect:
-        raise ReconError('redirect_limit_exhausted')
 
 
 def _steps(page, steps, probe, marker, check, broker):
@@ -211,7 +207,7 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
     hook = (Path(__file__).with_name('xss_browser_hooks.js')).read_text()
     context.add_init_script('(' + hook + ')(' + json.dumps({'marker': marker}) + ')')
     page = context.new_page()
-    page.set_default_timeout(min(plan.get('max_seconds', 120) * 1000, 10000))
+    page.set_default_timeout(10000)  # Per-operation stall timeout, not a total runtime quota.
     page.on('dialog', lambda dialog: dialog.dismiss())
     errors = []
     cleanup = 'not_requested'
@@ -322,11 +318,8 @@ def _run(paths, db, plan, *, analysis_id, allow_active=False, verify=False, allo
     if not row or row[1] != 'success':
         raise ReconError('A completed successful Analysis must belong to the plan target')
     policy_hash = policy.policy_hash()
-    deadline = time.monotonic() + plan.get('max_seconds', 120)
     def check():
         control()
-        if time.monotonic() >= deadline:
-            raise ReconError('runtime_budget_exhausted')
         current = [p for p in PolicySet.load(paths).targets if p.name == policy.name]
         if len(current) != 1 or current[0].policy_hash() != policy_hash or not current[0].active_allowed(Config(paths), allow_active):
             raise ReconError('Authorization or target policy changed')
@@ -351,18 +344,10 @@ def _run(paths, db, plan, *, analysis_id, allow_active=False, verify=False, allo
             try:
                 report['browser_version'] = browser.version
                 report['hook_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_hooks.js').read_bytes()).hexdigest()
-                remaining_requests = min(plan.get('max_requests', 100), policy.limits.max_http_requests)
-                remaining_bytes = min(16 * LIMIT, policy.limits.max_download_mb * LIMIT)
                 for test in plan['tests']:
                     check()
-                    if remaining_requests <= 0 or remaining_bytes <= 0:
-                        report['budget_exhausted'] = True
-                        break
-                    bounded = {**plan, 'max_requests': remaining_requests, '_max_bytes': remaining_bytes}
-                    result = execute_test(browser, policy, bounded, test, verify=verify,
+                    result = execute_test(browser, policy, plan, test, verify=verify,
                         allow_write=allow_write, storage_state=storage_state, check=check)
-                    remaining_requests -= len(result['requests'])
-                    remaining_bytes -= sum(r.get('bytes', 0) for r in result['requests'])
                     capture_path = directory / (result['capture_id'] + '.json')
                     atomic_write_text(capture_path, json.dumps(result, indent=2) + '\n', 0o600)
                     result['artifact'] = str(capture_path)
@@ -392,7 +377,7 @@ def _run(paths, db, plan, *, analysis_id, allow_active=False, verify=False, allo
                 browser.close()
     except (Exception, KeyboardInterrupt) as exc:
         report['error_type'] = type(exc).__name__
-    report['status'] = 'incomplete' if report.get('error_type') or report.get('budget_exhausted') or len(report['tests']) != len(plan['tests']) or any(t['status'] == 'incomplete' for t in report['tests']) else 'completed'
+    report['status'] = 'incomplete' if report.get('error_type') or len(report['tests']) != len(plan['tests']) or any(t['status'] == 'incomplete' for t in report['tests']) else 'completed'
     save()
     db.audit('xss_browser_finished', actor='browser-worker', target=policy.name,
         entity_type='browser_capture', entity_value=mid, details={'status': report['status'], 'report': str(path)})

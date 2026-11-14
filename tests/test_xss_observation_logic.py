@@ -49,14 +49,18 @@ class XssObservationTests(unittest.TestCase):
             details, _ = self.normalize(**changes)
             self.assertNotIn("reflected_input_surface", details)
 
-    def test_unbound_foreign_or_oversized_captures_do_not_support_execution(self):
+    def test_unbound_or_foreign_captures_do_not_support_execution(self):
         for changes in ({"input_marker": "other"}, {"request_id": ""},
                         {"response_url": "https://other.test/"},
-                        {"request_url": "https://example.test/other"},
-                        {"response_text": "x" * 1_048_577}):
+                        {"request_url": "https://example.test/other"}):
             details, meta = self.normalize(reflected_script_execution_observed=True, **changes)
             self.assertFalse(meta["xss_capture_summaries"][0]["capture_valid"])
             self.assertNotIn("reflected_script_execution_observed", details["reflected_xss_observations"][0])
+
+    def test_large_response_has_no_capture_byte_quota(self):
+        details, meta = self.normalize(response_text='<p>' + 'x' * 2_000_000 + self.marker + '</p>')
+        self.assertTrue(details['reflected_input_surface'])
+        self.assertTrue(meta['xss_capture_summaries'][0]['capture_valid'])
 
     def test_stored_requires_separate_write_and_marker_free_read(self):
         for changes in ({}, {"write_request_id": "read-1", "write_marker": self.marker,
