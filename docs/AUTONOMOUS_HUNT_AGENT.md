@@ -2,8 +2,8 @@
 
 The `agent` CLI runs a persistent mission for one configured target. It chooses
 from the actual available actions, executes existing Recon/Analysis/case engines,
-observes their results and continues until work is exhausted, stopped, or bounded
-by the mission limits. Mission state, actions and results survive process exits.
+observes their results and continues until offered work is exhausted or the
+operator stops it. Agent execution has no step, case, request or lifetime quota. Mission state, actions and results survive process exits.
 The application/core schema stays at 8.8.19/18; the agent has its own additive
 `hunt_missions` and `hunt_steps` tables, installed on first use.
 
@@ -44,7 +44,7 @@ no model and is useful for offline acceptance and installations without AI.
 
 ```bash
 # Network collection followed by automatic research, within the target policy.
-./recon-monitor.sh agent run --target example.com --max-steps 24 --max-cases 6 --max-runtime 1800
+./recon-monitor.sh agent run --target example.com
 
 # Research already stored evidence without new target traffic.
 ./recon-monitor.sh agent run --target example.com --run RUN_ID --offline
@@ -74,9 +74,11 @@ Each mission is single-target and only one agent may run for a target at a time.
 `stop` is checked during collection, after AI decisions and between engine calls.
 An in-progress offline engine/approved validation completes its bounded call
 before the stop is observed. Collection subprocess groups are terminated on
-stop/deadline. Mission lifetime includes time between resumes and is not reset.
-Offline engine deadlines are cooperative between calls. Exhausted missions are
-terminal; starting another mission creates a separate research budget.
+operator stop. The Agent has no lifetime deadline, case cap, step cap or
+cumulative live-request quota. Old max-* CLI arguments are accepted but ignored.
+Legacy missions marked budget_exhausted can resume without their old quotas.
+Per-call provider/transport timeouts and underlying collector/approved-validation
+engine contracts remain independent of Agent execution.
 
 ## Research flow and results
 
@@ -97,8 +99,8 @@ Configuration/policy and stop controls are rechecked after each AI decision.
 The agent does not approve its own validation plans. `--allow-live` permits only
 existing approved passive-live plans for cases in the same mission/target.
 Global/target active gates and all Safe Validation checks remain enforced.
-`--max-live-requests` defaults to 24. Each plan's entire bounded request count is
-reserved durably before dispatch and retained on failure/interruption. A live
+Each approved plan's request count is recorded durably before dispatch for
+audit purposes and retained on failure/interruption; it is not a mission quota. A live
 step interrupted by process exit is marked uncertain and never automatically
 replayed. Controlled/manual families retain their existing execution boundaries.
 
@@ -112,10 +114,10 @@ output/hunt-agent/HUNT-ID/collection.log
 
 Successful orchestration is distinct from complete collection or confirmed
 vulnerabilities. Partial collection and failed/uncertain actions produce
-`completed_with_gaps`; step/lifetime exhaustion produces `budget_exhausted`.
+`completed_with_gaps`. New executions never stop because of an Agent quota.
 The existing case engine owns confirmation and evidence claims. Reports retain
 missing evidence and uncertainty, and platform submission is not automated.
-CLI execution exits 0 for completed missions and 2 for paused/gapped/exhausted
+CLI execution exits 0 for completed missions and 2 for paused/gapped
 missions; status/list/report commands remain normal read operations.
 
 ## Verification
@@ -126,7 +128,7 @@ python -m unittest discover -s tests -p 'test_hunt_agent.py' -v
 
 Regressions exercise actual offline Analysis and case/validation/report engines,
 cross-target source rejection, policy changes, concurrent execution, persistent
-limits, stop during planning, crash recovery, invalid model actions and provider
+unlimited continuation, stop during planning, crash recovery, invalid model actions and provider
 data minimization. Tests use synthetic fixtures and do not scan external targets.
 Native provider quality requires a configured local/cloud model; mocked provider
 protocol tests do not establish live model accuracy or successful bounty reports.

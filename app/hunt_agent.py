@@ -2,6 +2,7 @@ from __future__ import annotations
 
 """Persistent autonomous missions over the established Recon/Analysis engines."""
 
+import argparse
 import contextlib
 import fcntl
 import hashlib
@@ -65,12 +66,12 @@ def save(db: Database, data: dict, status: str) -> None:
 
 def create_mission(paths: AppPaths, db: Database, *, target: str, source_run: str = "",
                    offline: bool = False, allow_live: bool = False, planner: str = "ai",
-                   max_steps: int = 24, max_cases: int = 6, max_runtime: int = 1800,
-                   max_live_requests: int = 24) -> dict:
+                   max_steps: int | None = None, max_cases: int | None = None, max_runtime: int | None = None,
+                   max_live_requests: int | None = None) -> dict:
     install(db)
     policy = policy_for(paths, target)
-    if planner not in {"ai", "rules"} or not (1 <= max_steps <= 500 and 1 <= max_cases <= 100 and 1 <= max_runtime <= 86400 and 0 <= max_live_requests <= 1000):
-        raise ReconError("Invalid planner or mission limits")
+    if planner not in {"ai", "rules"}:
+        raise ReconError("Invalid planner")
     if offline and allow_live:
         raise ReconError("Offline missions cannot enable live validation")
     if offline and not source_run:
@@ -84,9 +85,8 @@ def create_mission(paths: AppPaths, db: Database, *, target: str, source_run: st
         raise ReconError("Offline missions require a stored Run for this target")
     if not offline and not Config(paths).authorized:
         raise ReconError("Network missions require the installation's authorization setting")
-    options = dict(offline=offline, allow_live=allow_live, planner=planner,
-                   max_steps=max_steps, max_cases=max_cases, max_runtime=max_runtime,
-                   max_live_requests=max_live_requests)
+    options = dict(offline=offline, allow_live=allow_live, planner=planner)
+    # Legacy max_* arguments are accepted for callers, but impose no quotas.
     state = {"source_run": source_run, "analysis_id": "", "cases": {}, "live_requests_reserved": 0,
              "collection_complete": bool(source_run and row[0] == "success")}
     mid = "HUNT-" + uuid.uuid4().hex[:16].upper()
@@ -121,25 +121,24 @@ def actions_for(db: Database, data: dict) -> list[dict]:
     state, options = data["state"], data["options"]
     done = {s["action_id"] for s in data["steps"] if s["status"] in {"completed", "partial", "failed", "uncertain"}}
     if not state["source_run"] or (state.get("collecting") and "recon" not in done):
-        return [] if options["offline"] else [{"id": "recon", "tool": "recon", "priority": 100}]
+        return [] if options["offline"] or "recon" in done else [{"id": "recon", "tool": "recon", "priority": 100}]
     if not state["analysis_id"]:
         return [] if "analysis" in done else [{"id": "analysis", "tool": "analysis", "priority": 100}]
     from correlation_engine import investigation_queue
     actions = []
-    if len(state["cases"]) < options["max_cases"]:
-        for item in investigation_queue(db, state["analysis_id"], target=data["target"], limit=100):
-            aid = "investigate:" + str(item["cluster_id"])
-            if aid not in done:
-                actions.append({"id": aid, "tool": "investigate", "cluster_id": str(item["cluster_id"]),
-                                "priority": int(item.get("queue_score") or 0),
-                                "family": str(item.get("primary_family") or "unknown")[:80]})
+    for item in investigation_queue(db, state["analysis_id"], target=data["target"], limit=None):
+        aid = "investigate:" + str(item["cluster_id"])
+        if aid not in done:
+            actions.append({"id": aid, "tool": "investigate", "cluster_id": str(item["cluster_id"]),
+                            "priority": int(item.get("queue_score") or 0),
+                            "family": str(item.get("primary_family") or "unknown")[:80]})
     live_pending = set()
     if options["allow_live"] and not options["offline"]:
         from safe_validation import MAX_REQUESTS
         for cid in state["cases"]:
             for row in db.all("SELECT plan_id,plan_json FROM validation_plans WHERE case_id=? AND target=? AND level='passive_live' AND status='approved'", (cid, data["target"])):
                 count = min(MAX_REQUESTS, len(json.loads(row[1]).get("requests", [])))
-                if "live:" + row[0] not in done and count and count + state["live_requests_reserved"] <= options["max_live_requests"]:
+                if "live:" + row[0] not in done and count:
                     live_pending.add(cid)
                     actions.append({"id": "live:" + row[0], "tool": "live", "plan_id": row[0], "case_id": cid, "priority": 115})
     for cid, case in state["cases"].items():
@@ -175,7 +174,6 @@ def collect(paths: AppPaths, db: Database, data: dict, remaining: float) -> dict
     directory = paths.output / "hunt-agent" / data["mission_id"]
     directory.mkdir(parents=True, exist_ok=True)
     log = directory / "collection.log"
-    deadline = time.monotonic() + remaining
     command = [sys.executable, str(paths.app / "recon_monitor.py"), "run", "--target=" + data["target"],
                "--resume", state["source_run"], "--no-progress"]
     with log.open("ab") as output:
@@ -184,8 +182,8 @@ def collect(paths: AppPaths, db: Database, data: dict, remaining: float) -> dict
                                    stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
         try:
             while process.poll() is None:
-                if time.monotonic() >= deadline or mission(db, data["mission_id"])["stop_requested"]:
-                    raise InterruptedError("Collection stopped by mission control or deadline")
+                if mission(db, data["mission_id"])["stop_requested"]:
+                    raise InterruptedError("Collection stopped by mission control")
                 time.sleep(.2)
         finally:
             _stop_process(process)
@@ -226,15 +224,13 @@ def execute_action(paths: AppPaths, db: Database, data: dict, action: dict, rema
     if tool == "live":
         if data["options"]["offline"] or not data["options"]["allow_live"]:
             raise ReconError("Mission does not permit live validation")
-        from safe_validation import MAX_REQUESTS, MAX_RUNTIME_SECONDS, execute_validation_plan
+        from safe_validation import MAX_REQUESTS, execute_validation_plan
         row = db.one("SELECT case_id,target,level,status,plan_json FROM validation_plans WHERE plan_id=?", (action["plan_id"],))
         if not row or tuple(row)[:4] != (cid, data["target"], "passive_live", "approved"):
             raise ReconError("Only existing approved passive-live plans can be executed")
-        if remaining < MAX_RUNTIME_SECONDS:
-            raise ReconError("Insufficient mission lifetime for a bounded live validation")
         reservation = min(MAX_REQUESTS, len(json.loads(row[4]).get("requests", [])))
-        if not reservation or reservation + state["live_requests_reserved"] > data["options"]["max_live_requests"]:
-            raise ReconError("Mission live-request budget exhausted")
+        if not reservation:
+            raise ReconError("Approved plan contains no executable requests")
         state["live_requests_reserved"] += reservation
         # Persist before dispatch; failures and interrupted requests retain their
         # reservation, including when the process is killed before returning.
@@ -274,7 +270,7 @@ def export_report(paths: AppPaths, db: Database, mid: str) -> dict:
 
 def run_mission(paths: AppPaths, db: Database, mid: str, *, planner=None, progress=None) -> dict:
     data = mission(db, mid)
-    if data["status"] in {"completed", "completed_with_gaps", "budget_exhausted"}:
+    if data["status"] in {"completed", "completed_with_gaps"}:
         return export_report(paths, db, mid)
     with target_lock(paths, data["target"]):
         try:
@@ -294,21 +290,15 @@ def run_mission(paths: AppPaths, db: Database, mid: str, *, planner=None, progre
             while True:
                 data = mission(db, mid)
                 check_policy(paths, data)
-                remaining = data["options"]["max_runtime"] - (time.time() - started)
+                remaining = float("inf")  # No mission lifetime quota.
                 if data["stop_requested"]:
                     save(db, data, "paused")
-                    break
-                if remaining <= 0:
-                    save(db, data, "budget_exhausted")
                     break
                 actions = actions_for(db, data)
                 if not actions:
                     gaps = not data["state"].get("collection_complete", False) or any(s["status"] in {"partial", "failed", "uncertain"} for s in data["steps"])
                     status = "completed_with_gaps" if gaps else "completed"
                     save(db, data, status)
-                    break
-                if len(data["steps"]) >= data["options"]["max_steps"]:
-                    save(db, data, "budget_exhausted")
                     break
                 history = []
                 for step in data["steps"][-8:]:
@@ -332,10 +322,7 @@ def run_mission(paths: AppPaths, db: Database, mid: str, *, planner=None, progre
                 if mission(db, mid)["stop_requested"]:
                     save(db, data, "paused")
                     break
-                remaining = data["options"]["max_runtime"] - (time.time() - started)
-                if remaining <= 0:
-                    save(db, data, "budget_exhausted")
-                    break
+                remaining = float("inf")  # No mission lifetime quota.
                 number = len(data["steps"]) + 1
                 if progress:
                     progress(f"HUNT {mid} step {number}: {action['tool']}")
@@ -374,10 +361,10 @@ def add_parser(subparsers):
     parser.add_argument("--offline", action="store_true", help="Use stored evidence; no target requests")
     parser.add_argument("--allow-live", action="store_true", help="Execute existing approved passive-live plans")
     parser.add_argument("--planner", choices=["ai", "rules"], default="ai")
-    parser.add_argument("--max-steps", type=int, default=24)
-    parser.add_argument("--max-cases", type=int, default=6)
-    parser.add_argument("--max-runtime", type=int, default=1800, help="Mission lifetime in seconds; resume does not reset it")
-    parser.add_argument("--max-live-requests", type=int, default=24, help="Cumulative reserved requests across approved live plans")
+    parser.add_argument("--max-steps", type=int, default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--max-cases", type=int, default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--max-runtime", type=int, default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--max-live-requests", type=int, default=None, help=argparse.SUPPRESS)
 
 
 def cli(paths: AppPaths, args) -> dict | list:
