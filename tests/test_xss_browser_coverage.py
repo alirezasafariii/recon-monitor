@@ -15,6 +15,9 @@ class CoverageFixture(fixtures.Fixture):
         CoverageFixture.note = value.get('text', '')
         self.send_response(200); self.send_header('Content-Type', 'application/json'); self.end_headers(); self.wfile.write(b'{}')
     def do_DELETE(self):
+        # Consume the JSON request before closing; unread bytes cause a TCP
+        # reset on macOS instead of a clean response EOF.
+        self.rfile.read(int(self.headers.get('Content-Length', '0')))
         CoverageFixture.note = ''
         self.send_response(200); self.end_headers()
     def do_GET(self):

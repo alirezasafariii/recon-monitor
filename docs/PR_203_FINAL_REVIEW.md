@@ -36,3 +36,8 @@ same-origin GET/303 destination through the pinned broker. The captured response
 retains its original HTTP status. Non-main-frame/fetch redirects fail explicitly
 and require an explicit workflow; the browser must not follow an unbrokered hop.
 Non-GET 307/308 replay remains rejected.
+
+Native macOS acceptance also exposed a fixture protocol bug: DELETE handlers
+closed the connection with the declared JSON request body unread, provoking a
+TCP reset on macOS during cleanup. Both fixtures consume that body before
+responding. No automatic replay of a state-changing request was introduced.

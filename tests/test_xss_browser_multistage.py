@@ -34,6 +34,7 @@ class MultistageFixture(CoverageFixture):
         super().do_PUT()
     def do_DELETE(self):
         if self.path == '/notes/save':
+            self.rfile.read(int(self.headers.get('Content-Length', '0')))
             if self.headers.get('Cookie') != 'role=writer':
                 self.send_response(403); self.end_headers(); return
             MultistageFixture.note = ''
