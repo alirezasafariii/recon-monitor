@@ -6,6 +6,19 @@ access restrictions, origin failures and finalized report states. See
 
 <!-- recon-monitor-current: app=8.8.19 schema=18 -->
 
+## Autonomous Hunt Agent
+
+Run persistent AI-directed research missions with collection, stored-evidence
+analysis, Investigation Queue cases, validation and evidence-linked drafts:
+
+```bash
+./recon-monitor.sh agent run --target example.com --offline --planner rules
+./recon-monitor.sh agent --help
+```
+
+AI mode supports configured OpenAI-compatible cloud or local models. See
+[agent setup, mission controls and execution boundaries](docs/AUTONOMOUS_HUNT_AGENT.md).
+
 ## Current release: Reliable Collection and Baseline Integrity
 
 Recon Monitor 8.8.19 keeps later collectors running after an individual tool fails, preserves same-Run progress on Resume and separates collection visibility from Analysis success. Healthy comparison baselines survive partial scans; proven incomplete historical baselines are quarantined while their evidence is retained. See [scan visibility](docs/SCAN_VISIBILITY.md) and [release notes](docs/RELEASE_NOTES_v8.8.19.md).

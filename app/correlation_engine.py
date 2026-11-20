@@ -611,7 +611,7 @@ def investigation_queue(
     analysis_id: str,
     *,
     target: str | None = None,
-    limit: int = 50,
+    limit: int | None = 50,
 ) -> list[dict[str, Any]]:
     """Return cluster-deduplicated investigation work, highest value first."""
     where = "WHERE analysis_id=?"
@@ -769,4 +769,4 @@ def investigation_queue(
         ),
         reverse=True,
     )
-    return queue[: max(1, int(limit))]
+    return queue if limit is None else queue[: max(1, int(limit))]
