@@ -1,4 +1,4 @@
-# Browser XSS coverage 1.2
+# Browser XSS coverage 1.3
 
 This matrix names supported paths and their real-Chromium acceptance controls.
 It is a testable coverage contract, not an assertion of exhaustive XSS detection.
@@ -32,6 +32,10 @@ No request, byte, test-count or mission-time quota is added.
 | Delayed render | explicit readiness step and settle_ms | actual callback required |
 | Stored form | marker-bearing POST, separate read, cleanup | marker-free read / separate request requirement |
 | Stored JSON API | explicit POST/PUT/PATCH request, separate read; DELETE cleanup | write method/URL must be declared and scoped |
+| Fetch/XHR redirect | native URL/responseURL and redirected metadata; HTML/JSON rendering | escaped rendering; CORS enforced by Chromium |
+| Redirected same-origin iframe | frame-bound callback and response; nested frames and relative resources | encoded rendering; opaque sandbox execution rejected |
+| Redirect sessions | Set-Cookie on each hop; credential-aware cycle detection | secrets excluded from captures; reader remains read-only |
+| Every network hop | CDP request-stage interception and pinned transport; local rejecting proxy fallback | private DNS, scope changes, write replay, disabled interception and manual stop |
 | Authorized resource origin | explicit resource_origins, same target policy, reads only | unlisted or out-of-scope origin blocked |
 
 Hooks record innerHTML, outerHTML, insertAdjacentHTML, document.write/writeln,
@@ -132,3 +136,34 @@ Framework and sanitizer fixtures are vendored under tests/fixtures/xss_browser_v
 with licenses, npm tarball integrity and selected-file SHA-256 provenance. They
 exercise application rendering mistakes and unsafe processing order. These tests
 do not claim a vulnerability in the pinned libraries, nor coverage of every version.
+
+## Native redirect transport
+
+Coverage 1.3 uses Chromium's Fetch protocol request stage for every native
+redirect follow-up, including fetch/XHR and iframe requests. It preserves native
+URL/base-URL, fragment inheritance, response.redirected/responseURL, cookies and
+CORS behavior. Same-origin nested frame callbacks are matched to their own frame
+responses; a marker in another frame cannot supply that response evidence.
+Opaque sandbox frames cannot establish target execution or target sink events.
+
+Every hop is checked against current scope, public DNS, pinned transport and its
+writer/reader role. Non-GET 307/308 and non-POST/non-GET 301/302 redirects are
+rejected rather than automatically replaying writes. POST 301/302 and non-HEAD
+303 can transition to GET under native browser semantics. No redirect-hop quota
+is added; Chromium's own redirect policies still apply. Repeated URL/method and
+credential-state fingerprints detect cycles without rejecting a cookie-setting
+redirect merely for visiting the same URL again.
+
+Cross-process iframe targets are paused until interception is installed. A
+local proxy rejects any request which escapes interception, including IP-literal
+requests; page network failures remain incomplete. Browser-internal background
+services are also blocked and do not establish application evidence. Popups and
+worker-target workflows remain explicitly unsupported. Service workers and
+WebSockets remain blocked. Multipart requests whose exact body is unavailable
+are rejected rather than reconstructed from incomplete protocol data.
+
+The redirect controls are in tests/test_xss_browser_redirects.py. They include
+positive/encoded-safe fetch, JSON, XHR and nested-frame pairs, DOM execution in a
+redirected frame, final-base relative assets, session cookies, native CORS,
+read-only readers, scope/private DNS, cycles, manual stop, write replay rejection
+and a deliberately disabled interceptor behind the rejecting proxy.

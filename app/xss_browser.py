@@ -22,11 +22,12 @@ from core import AppPaths, Config, Database, PolicySet, ReconError, atomic_write
 from family_analyzers.dom_xss import analyze_dom_xss_signal
 from family_analyzers.phase2_expansion import PHASE2_ANALYZER_TYPES, analyze_phase2_family
 from xss_browser_http import decode_entity, decode_text
+from xss_browser_transport import ChromiumTransport, RejectingProxy
 from xss_browser_encodings import DEFAULT_ENCODINGS, ENCODINGS, encode, carries, reflected
 from xss_browser_probes import PROBE_NAMES, INPUT_SOURCES, CLIENT_ONLY, probes as build_probes, source_script
 from safe_transport import build_pinned_opener, resolve_public_addresses
 
-VERSION = '1.2.0'
+VERSION = '1.3.0'
 FAMILIES = {'reflected_xss', 'stored_xss', 'dom_xss'}
 LIMIT = 1024 * 1024
 
@@ -155,7 +156,6 @@ class Broker:
         self.bytes = 0
         self.error = ''
         self.phase = 'probe'
-        self.redirects = {}
         self.probe_value = ''
         self.role = 'writer'
 
@@ -178,7 +178,11 @@ class Broker:
                 raise ReconError('non_public_or_missing_dns')
             rid = 'REQ-' + secrets.token_hex(8)
             rec = {'id': rid, 'url': public_url(url), 'method': method, 'phase': self.phase,
-                   'probe_sent': carries(url, request.post_data or '', self.probe_value), 'role': role}
+                   'probe_sent': carries(url, request.post_data or '', self.probe_value), 'role': role,
+                   'resource_type': request.resource_type}
+            if request.redirected_from:
+                rec['redirected_from'] = request.redirected_from
+            route.capture_id = rid
             self.records.append(rec)  # Reserve before connecting, including failed requests.
             headers = request.all_headers()
             headers['accept-encoding'] = 'identity'
@@ -187,7 +191,7 @@ class Broker:
             try:
                 response = build_pinned_opener(addresses[0]).open(req, timeout=8)
             except urllib.error.HTTPError as exc:
-                response = exc  # Redirects are returned to Chromium and re-intercepted.
+                response = exc  # CDP pauses every native redirect follow-up before it connects.
             with response:
                 chunks = []
                 read = getattr(response, 'read1', response.read)
@@ -203,10 +207,13 @@ class Broker:
                 text, charset = decode_text(raw, response.headers)
                 out_headers = {k.lower(): v for k, v in response.headers.items()}
                 location = response.headers.get('Location')
-                if 300 <= response.code < 400 and location:
+                if response.code in {301, 302, 303, 307, 308} and location:
                     redirected = urllib.parse.urljoin(url, location)
                     if origin(redirected) not in self.resource_origins or not self.policy.url_in_scope(redirected) or (request.is_navigation_request() and origin(redirected) != self.allowed_origin):
                         raise ReconError('redirect_outside_scope')
+                    if (response.code in {307, 308} and method not in {'GET', 'HEAD'}
+                            or response.code in {301, 302} and method not in {'GET', 'HEAD', 'POST'}):
+                        raise ReconError('redirect_requires_non_get_replay')
                 cookies = response.headers.get_all('Set-Cookie')
                 if cookies:
                     out_headers['set-cookie'] = '\n'.join(cookies)
@@ -216,44 +223,20 @@ class Broker:
                 rec.update(status=response.code, sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw),
                     wire_sha256=hashlib.sha256(wire).hexdigest(), wire_bytes=len(wire), response_charset=charset)
                 if request.is_navigation_request() and request.frame == request.frame.page.main_frame:
-                    if 300 <= response.code < 400 and location:
-                        if response.code in {307, 308} and method not in {'GET', 'HEAD'}:
-                            raise ReconError('redirect_requires_non_get_replay')
-                        self.redirects[id(request.frame.page)] = redirected
                     if response.code >= 400:
                         self.error = 'main_document_http_' + str(response.code)
                 if request.is_navigation_request() or request.resource_type in {'fetch', 'xhr'}:
                     self.documents.append({'page_id': id(request.frame.page), 'role': role, 'request_id': rid, 'request_url': url, 'response_url': url,
-                        'response_text': text, 'response_charset': charset,
+                        'response_text': text, 'response_charset': charset, 'frame_url': request.frame_url,
                         'content_type': response.headers.get('Content-Type', ''),
                         'csp': response.headers.get('Content-Security-Policy', ''), 'phase': self.phase,
                         'body_has_probe': carries(url, request.post_data or '', self.probe_value)})
-                if 300 <= response.code < 400 and location:
-                    # Native redirect follow-up can bypass Playwright routing.
-                    # Commit an inert document, then navigate explicitly through
-                    # _follow_redirects so every hop uses the pinned broker.
-                    if not (request.is_navigation_request() and request.frame == request.frame.page.main_frame):
-                        raise ReconError('redirect_requires_explicit_main_frame_workflow')
-                    out_headers.pop('location', None)
-                    route.fulfill(status=200, headers=out_headers, body=b'')
-                else:
-                    route.fulfill(status=response.code, headers=out_headers, body=raw)
+                if not route.fulfill(status=response.code, headers=out_headers, body=raw):
+                    rec['delivery'] = 'cancelled'
+                    self.documents[:] = [d for d in self.documents if d['request_id'] != rid]
         except Exception as exc:
             self.error = error_kind(exc)
             route.abort()
-
-
-def _follow_redirects(page, broker, check):
-    # Fulfilled Chromium navigations can expose a 3xx as a document. Follow
-    # logged same-origin GET/303 destinations explicitly; never replay a POST.
-    visited = set()
-    while id(page) in broker.redirects:
-        check()
-        url = broker.redirects.pop(id(page))
-        if url in visited:
-            raise ReconError('redirect_cycle')
-        visited.add(url)
-        page.goto(url, wait_until='domcontentloaded')
 
 
 def _steps(page, steps, probe, marker, check, broker):
@@ -273,7 +256,6 @@ def _steps(page, steps, probe, marker, check, broker):
             page.locator(step['selector']).click()
         else:
             page.locator(step['selector']).wait_for(state='visible')
-        _follow_redirects(page, broker, check)
 
 
 def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_state=None, check=lambda: None):
@@ -283,21 +265,34 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
     writes = [(s['method'], s['url']) for s in test.get('steps', []) + test.get('cleanup', []) if s['action'] == 'request']
     broker = Broker(policy, plan, origin(test['url']), allow_write, check, writes, test.get('resource_origins', []))
     broker.marker = marker
+    def scoped_frame(frame, page):
+        while frame is not None:
+            if frame.url not in {'about:blank', 'about:srcdoc'}:
+                try:
+                    if origin(frame.url) != origin(test['url']) or not policy.url_in_scope(frame.url):
+                        return False
+                except ReconError:
+                    return False
+            if frame == page.main_frame:
+                return frame.url not in {'about:blank', 'about:srcdoc'}
+            frame = frame.parent_frame
+        return False
     def sink_event(source, item):
         if not isinstance(item, dict) or item.get('marker') != marker:
             return
-        if source['frame'] == source['page'].main_frame or source['frame'].url == 'about:srcdoc':
-            events.append({'sink': item['sink'], 'url': public_url(source['page'].url), 'phase': broker.phase})
+        if scoped_frame(source['frame'], source['page']):
+            events.append({'sink': item['sink'], 'url': public_url(source['page'].url),
+                           'frame_url': public_url(source['frame'].url), 'phase': broker.phase})
     def executed(source, token):
         if token != marker:
             return
         frame = source['frame']
         main = source['page'].main_frame
-        # Attribute srcdoc execution only to an unsandboxed child of this scoped page.
-        srcdoc = frame.url == 'about:srcdoc' and frame.parent_frame == main
-        if frame == main and origin(frame.url) == origin(test['url']) or srcdoc:
+        # The init hook rejects opaque sandbox origins before invoking this binding.
+        if scoped_frame(frame, source['page']):
             executions.append({'phase': broker.phase, 'url': main.url,
-                               'frame_kind': 'srcdoc' if srcdoc else 'main', 'page_id': id(source['page'])})
+                'frame_url': frame.url, 'frame_kind': 'main' if frame == main else 'srcdoc' if frame.url == 'about:srcdoc' else 'iframe',
+                'page_id': id(source['page'])})
     def control_event(source, item):
         if isinstance(item, dict) and item.get('directive') in {'script-src', 'script-src-elem', 'script-src-attr', 'require-trusted-types-for', 'trusted-types'}:
             controls.append({'phase': broker.phase, 'directive': item['directive'],
@@ -308,9 +303,21 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
     def new_context(state, role='writer'):
         snapshot = json.loads(Path(state).read_text()) if isinstance(state, (str, Path)) else state
         state_hash = hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
-        ctx = browser.new_context(service_workers='block', accept_downloads=False, storage_state=snapshot)
+        # Browser-internal services (for example autofill) may try the proxy.
+        # They are blocked too; page/child Network failures own test status.
+        proxy = RejectingProxy(lambda: None)
+        try:
+            ctx = browser.new_context(service_workers='block', accept_downloads=False, storage_state=snapshot, proxy=proxy.settings)
+        except BaseException:
+            proxy.close()
+            raise
+        ctx.on('close', lambda _: proxy.close())
+        def page_created(page):
+            if len(ctx.pages) > 1:
+                broker.error = broker.error or 'unsupported_browser_popup'
+                page.close()
+        ctx.on('page', page_created)
         session_hashes[id(ctx)] = state_hash
-        ctx.route('**/*', lambda route: broker.route(route, role=role))
         ctx.route_web_socket('**/*', lambda ws: ws.close())
         ctx.expose_binding('__rmSink', sink_event)
         ctx.expose_binding('__rmXss', executed)
@@ -319,9 +326,9 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
         return ctx
     context = new_context(storage_state)
     page = context.new_page()
+    transport = ChromiumTransport(context, page, broker, 'writer')
     writer_page, reader_context = page, None
-    cdp = context.new_cdp_session(page)
-    cdp.send('Page.enable')
+    cdp = transport.session
     source_init = None
     page.set_default_timeout(10000)  # Per-operation stall timeout, not a total runtime quota.
     page.on('dialog', lambda dialog: dialog.dismiss())
@@ -358,7 +365,6 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
                 source_init = cdp.send('Page.addScriptToEvaluateOnNewDocument', {'source': source_script(field['kind'], field['name'], probe)})['identifier']
             page.goto('about:blank')
             page.goto(url, wait_until='domcontentloaded')
-            _follow_redirects(page, broker, check)
             if field['kind'] == 'post_message':
                 message = probe if field['name'] == '$' else {field['name']: probe}
                 target = origin_text(test['url'])
@@ -380,13 +386,12 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
             reader = test.get('read_session')
             if reader is not None:
                 broker.role = 'reader'
-                broker.redirects.clear()
                 reader_context = new_context(reader.get('storage_state'), role='reader')
                 page = reader_context.new_page()
+                reader_transport = ChromiumTransport(reader_context, page, broker, 'reader')
                 page.set_default_timeout(10000)
                 page.on('dialog', lambda dialog: dialog.dismiss())
                 page.goto(reader['url'], wait_until='domcontentloaded')
-                _follow_redirects(page, broker, check)
                 _steps(page, reader.get('steps', []), '', '', check, broker)
             observation_end = time.monotonic() + test.get('settle_ms', 350) / 1000
             while time.monotonic() < observation_end:
@@ -394,10 +399,14 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
                 page.wait_for_timeout(min(100, max(0, (observation_end - time.monotonic()) * 1000)))
             check()
             # Snapshot only marker location/contexts; never export the live DOM/body.
-            documents = [d for d in broker.documents if d['phase'] == phase and d['page_id'] == id(page) and (marker in d['response_text'] or reflected(d['response_text'], probe))]
-            document = documents[-1] if documents else (next((d for d in reversed(broker.documents) if d['phase'] == phase and d['page_id'] == id(page)), {}))
+            phase_executions = [e for e in executions if e['phase'] == phase and e['url'] == page.url and e['page_id'] == id(page)]
+            executing_urls = {urllib.parse.urldefrag(e['frame_url'])[0] for e in phase_executions}
+            frame_documents = [d for d in broker.documents if d['phase'] == phase and d['page_id'] == id(page)
+                and (not executing_urls or urllib.parse.urldefrag(d['frame_url'])[0] in executing_urls)]
+            documents = [d for d in frame_documents if marker in d['response_text'] or reflected(d['response_text'], probe)]
+            document = documents[-1] if documents else (frame_documents[-1] if frame_documents else {})
             writes = [r for r in broker.records if r['method'] in {'POST', 'PUT', 'PATCH'} and r['phase'] == phase and r.get('probe_sent')]
-            executed_here = any(e['phase'] == phase and e['url'] == page.url and e['page_id'] == id(page) for e in executions)
+            executed_here = bool(phase_executions)
             if test['family'] == 'dom_xss':
                 phase_events = [e for e in events if e['phase'] == phase]
                 unattributed = bool(executed_here and not phase_events and field['kind'] in CLIENT_ONLY)
@@ -411,7 +420,7 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
                     endpoint=public_url(test['url']), source_kind=INPUT_SOURCES[field['kind']],
                     sink_kind=phase_events[0]['sink'], details=details) if phase_events else None
             else:
-                observation = {**document, 'marker': marker, 'input_marker': marker,
+                observation = {**{k: v for k, v in document.items() if k != 'frame_url'}, 'marker': marker, 'input_marker': marker,
                     'input_name': field['name'], 'encoding_chain': chain,
                     'encoded_input_reflected': reflected(document.get('response_text', ''), probe),
                     'request_carried_input': bool(writes or document.get('body_has_probe')),
@@ -450,7 +459,7 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
                 dedicated['family_analyzer'].update(active_validation_performed=True, active_request_performed=True,
                     payload_generated=probe_name != 'probe', safe_runtime_marker_only=probe_name == 'probe',
                     state_changing_action_performed=bool(writes), browser_capture_id=capture, exact_sink_attribution=not (test['family'] == 'dom_xss' and unattributed))
-            results.append({'phase': phase, 'execution_observed': executed_here, 'analysis': dedicated, 'coverage': {'source': field['kind'], 'probe': probe_name, 'encoding_chain': chain, 'input_sha256': hashlib.sha256(probe.encode()).hexdigest(), 'writer_session_sha256': session_hashes[id(context)], 'reader_session_sha256': session_hashes[id(reader_context)] if reader_context else None, 'read_session': 'separate_read_only' if test.get('read_session') else 'writer', 'settle_ms': test.get('settle_ms', 350), 'observed_controls': [c for c in controls if c['phase'] == phase], 'executing_frames': sorted({e['frame_kind'] for e in executions if e['phase'] == phase})}})
+            results.append({'phase': phase, 'execution_observed': executed_here, 'analysis': dedicated, 'coverage': {'source': field['kind'], 'probe': probe_name, 'encoding_chain': chain, 'input_sha256': hashlib.sha256(probe.encode()).hexdigest(), 'writer_session_sha256': session_hashes[id(context)], 'reader_session_sha256': session_hashes[id(reader_context)] if reader_context else None, 'read_session': 'separate_read_only' if test.get('read_session') else 'writer', 'settle_ms': test.get('settle_ms', 350), 'observed_controls': [c for c in controls if c['phase'] == phase], 'executing_frames': sorted({e['frame_kind'] for e in phase_executions}), 'executing_documents': sorted({public_url(e['frame_url']) for e in phase_executions})}})
             if executed_here:
                 break
     except Exception as exc:
@@ -458,7 +467,6 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
     finally:
         broker.role = 'writer'
         page = writer_page
-        broker.redirects.clear()
         try:
             if test.get('cleanup'):
                 broker.phase = 'cleanup'
@@ -524,6 +532,7 @@ def _run(paths, db, plan, *, analysis_id, allow_active=False, verify=False, allo
                 report['browser_version'] = browser.version
                 report['hook_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_hooks.js').read_bytes()).hexdigest()
                 report['probe_module_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_probes.py').read_bytes()).hexdigest()
+                report['transport_module_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_transport.py').read_bytes()).hexdigest()
                 report['http_decoder_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_http.py').read_bytes()).hexdigest()
                 report['encoding_module_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_encodings.py').read_bytes()).hexdigest()
                 report['coverage_profile'] = {'version': VERSION, 'sources': list(INPUT_SOURCES), 'probes': list(PROBE_NAMES), 'default_encodings': DEFAULT_ENCODINGS}

@@ -175,14 +175,26 @@ from explicitly listed origins already inside that target policy. It cannot gran
 new scope, authorize cross-origin navigation/writes or enable WebSockets.
 Requests use fresh public-address resolution, reject mixed/private DNS answers,
 and connect through the existing pinned HTTP(S) transport, preserving Host/TLS
-SNI. HTTP requests are fulfilled into Chromium; proxies, redirects to unapproved
-origins, service workers, WebSockets and unapproved write methods are blocked.
-Same-origin GET/303 main-frame navigation redirects use an inert intermediate
-document and are followed explicitly through the pinned broker. Redirects are
-checked at every hop; cycles are stopped without a hop quota. Fetch/XHR and
-subframe redirects require an explicit workflow and are reported incomplete
-instead of permitting native follow-up requests outside the broker. Captured
-responses retain their original HTTP status.
+SNI. Chromium Fetch-protocol interception pauses every HTTP hop before it can
+connect, including native main-frame, iframe and fetch/XHR redirects. Original
+status/Location headers are fulfilled to Chromium, preserving native cookies,
+CORS, URL/responseURL, fragment inheritance and relative-resource resolution.
+Cross-process iframe targets are paused until their interceptor is ready.
+A local rejecting proxy prevents native HTTP(S) fallback, including IP literals.
+It never forwards traffic. Page network failures remain incomplete; blocked
+browser-internal background services do not count as application failures.
+
+Same-origin nested-frame execution is accepted only through the origin-bound
+callback and frame-associated response evidence. Opaque sandbox frames cannot
+establish target execution. Captures identify redirected request IDs and public
+executing-document URLs without exporting query values or credentials. Scope,
+public DNS, manual stop and reader/write gates are checked on every hop.
+Redirect cycles include method and credential-state fingerprints; no hop quota
+is added. Native Chromium redirect policies remain in effect. Non-GET 307/308
+and non-POST/non-GET 301/302 redirects are rejected rather than replaying writes.
+Service workers, WebSockets, unapproved origins/methods, popups and worker-target
+workflows remain blocked or explicitly incomplete. Multipart requests with no
+complete protocol body are rejected. See XSS_COVERAGE.md for the tested matrix.
 
 Applications requiring unapproved origins, WebSockets, unsupported content codings,
 browser client certificates or unsupported streaming semantics may therefore

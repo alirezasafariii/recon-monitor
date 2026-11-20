@@ -9,6 +9,7 @@
   });
   const seen = new Set();
   const report = (sink, value) => {
+    if (self.origin !== allowedOrigin) return;
     if (typeof value !== 'string' || !value.includes(marker)) return;
     // Deduplicate repeated observations of the same sink in this document.
     if (seen.has(sink)) return;

@@ -41,3 +41,25 @@ Native macOS acceptance also exposed a fixture protocol bug: DELETE handlers
 closed the connection with the declared JSON request body unread, provoking a
 TCP reset on macOS during cleanup. Both fixtures consume that body before
 responding. No automatic replay of a state-changing request was introduced.
+
+## Coverage 1.3 follow-up (supersedes the main-frame-only redirect workaround)
+
+Native Chromium Fetch interception now pauses each redirect hop, including
+fetch/XHR and nested iframes, instead of inserting inert redirect documents.
+Cross-process iframe targets are paused before installing their interceptor;
+a non-forwarding local proxy blocks missed requests. Frame-associated response
+selection avoids mixing an executing frame with a different frame's reflection.
+Browser-native cookies, URL/base URL, fragments and CORS remain authoritative.
+Cancelled navigation requests retain request records but cannot supply delivered
+response evidence. Browser-internal requests remain blocked without being counted
+as target application failures. Non-GET write replay remains rejected.
+
+The new positive/encoded-safe fetch, JSON, XHR and nested-frame pairs reproduced
+ten failures on the previous source in two regression methods. Additional real
+browser controls cover DOM frame sinks, opaque sandbox isolation, relative assets,
+cookie-progress redirects, CORS, reader roles, private DNS/scope, method changes,
+cycles, manual stop and disabled interception behind the rejecting proxy. Exact
+final suite and Linux/macOS hosted results are recorded in the PR description.
+No external target request is part of these synthetic fixtures. No execution
+quota was added. Popups, worker workflows and incomplete multipart bodies remain
+explicit limitations; production-application acceptance remains outstanding.

@@ -38,14 +38,13 @@ class TransportFixture(fixtures.Fixture):
 
 
 class BrowserTransportReviewTests(unittest.TestCase):
-    def test_redirect_hops_remain_brokered_and_fetch_redirect_fails_closed(self):
+    def test_redirect_hops_remain_brokered_for_navigation_and_fetch(self):
         result = self.execute(self.spec('/redirect-chain'))
         self.assertEqual(result['status'], 'execution_observed', result)
         self.assertEqual([r['status'] for r in result['requests'][:3]], [302,302,200])
         result = self.execute(self.spec('/fetch-redirect'))
-        self.assertEqual(result['status'], 'incomplete', result)
-        self.assertIn('redirect_requires_explicit_main_frame_workflow', result['errors'])
-        self.assertFalse(any('/reflect' in r['url'] for r in result['requests']))
+        self.assertEqual(result['status'], 'not_demonstrated', result)
+        self.assertTrue(any('/reflect' in r['url'] and r.get('redirected_from') for r in result['requests']))
 
     handler=TransportFixture
     setUpClass=classmethod(fixtures.BrowserWorkerTests.setUpClass.__func__)
