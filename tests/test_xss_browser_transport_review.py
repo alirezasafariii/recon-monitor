@@ -66,6 +66,11 @@ class BrowserTransportReviewTests(unittest.TestCase):
             self.assertFalse(any(p['execution_observed'] for p in result['phases']),result)
 
 class DecoderStopReviewTests(unittest.TestCase):
+    def test_browser_error_code_does_not_export_url_or_secrets(self):
+        message = 'Page.goto: net::ERR_NAME_NOT_RESOLVED at https://fixture.test/?secret=private'
+        self.assertEqual(fixtures.worker.error_kind(RuntimeError(message)), 'ERR_NAME_NOT_RESOLVED')
+        self.assertEqual(fixtures.worker.error_kind(RuntimeError('private')), 'RuntimeError')
+
     def test_stop_interrupts_decompression_without_a_byte_quota(self):
         from xss_browser_http import decode_entity
         for coding,compress in [('gzip',gzip.compress),('deflate',zlib.compress)]:

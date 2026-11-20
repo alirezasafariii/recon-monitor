@@ -31,6 +31,14 @@ FAMILIES = {'reflected_xss', 'stored_xss', 'dom_xss'}
 LIMIT = 1024 * 1024
 
 
+def error_kind(exc):
+    if isinstance(exc, ReconError):
+        return str(exc)
+    # Retain only a browser error code, never URLs, payloads or session secrets.
+    code = re.search(r'\bnet::(ERR_[A-Z0-9_]+)\b', str(exc))
+    return code.group(1) if code else type(exc).__name__
+
+
 def origin(url):
     try:
         p = urllib.parse.urlsplit(url)
@@ -222,7 +230,7 @@ class Broker:
                         'body_has_probe': carries(url, request.post_data or '', self.probe_value)})
                 route.fulfill(status=response.code, headers=out_headers, body=raw)
         except Exception as exc:
-            self.error = str(exc) if isinstance(exc, ReconError) else type(exc).__name__
+            self.error = error_kind(exc)
             route.abort()
 
 
@@ -437,7 +445,7 @@ def execute_test(browser, policy, plan, test, *, verify, allow_write, storage_st
             if executed_here:
                 break
     except Exception as exc:
-        errors.append(str(exc) if isinstance(exc, ReconError) else type(exc).__name__)
+        errors.append(error_kind(exc))
     finally:
         broker.role = 'writer'
         page = writer_page

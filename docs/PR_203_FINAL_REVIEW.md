@@ -26,3 +26,6 @@ must be checked independently.
 Review scope: source and synthetic Linux Chromium acceptance. No external target
 was scanned. Native macOS/hosted CI and production-application acceptance are not
 claimed unless the actual corresponding runs succeed. Both PRs remain unmerged.
+
+Browser failures retain a sanitized network error code when available; full URLs,
+payloads and session credentials are not included in diagnostic errors.
