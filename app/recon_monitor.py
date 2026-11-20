@@ -182,6 +182,8 @@ def build_parser():
     for action in parser._actions:
         if isinstance(getattr(action, "choices", None), dict):
             add_hunt_parser(action)
+            from xss_browser import add_parser as add_xss_parser
+            add_xss_parser(action)
             break
     analysis_parser = _analysis_parser(parser)
     _extend_action_choices(
@@ -1002,6 +1004,13 @@ def _differential_adapt_cli(args: Any) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(argv if argv is not None else sys.argv[1:])
     translated = _base.translate_legacy_args(raw_argv)
+
+    if translated and translated[0] == "xss-browser":
+        from xss_browser import cli as browser_cli
+        args = build_parser().parse_args(translated)
+        payload = browser_cli(_base.AppPaths.from_root(_base.ROOT_DIR), args)
+        print(_base.json_dumps(payload, pretty=True))
+        return 0 if payload["status"] == "completed" else 2
 
     if translated and translated[0] == "agent":
         from hunt_agent import cli as hunt_cli

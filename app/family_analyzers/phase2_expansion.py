@@ -79,6 +79,10 @@ def analyze_phase2_family(
 ) -> dict[str, Any] | None:
     spec = PHASE2_FAMILY_SPECS[family]
     details = dict(details or {})
+    xss_meta = {}
+    if family in {"reflected_xss", "stored_xss"}:
+        from .xss_observations import normalize_xss_observations
+        details, xss_meta = normalize_xss_observations(family, endpoint, details)
     support: list[dict[str, Any]] = []
     contradict: list[dict[str, Any]] = []
     manual = spec["validation"] == "manual_only"
@@ -282,6 +286,7 @@ def analyze_phase2_family(
         summary=f"{spec['label']} hypothesis from stored target evidence; no active exploit action was performed.",
         base=24,
         extra_meta={
+            **xss_meta,
             "runtime_observation_count": len(runtime),
             "dependency_advisory_match_count": (
                 len(details.get("dependency_advisory_matches") or [])

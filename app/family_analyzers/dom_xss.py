@@ -20,8 +20,8 @@ from family_specs.registry import get_detection_spec
 from .base import FamilyAnalyzer, FamilyAnalyzerContext
 
 
-DOM_XSS_FAMILY_ANALYZER_VERSION = "1.1.0"
-DOM_XSS_FAMILY_ANALYZER_RULE_VERSION = "2026.08.15.4"
+DOM_XSS_FAMILY_ANALYZER_VERSION = "1.1.1"
+DOM_XSS_FAMILY_ANALYZER_RULE_VERSION = "2026.11.15.1"
 DOM_XSS_SPEC = get_detection_spec("dom_xss")
 
 DOM_SOURCE_MARKERS = {
@@ -32,11 +32,12 @@ DOM_SOURCE_MARKERS = {
 POSTMESSAGE_MARKERS = {"postmessage", "message_event", "event_data"}
 HTML_SINKS = {
     "innerhtml", "outerhtml", "insertadjacenthtml", "document_write",
-    "document_writeln", "v_html", "dangerouslysetinnerhtml",
+    "document_writeln", "shadow_innerhtml", "iframe_srcdoc", "contextual_fragment",
+    "domparser_html", "sethtmlunsafe", "v_html", "dangerouslysetinnerhtml",
 }
 EXECUTION_SINKS = {
     "eval", "function", "function_constructor", "settimeout_string",
-    "setinterval_string", "script_text", "script_src_javascript",
+    "setinterval_string", "browser_execution_callback", "script_text", "script_src_javascript",
 }
 SAFE_SINKS = {"textcontent", "innertext", "createTextNode", "create_text_node"}
 
@@ -268,7 +269,9 @@ def _runtime_evidence(
 
         context_is_dangerous = sink_context == "execution" or executable_context is True
         neutralization_absent = explicit_unsanitized is True or sanitized is False
-        if runtime_reached is True and context_is_dangerous and neutralization_absent and trusted_types is not True and safe_api is not True:
+        if (source and runtime_reached is True and context_is_dangerous
+                and neutralization_absent and sanitized is not True
+                and trusted_types is not True and safe_api is not True):
             _add_unique(support, {
                 "type": "unsanitized_dom_flow",
                 "source": "stored_dom_runtime",
