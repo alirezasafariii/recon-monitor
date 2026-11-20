@@ -29,3 +29,10 @@ claimed unless the actual corresponding runs succeed. Both PRs remain unmerged.
 
 Browser failures retain a sanitized network error code when available; full URLs,
 payloads and session credentials are not included in diagnostic errors.
+
+Hosted acceptance exposed native redirect handling differences. Main-frame
+redirects now commit an inert intermediate document and follow the captured
+same-origin GET/303 destination through the pinned broker. The captured response
+retains its original HTTP status. Non-main-frame/fetch redirects fail explicitly
+and require an explicit workflow; the browser must not follow an unbrokered hop.
+Non-GET 307/308 replay remains rejected.

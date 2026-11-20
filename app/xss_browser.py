@@ -228,7 +228,16 @@ class Broker:
                         'content_type': response.headers.get('Content-Type', ''),
                         'csp': response.headers.get('Content-Security-Policy', ''), 'phase': self.phase,
                         'body_has_probe': carries(url, request.post_data or '', self.probe_value)})
-                route.fulfill(status=response.code, headers=out_headers, body=raw)
+                if 300 <= response.code < 400 and location:
+                    # Native redirect follow-up can bypass Playwright routing.
+                    # Commit an inert document, then navigate explicitly through
+                    # _follow_redirects so every hop uses the pinned broker.
+                    if not (request.is_navigation_request() and request.frame == request.frame.page.main_frame):
+                        raise ReconError('redirect_requires_explicit_main_frame_workflow')
+                    out_headers.pop('location', None)
+                    route.fulfill(status=200, headers=out_headers, body=b'')
+                else:
+                    route.fulfill(status=response.code, headers=out_headers, body=raw)
         except Exception as exc:
             self.error = error_kind(exc)
             route.abort()

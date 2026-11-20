@@ -12,6 +12,11 @@ class TransportFixture(fixtures.Fixture):
     def do_GET(self):
         p=urllib.parse.urlsplit(self.path)
         route=p.path.removesuffix('-safe')
+        if p.path == '/redirect-chain':
+            self.send_response(302); self.send_header('Location', '/same-redirect?' + p.query); self.end_headers(); return
+        if p.path == '/fetch-redirect':
+            self.send_response(200); self.send_header('Content-Type', 'text/html'); self.end_headers()
+            self.wfile.write(b"<script>fetch('/same-redirect'+location.search)</script>"); return
         if route not in {'/gzip','/deflate','/raw-deflate','/stacked','/broken','/unknown','/utf16','/cp1256','/meta'}:
             return super().do_GET()
         q=urllib.parse.parse_qs(p.query).get('q',[''])[0]
@@ -33,6 +38,15 @@ class TransportFixture(fixtures.Fixture):
 
 
 class BrowserTransportReviewTests(unittest.TestCase):
+    def test_redirect_hops_remain_brokered_and_fetch_redirect_fails_closed(self):
+        result = self.execute(self.spec('/redirect-chain'))
+        self.assertEqual(result['status'], 'execution_observed', result)
+        self.assertEqual([r['status'] for r in result['requests'][:3]], [302,302,200])
+        result = self.execute(self.spec('/fetch-redirect'))
+        self.assertEqual(result['status'], 'incomplete', result)
+        self.assertIn('redirect_requires_explicit_main_frame_workflow', result['errors'])
+        self.assertFalse(any('/reflect' in r['url'] for r in result['requests']))
+
     handler=TransportFixture
     setUpClass=classmethod(fixtures.BrowserWorkerTests.setUpClass.__func__)
     tearDownClass=classmethod(fixtures.BrowserWorkerTests.tearDownClass.__func__)

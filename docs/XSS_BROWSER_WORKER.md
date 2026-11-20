@@ -177,8 +177,12 @@ Requests use fresh public-address resolution, reject mixed/private DNS answers,
 and connect through the existing pinned HTTP(S) transport, preserving Host/TLS
 SNI. HTTP requests are fulfilled into Chromium; proxies, redirects to unapproved
 origins, service workers, WebSockets and unapproved write methods are blocked.
-Same-origin GET/303 navigation redirects are followed explicitly when fulfilled
-Chromium responses expose a redirect document. Redirects are checked at every hop; cycles are stopped without a hop quota.
+Same-origin GET/303 main-frame navigation redirects use an inert intermediate
+document and are followed explicitly through the pinned broker. Redirects are
+checked at every hop; cycles are stopped without a hop quota. Fetch/XHR and
+subframe redirects require an explicit workflow and are reported incomplete
+instead of permitting native follow-up requests outside the broker. Captured
+responses retain their original HTTP status.
 
 Applications requiring unapproved origins, WebSockets, unsupported content codings,
 browser client certificates or unsupported streaming semantics may therefore
