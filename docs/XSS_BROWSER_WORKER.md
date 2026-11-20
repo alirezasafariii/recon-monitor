@@ -180,8 +180,8 @@ origins, service workers, WebSockets and unapproved write methods are blocked.
 Same-origin GET/303 navigation redirects are followed explicitly when fulfilled
 Chromium responses expose a redirect document. Redirects are checked at every hop; cycles are stopped without a hop quota.
 
-Applications requiring unapproved origins, WebSockets, non-UTF-8 response
-semantics, browser client certificates or unsupported streaming semantics may therefore
+Applications requiring unapproved origins, WebSockets, unsupported content codings,
+browser client certificates or unsupported streaming semantics may therefore
 produce incomplete results. This is not a general browser sandbox against a
 hostile browser exploit; keep Chromium current. Response 401/403/429/5xx on the
 main document, blocked resources, and per-operation timeouts remain visible
@@ -216,3 +216,8 @@ python -m unittest discover -s tests -p 'test_hunt_browser_integration.py' -v
 The acceptance tests use a loopback-only HTTP fixture and real Chromium. Only
 fixture tests replace public DNS resolution with a pinned loopback address; the
 production CLI provides no private-network bypass.
+
+HTTP response codings are decoded before browser fulfillment, with wire and
+decoded hashes retained. Text evidence follows BOM, HTTP charset and early HTML
+charset declarations. Invalid/unsupported content codings produce incomplete
+captures. See PR_203_FINAL_REVIEW.md for the reproduced cases and CI status limits.

@@ -65,6 +65,8 @@ class BrowserWorkerTests(unittest.TestCase):
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
+            if os.environ.get('XSS_REQUIRE_BROWSER') == '1':
+                raise
             raise unittest.SkipTest('Optional Playwright dependency is not installed')
         cls.executable = os.environ.get('XSS_TEST_CHROMIUM') or shutil.which('chromium')
         cls.pw = sync_playwright().start()
@@ -72,6 +74,8 @@ class BrowserWorkerTests(unittest.TestCase):
             cls.browser = cls.pw.chromium.launch(executable_path=cls.executable)
         except Exception:
             cls.pw.stop()
+            if os.environ.get('XSS_REQUIRE_BROWSER') == '1':
+                raise
             raise unittest.SkipTest('Chromium unavailable; install optional browser dependencies')
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), getattr(cls, 'handler', Fixture))
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True); cls.thread.start()
@@ -220,5 +224,22 @@ class BrowserWorkerTests(unittest.TestCase):
         self.assertGreater(db.one('SELECT COUNT(*) FROM candidate_evidence_links')[0], 0)
         self.assertGreater(db.one('SELECT COUNT(*) FROM candidate_evidence_snapshots')[0], 0)
         self.assertEqual(db.one('SELECT analyst_decision FROM bug_candidates')[0], 'unreviewed')
+
+class RequiredBrowserReviewTests(unittest.TestCase):
+    def test_required_browser_failure_is_not_silently_skipped(self):
+        from unittest.mock import MagicMock
+        try:
+            import playwright.sync_api
+        except ImportError:
+            self.skipTest('Optional dependency missing locally')
+        class RequiredFixture(BrowserWorkerTests):
+            pass
+        driver=MagicMock()
+        driver.chromium.launch.side_effect=RuntimeError('synthetic browser unavailable')
+        with patch('playwright.sync_api.sync_playwright') as start, patch.dict(os.environ, {'XSS_REQUIRE_BROWSER':'1'}):
+            start.return_value.start.return_value=driver
+            with self.assertRaisesRegex(RuntimeError, 'synthetic browser unavailable'):
+                RequiredFixture.setUpClass()
+        driver.stop.assert_called_once()
 
 if __name__ == '__main__': unittest.main()

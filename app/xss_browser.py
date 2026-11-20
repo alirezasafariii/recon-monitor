@@ -21,6 +21,7 @@ from pathlib import Path
 from core import AppPaths, Config, Database, PolicySet, ReconError, atomic_write_text, utc_now
 from family_analyzers.dom_xss import analyze_dom_xss_signal
 from family_analyzers.phase2_expansion import PHASE2_ANALYZER_TYPES, analyze_phase2_family
+from xss_browser_http import decode_entity, decode_text
 from xss_browser_encodings import DEFAULT_ENCODINGS, ENCODINGS, encode, carries, reflected
 from xss_browser_probes import PROBE_NAMES, INPUT_SOURCES, CLIENT_ONLY, probes as build_probes, source_script
 from safe_transport import build_pinned_opener, resolve_public_addresses
@@ -172,7 +173,7 @@ class Broker:
                    'probe_sent': carries(url, request.post_data or '', self.probe_value), 'role': role}
             self.records.append(rec)  # Reserve before connecting, including failed requests.
             headers = request.all_headers()
-            headers.pop('accept-encoding', None)
+            headers['accept-encoding'] = 'identity'
             headers.pop('content-length', None)
             req = urllib.request.Request(url, data=request.post_data_buffer, headers=headers, method=method)
             try:
@@ -188,8 +189,10 @@ class Broker:
                     if not chunk:
                         break
                     chunks.append(chunk)
-                raw = b''.join(chunks)
-                self.bytes += len(raw)
+                wire = b''.join(chunks)
+                self.bytes += len(wire)
+                raw = decode_entity(wire, response.headers.get('Content-Encoding', ''), self.check)
+                text, charset = decode_text(raw, response.headers)
                 out_headers = {k.lower(): v for k, v in response.headers.items()}
                 location = response.headers.get('Location')
                 if 300 <= response.code < 400 and location:
@@ -202,7 +205,8 @@ class Broker:
                 for key in list(out_headers):
                     if key.lower() in {'content-length', 'transfer-encoding', 'content-encoding', 'connection'}:
                         out_headers.pop(key)
-                rec.update(status=response.code, sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw))
+                rec.update(status=response.code, sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw),
+                    wire_sha256=hashlib.sha256(wire).hexdigest(), wire_bytes=len(wire), response_charset=charset)
                 if request.is_navigation_request() and request.frame == request.frame.page.main_frame:
                     if 300 <= response.code < 400 and location:
                         if response.code in {307, 308} and method not in {'GET', 'HEAD'}:
@@ -212,7 +216,7 @@ class Broker:
                         self.error = 'main_document_http_' + str(response.code)
                 if request.is_navigation_request() or request.resource_type in {'fetch', 'xhr'}:
                     self.documents.append({'page_id': id(request.frame.page), 'role': role, 'request_id': rid, 'request_url': url, 'response_url': url,
-                        'response_text': raw.decode('utf-8', errors='replace'),
+                        'response_text': text, 'response_charset': charset,
                         'content_type': response.headers.get('Content-Type', ''),
                         'csp': response.headers.get('Content-Security-Policy', ''), 'phase': self.phase,
                         'body_has_probe': carries(url, request.post_data or '', self.probe_value)})
@@ -503,6 +507,7 @@ def _run(paths, db, plan, *, analysis_id, allow_active=False, verify=False, allo
                 report['browser_version'] = browser.version
                 report['hook_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_hooks.js').read_bytes()).hexdigest()
                 report['probe_module_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_probes.py').read_bytes()).hexdigest()
+                report['http_decoder_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_http.py').read_bytes()).hexdigest()
                 report['encoding_module_sha256'] = hashlib.sha256(Path(__file__).with_name('xss_browser_encodings.py').read_bytes()).hexdigest()
                 report['coverage_profile'] = {'version': VERSION, 'sources': list(INPUT_SOURCES), 'probes': list(PROBE_NAMES), 'default_encodings': DEFAULT_ENCODINGS}
                 for test in plan['tests']:
