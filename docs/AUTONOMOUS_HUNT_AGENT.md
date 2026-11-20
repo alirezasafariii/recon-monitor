@@ -86,7 +86,7 @@ engine contracts remain independent of Agent execution.
 2. Run the existing immutable-input Analysis engine for the exact target/Run.
 3. Rank available Investigation Queue clusters and link their existing cases.
 4. Perform candidate-scoped offline provenance validation.
-5. Optionally execute **already approved** passive-live plans with `--allow-live`.
+5. After successful completion of offline validation, optionally execute **already approved** passive-live plans with `--allow-live`.
 6. Produce evidence-linked case drafts and a mission report.
 
 The planner sees only offered action IDs, tool names, family/category metadata,
@@ -132,3 +132,8 @@ unlimited continuation, stop during planning, crash recovery, invalid model acti
 data minimization. Tests use synthetic fixtures and do not scan external targets.
 Native provider quality requires a configured local/cloud model; mocked provider
 protocol tests do not establish live model accuracy or successful bounty reports.
+
+Engine status is retained in step results. A safety stop, partial or failed
+validation cannot make the mission appear fully completed. Failed offline
+validation does not schedule live work; later live case state is not overwritten
+by an offline step scheduled afterward.

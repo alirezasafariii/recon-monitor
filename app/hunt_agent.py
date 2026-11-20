@@ -132,10 +132,13 @@ def actions_for(db: Database, data: dict) -> list[dict]:
             actions.append({"id": aid, "tool": "investigate", "cluster_id": str(item["cluster_id"]),
                             "priority": int(item.get("queue_score") or 0),
                             "family": str(item.get("primary_family") or "unknown")[:80]})
+    completed = {s["action_id"] for s in data["steps"] if s["status"] == "completed"}
     live_pending = set()
     if options["allow_live"] and not options["offline"]:
         from safe_validation import MAX_REQUESTS
         for cid in state["cases"]:
+            if "validate:" + cid not in completed:
+                continue
             for row in db.all("SELECT plan_id,plan_json FROM validation_plans WHERE case_id=? AND target=? AND level='passive_live' AND status='approved'", (cid, data["target"])):
                 count = min(MAX_REQUESTS, len(json.loads(row[1]).get("requests", [])))
                 if "live:" + row[0] not in done and count:
@@ -220,7 +223,7 @@ def execute_action(paths: AppPaths, db: Database, data: dict, action: dict, rema
         from safe_validation import create_validation_plan, execute_validation_plan
         plan = create_validation_plan(paths, db, cid, requested_level="offline", actor=ACTOR)
         result = execute_validation_plan(paths, Config(paths), db, plan["plan_id"], actor=ACTOR)
-        return {"case_id": cid, "validation_run": result["run_id"], "result": result["result"], "network_requests": 0}
+        return {"case_id": cid, "validation_run": result["run_id"], "result": result["result"], "network_requests": 0, "engine_status": result.get("status", "completed")}
     if tool == "live":
         if data["options"]["offline"] or not data["options"]["allow_live"]:
             raise ReconError("Mission does not permit live validation")
@@ -236,7 +239,7 @@ def execute_action(paths: AppPaths, db: Database, data: dict, action: dict, rema
         # reservation, including when the process is killed before returning.
         save(db, data, "running")
         result = execute_validation_plan(paths, Config(paths), db, action["plan_id"], allow_live=True, actor=ACTOR)
-        return {"case_id": cid, "validation_run": result["run_id"], "result": result["result"], "network_requests": result.get("network_requests", 0)}
+        return {"case_id": cid, "validation_run": result["run_id"], "result": result["result"], "network_requests": result.get("network_requests", 0), "engine_status": result.get("status", "completed")}
     if tool == "report":
         from workspace_v7 import build_evidence_linked_report
         result = build_evidence_linked_report(db, cid, actor=ACTOR)
@@ -266,6 +269,20 @@ def export_report(paths: AppPaths, db: Database, mid: str) -> dict:
     markdown = directory / "mission.md"
     atomic_write_text(markdown, "\n".join(lines) + "\n", 0o600)
     return {"mission_id": mid, "status": data["status"], "json": str(path), "markdown": str(markdown)}
+
+
+def action_status(action: dict, result: dict) -> str:
+    if action["tool"] == "recon" and not result.get("collection_complete") or result.get("browser_incomplete"):
+        return "partial"
+    engine_status = result.get("engine_status")
+    if engine_status in {"failed", "error"}:
+        return "failed"
+    if engine_status in {"running", "uncertain"}:
+        return "uncertain"
+    if (engine_status and engine_status not in {"completed", "success", "succeeded"}
+            or result.get("result") == "stopped_for_safety"):
+        return "partial"
+    return "completed"
 
 
 def run_mission(paths: AppPaths, db: Database, mid: str, *, planner=None, progress=None) -> dict:
@@ -329,7 +346,7 @@ def run_mission(paths: AppPaths, db: Database, mid: str, *, planner=None, progre
                 db.execute("INSERT INTO hunt_steps(mission_id,step_number,action_id,tool,status,started_at) VALUES(?,?,?,?,'running',?)", (mid, number, action["id"], action["tool"], utc_now()))
                 try:
                     result = execute_action(paths, db, data, action, remaining)
-                    status = "partial" if action["tool"] == "recon" and not result.get("collection_complete") else "completed"
+                    status = action_status(action, result)
                 except (KeyboardInterrupt, InterruptedError):
                     db.execute("UPDATE hunt_steps SET status=?,finished_at=? WHERE mission_id=? AND step_number=?",
                                ("uncertain" if action["tool"] == "live" else "interrupted", utc_now(), mid, number))
